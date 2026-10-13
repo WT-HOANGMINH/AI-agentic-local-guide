@@ -1,9 +1,12 @@
+
 from fastapi import FastAPI
 from sqlalchemy import text
 
 from backend.database import engine, Base
 from backend.models.user import User
+from backend.models.place import Place
 from backend.routes.auth import router as auth_router
+from backend.routes.places import router as places_router
 
 
 app = FastAPI(
@@ -12,9 +15,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+# Đăng ký các API
 app.include_router(auth_router)
+app.include_router(places_router)
 
 
+# Tạo các bảng nếu chưa tồn tại
 Base.metadata.create_all(bind=engine)
 
 
@@ -43,8 +50,8 @@ def database_test():
             "database": "MySQL connected successfully"
         }
 
-    except Exception as e:
+    except Exception:
         return {
             "status": "ERROR",
-            "message": str(e)
+            "message": "Unable to connect to the database"
         }

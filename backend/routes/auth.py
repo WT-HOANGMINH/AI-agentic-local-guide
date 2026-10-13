@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -6,6 +7,7 @@ from backend.database import get_db
 from backend.models.user import User
 from backend.schemas.user import UserRegister, UserResponse
 from backend.schemas.auth import LoginRequest, LoginResponse
+from backend.services.auth_service import create_access_token
 
 
 router = APIRouter(
@@ -84,10 +86,28 @@ def login(
             detail="Invalid email or password"
         )
 
+    access_token = create_access_token({
+        "sub": str(user.id),
+        "username": user.username,
+        "role": user.role
+    })
+
     return {
-        "access_token": "temporary-token",
+        "access_token": access_token,
         "token_type": "bearer",
         "user_id": user.id,
         "username": user.username,
         "role": user.role
+    }
+from fastapi import Depends
+from backend.auth_utils import get_current_user
+
+
+@router.get("/me")
+def read_current_user(
+    current_user: dict = Depends(get_current_user)
+):
+    return {
+        "message": "Authenticated successfully",
+        "user": current_user
     }
