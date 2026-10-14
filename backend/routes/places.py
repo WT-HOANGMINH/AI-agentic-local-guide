@@ -77,7 +77,7 @@ def get_places(
 
 
 # API 2: Tim dia diem gan toa do nguoi dung
-# Khai bao truoc API /{place_id} de tranh trung route
+# Phai dat truoc API /{place_id}
 @router.get("/nearby")
 def get_nearby_places(
     latitude: float = Query(
@@ -98,6 +98,10 @@ def get_nearby_places(
         le=100,
         description="Search radius in kilometers"
     ),
+    category: str | None = Query(
+        default=None,
+        description="Filter by category, e.g. restaurant or cafe"
+    ),
     db: Session = Depends(get_db)
 ):
     # Tinh khoang cach bang cong thuc Haversine
@@ -114,22 +118,26 @@ def get_nearby_places(
             * sin(dlon / 2) ** 2
         )
 
-        # Gioi han a de tranh loi sai so so thuc
+        # Gioi han a trong khoang 0 den 1 de tranh loi so thuc
         a = max(0.0, min(1.0, a))
 
         c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
         return earth_radius * c
 
-    places = (
-        db.query(Place)
-        .filter(
-            Place.is_active == True,
-            Place.latitude.isnot(None),
-            Place.longitude.isnot(None)
-        )
-        .all()
+    query = db.query(Place).filter(
+        Place.is_active == True,
+        Place.latitude.isnot(None),
+        Place.longitude.isnot(None)
     )
+
+    # Loc theo danh muc neu nguoi dung yeu cau
+    if category:
+        query = query.filter(
+            Place.category == category.strip().lower()
+        )
+
+    places = query.all()
 
     nearby_places = []
 
@@ -155,12 +163,13 @@ def get_nearby_places(
                 "distance_km": round(distance, 2)
             })
 
-    # Sap xep dia diem tu gan den xa
+    # Sap xep tu gan den xa
     nearby_places.sort(key=lambda item: item["distance_km"])
 
     return {
         "total": len(nearby_places),
         "radius_km": radius_km,
+        "category": category.strip().lower() if category else None,
         "places": nearby_places
     }
 
