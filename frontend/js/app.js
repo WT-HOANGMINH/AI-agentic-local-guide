@@ -3,7 +3,7 @@
 // ============================================
 
 import { initAuth } from "./auth.js";
-import { initMap, resetMapView, locateUser, toggleTourRoute, toggleSonTraArea } from "./map.js?v=20261015_01";
+import { initMap, resetMapView, locateUser, toggleTourRoute, toggleSonTraArea } from "./map.js";
 import { initPlaces, setQuickSearch } from "./places.js";
 import { QUICK_TAGS } from "./config.js";
 

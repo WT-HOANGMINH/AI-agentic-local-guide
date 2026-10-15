@@ -32,13 +32,33 @@ export function initMap(containerId = "map") {
         scrollWheelZoom: true
     }).setView([DA_NANG.lat, DA_NANG.lng], DA_NANG.defaultZoom);
 
-    // Lớp bản đồ nền OpenStreetMap chất lượng cao
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
-        maxZoom: 19
+    // Lớp bản đồ Google Maps (Đầy đủ tiếng Việt, đường phố, sông Hàn & bờ biển Đà Nẵng sắc nét)
+    const googleMap = L.tileLayer("https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        attribution: '&copy; Google Maps',
+        maxZoom: 20
     }).addTo(mapInstance);
 
-    // Layer nhóm chứa các marker địa điểm
+    // Lớp bản đồ OpenStreetMap
+    const osmMap = L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+        subdomains: "abc",
+        maxZoom: 19
+    });
+
+    // Lớp bản đồ Vệ tinh (Esri World Imagery)
+    const satelliteMap = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 18
+    });
+
+    // Thêm hộp chọn lớp bản đồ ở góc trên bên phải
+    L.control.layers({
+        "🗺️ Bản đồ Google Maps": googleMap,
+        "📍 Bản đồ Du lịch OSM": osmMap,
+        "🛰️ Bản đồ Vệ tinh": satelliteMap
+    }, null, { position: "topright" }).addTo(mapInstance);
+
+    // Layer nhóm chứa các marker địa điểm Đà Nẵng
     markerLayer = L.layerGroup().addTo(mapInstance);
 
     // Layer nhóm chứa vị trí người dùng
@@ -208,10 +228,25 @@ let isAreaActive = false;
  */
 export function resetMapView() {
     if (!mapInstance) return;
+    mapInstance.invalidateSize();
     mapInstance.flyTo([DA_NANG.lat, DA_NANG.lng], DA_NANG.defaultZoom, {
-        duration: 1.2
+        duration: 1.0
     });
     mapInstance.closePopup();
+
+    if (routeLayer && isRouteActive) {
+        routeLayer.clearLayers();
+        isRouteActive = false;
+        const btn = document.getElementById("toggleRouteBtn");
+        if (btn) btn.classList.remove("active");
+    }
+    if (areaLayer && isAreaActive) {
+        areaLayer.clearLayers();
+        isAreaActive = false;
+        const btn = document.getElementById("toggleAreaBtn");
+        if (btn) btn.classList.remove("active");
+    }
+    showToast("Đã quay về trung tâm Đà Nẵng!", "info", 2000);
 }
 
 /**
