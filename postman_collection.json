@@ -1,0 +1,456 @@
+{
+  "info": {
+    "_postman_id": "da-nang-local-guide-v1",
+    "name": "Agentic AI Local Guide - Da Nang API Collection",
+    "description": "Bộ sưu tập Postman hoàn chỉnh cho dự án Agentic AI Local Guide (Đà Nẵng). Bao gồm: Xác thực JWT, Quản trị POI (Admin), Sở thích người dùng, AI Agent Gợi ý du lịch, và Lập lịch trình chuyến đi.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Đăng ký tài khoản (Register)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"traveler_danang\",\n  \"email\": \"traveler@example.com\",\n  \"password\": \"securePass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Đăng nhập Admin (Login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('token', jsonData.access_token);",
+                  "    console.log('Token updated successfully');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@localguide.vn\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Lấy thông tin tài khoản hiện tại (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Places & POI (Public)",
+      "item": [
+        {
+          "name": "Tìm kiếm & Lọc danh sách địa điểm",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/places/?keyword=Cầu&category=tourist_attraction&max_price=3&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", ""],
+              "query": [
+                { "key": "keyword", "value": "Cầu" },
+                { "key": "category", "value": "tourist_attraction" },
+                { "key": "max_price", "value": "3" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tìm địa điểm lân cận theo tọa độ GPS",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/places/nearby?latitude=16.0611&longitude=108.2272&radius_km=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "nearby"],
+              "query": [
+                { "key": "latitude", "value": "16.0611" },
+                { "key": "longitude", "value": "108.2272" },
+                { "key": "radius_km", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Xem chi tiết địa điểm theo ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/places/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Admin POI Management",
+      "item": [
+        {
+          "name": "Thống kê tổng quan POI Đà Nẵng",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/places/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "admin", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách toàn bộ POI (Kể cả đã ẩn)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/places/admin/all?status=all&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "admin", "all"],
+              "query": [
+                { "key": "status", "value": "all" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tạo mới địa điểm du lịch (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Chùa Linh Ứng Bãi Bụt\",\n  \"category\": \"tourist_attraction\",\n  \"address\": \"Bán đảo Sơn Trà, P. Thọ Quang, Q. Sơn Trà, Đà Nẵng\",\n  \"description\": \"Ngôi chùa lớn nhất Đà Nẵng với tượng Phật Quan Thế Âm cao 67m hướng nhìn ra biển.\",\n  \"latitude\": 16.1001,\n  \"longitude\": 108.2778,\n  \"price_level\": 1,\n  \"opening_hours\": \"06:00 - 20:30\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/places/",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", ""]
+            }
+          }
+        },
+        {
+          "name": "Cập nhật địa điểm du lịch (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_level\": 2,\n  \"opening_hours\": \"06:00 - 21:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/places/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "1"]
+            }
+          }
+        },
+        {
+          "name": "Bật/Tắt trạng thái hiển thị POI (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/places/1/toggle-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "1", "toggle-status"]
+            }
+          }
+        },
+        {
+          "name": "Xóa hoặc Ẩn địa điểm (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/places/1?permanent=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["places", "1"],
+              "query": [
+                { "key": "permanent", "value": "false" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. User Preferences",
+      "item": [
+        {
+          "name": "Lấy hồ sơ sở thích cá nhân",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/preferences/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["preferences", "me"]
+            }
+          }
+        },
+        {
+          "name": "Cập nhật hồ sơ sở thích",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"favorite_categories\": [\"tourist_attraction\", \"cafe\", \"restaurant\"],\n  \"preferred_price_level\": 3,\n  \"dietary_preferences\": \"Hải sản, không cay\",\n  \"travel_style\": \"Khám phá, chụp ảnh check-in\",\n  \"interests\": [\"Biển Mỹ Khê\", \"Cầu Rồng\", \"Cà phê view đẹp\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/preferences/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["preferences", "me"]
+            }
+          }
+        },
+        {
+          "name": "Xóa hồ sơ sở thích",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/preferences/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["preferences", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. AI Recommendations",
+      "item": [
+        {
+          "name": "Hỏi đáp & Gợi ý với AI Agent (LangGraph + Gemini)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Tôi muốn đi ngắm hoàng hôn và uống cafe gần bãi biển Mỹ Khê tối nay\",\n  \"use_preferences\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "chat"]
+            }
+          }
+        },
+        {
+          "name": "Gợi ý cá nhân hóa theo hồ sơ sở thích",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/for-me?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "for-me"],
+              "query": [
+                { "key": "limit", "value": "6" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Địa điểm thịnh hành tại Đà Nẵng",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/trending?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "trending"],
+              "query": [
+                { "key": "limit", "value": "6" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Trip Itineraries (Lịch trình chuyến đi)",
+      "item": [
+        {
+          "name": "AI Smart Planner: Tự động lập lịch trình tối ưu",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days\": 3,\n  \"budget_level\": 3,\n  \"travel_style\": \"Khám phá & Check-in\",\n  \"preferred_categories\": [\"tourist_attraction\", \"cafe\", \"restaurant\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/generate-smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", "generate-smart"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách lịch trình của tôi",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", ""],
+              "query": [
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Xem chi tiết một lịch trình",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", "1"]
+            }
+          }
+        },
+        {
+          "name": "Thêm điểm dừng chân vào lịch trình",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"place_id\": 1,\n  \"day_number\": 1,\n  \"order_index\": 1,\n  \"time_slot\": \"08:30 - 10:30\",\n  \"notes\": \"Chụp ảnh cầu Rồng buổi sáng sớm\",\n  \"estimated_cost\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/1/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", "1", "items"]
+            }
+          }
+        },
+        {
+          "name": "Xóa điểm dừng chân khỏi lịch trình",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/1/items/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", "1", "items", "1"]
+            }
+          }
+        },
+        {
+          "name": "Xóa toàn bộ lịch trình",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/itineraries/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["itineraries", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

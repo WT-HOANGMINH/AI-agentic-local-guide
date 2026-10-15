@@ -1,404 +1,53 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+/* ============================================
+   AGENTIC AI LOCAL GUIDE - MAIN STYLESHEET
+   ============================================ */
+/* Kiến trúc CSS được phân tách theo module chuẩn công nghiệp:
+   - css/base.css: Biến màu sắc, Typography, Reset, Layout
+   - css/topbar.css: Header Topbar, Brand, User Profile, Nút Auth
+   - css/search.css: Thanh tìm kiếm, Bộ lọc, Danh sách & Thẻ địa điểm
+   - css/map.css: Bản đồ Leaflet, Custom Pin Markers, Popups
+   - css/modal.css: Modal Dialog Đăng nhập / Đăng ký, Form Inputs
+   - css/toast.css: Thông báo Toast nổi
+*/
 
-:root {
-    --primary: #147d64;
-    --primary-dark: #0b5d4a;
-    --background: #f5f7f5;
-    --text: #1c2925;
-    --muted: #77847e;
-    --border: #e5eae6;
-    --white: #ffffff;
-}
+@import url("./css/base.css");
+@import url("./css/topbar.css");
+@import url("./css/search.css");
+@import url("./css/map.css");
+@import url("./css/modal.css");
+@import url("./css/toast.css");
 
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: 'Be Vietnam Pro', Arial, sans-serif;
-    background: var(--background);
-    color: var(--text);
-}
-
-button,
-input,
-select {
-    font: inherit;
-}
-
-button,
-a {
-    -webkit-tap-highlight-color: transparent;
-}
-
-.topbar {
-    height: 72px;
+/* Footer trang web */
+.app-footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 5%;
-    background: var(--white);
-    border-bottom: 1px solid var(--border);
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--text);
-    font-size: 21px;
-    font-weight: 800;
-    text-decoration: none;
-}
-
-.brand-icon {
-    width: 36px;
-    height: 36px;
-    display: grid;
-    place-items: center;
-    border-radius: 11px;
-    color: white;
-    background: var(--primary);
-}
-
-.brand-highlight {
-    color: var(--primary);
-}
-
-.topbar-location {
-    color: var(--muted);
-    font-size: 13px;
-}
-
-.api-link {
-    color: var(--primary);
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-}
-
-.layout {
-    max-width: 1600px;
-    min-height: calc(100vh - 125px);
-    margin: auto;
-    padding: 28px 5%;
-    display: grid;
-    grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
-    gap: 28px;
-}
-
-.sidebar,
-.map-section {
-    min-width: 0;
-}
-
-.intro {
-    margin-bottom: 26px;
-}
-
-.eyebrow {
-    color: var(--primary);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-}
-
-.intro h1 {
-    margin: 12px 0;
-    font-size: clamp(27px, 3vw, 37px);
-    line-height: 1.35;
-    letter-spacing: -1.3px;
-}
-
-.intro h1 span {
-    color: var(--primary);
-}
-
-.intro p {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.9;
-}
-
-.search-box,
-.filters {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    margin-bottom: 18px;
-}
-
-.search-box label,
-.filters label {
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.search-box input,
-.filters select {
-    width: 100%;
-    min-height: 46px;
-    padding: 0 13px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    outline: none;
-    background: var(--white);
-    color: var(--text);
-    font-size: 13px;
-}
-
-.search-box input:focus,
-.filters select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px #147d6418;
-}
-
-.primary-button {
-    width: 100%;
-    min-height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border: none;
-    border-radius: 10px;
-    background: var(--primary);
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.primary-button:hover {
-    background: var(--primary-dark);
-}
-
-.primary-button span {
-    font-size: 22px;
-}
-
-.results-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 29px 0 15px;
-}
-
-.results-heading h2,
-.map-heading h2 {
-    margin: 0;
-    font-size: 16px;
-}
-
-.results-heading > span {
-    flex-shrink: 0;
-    color: var(--muted);
-    font-size: 11px;
-}
-
-.place-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.place-card {
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    background: var(--white);
-    cursor: pointer;
-    transition: border-color 0.2s, transform 0.2s;
-}
-
-.place-card:hover {
-    border-color: var(--primary);
-    transform: translateY(-2px);
-}
-
-.place-card h3 {
-    margin: 0 0 8px;
-    font-size: 14px;
-}
-
-.place-category {
-    display: inline-block;
-    margin-bottom: 8px;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: #e9f5ef;
-    color: var(--primary-dark);
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.place-card p {
-    margin: 5px 0;
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 1.7;
-    overflow-wrap: anywhere;
-}
-
-.place-card .place-description {
-    color: #47564f;
-    font-size: 12px;
-}
-
-.loading,
-.empty-state {
-    padding: 24px 12px;
-    color: var(--muted);
-    text-align: center;
-    font-size: 13px;
-    line-height: 1.8;
-}
-
-.error-message {
-    margin-top: 14px;
-    padding: 12px;
-    border-radius: 9px;
-    background: #fff0ed;
-    color: #a73525;
-    font-size: 12px;
-    line-height: 1.7;
-    overflow-wrap: anywhere;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.map-section {
-    display: flex;
-    flex-direction: column;
-}
-
-.map-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 17px;
-}
-
-.map-heading h2 {
-    margin-top: 7px;
-    font-size: 21px;
-}
-
-.secondary-button {
-    min-height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: white;
-    color: var(--text);
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.secondary-button:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-#map {
-    width: 100%;
-    height: 590px;
-    min-height: 360px;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    z-index: 1;
-    background: #e8eee9;
-}
-
-.map-footer {
-    display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-    color: var(--muted);
-    font-size: 10px;
-}
-
-.status-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 5px;
-    border-radius: 50%;
-    background: #27a477;
-}
-
-footer {
-    display: flex;
-    justify-content: space-between;
     gap: 12px;
-    padding: 18px 5%;
+    padding: 18px clamp(16px, 4vw, 36px);
     border-top: 1px solid var(--border);
-    background: white;
-    color: var(--muted);
-    font-size: 11px;
+    background: #ffffff;
+    color: var(--text-muted);
+    font-size: 12px;
 }
 
-@media (max-width: 900px) {
-    .layout {
-        grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-        order: 2;
-    }
-
-    .map-section {
-        order: 1;
-    }
-
-    #map {
-        height: 430px;
-    }
-
-    .intro h1 {
-        font-size: 32px;
-    }
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-@media (max-width: 500px) {
-    .topbar {
-        height: 62px;
-        padding: 0 16px;
-    }
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
 
-    .brand {
-        font-size: 18px;
-    }
+.footer-link {
+    color: var(--text-muted);
+    font-weight: 500;
+}
 
-    .topbar-location {
-        display: none;
-    }
-
-    .layout {
-        padding: 22px 16px;
-        gap: 25px;
-    }
-
-    #map {
-        height: 350px;
-        min-height: 300px;
-    }
-
-    .map-heading h2 {
-        font-size: 18px;
-    }
-
-    footer {
-        padding: 16px;
-        font-size: 10px;
-    }
+.footer-link:hover {
+    color: var(--primary);
 }
