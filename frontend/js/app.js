@@ -3,7 +3,7 @@
 // ============================================
 
 import { initAuth } from "./auth.js";
-import { initMap, resetMapView, locateUser } from "./map.js";
+import { initMap, resetMapView, locateUser, toggleTourRoute, toggleSonTraArea } from "./map.js?v=20261015_01";
 import { initPlaces, setQuickSearch } from "./places.js";
 import { QUICK_TAGS } from "./config.js";
 
@@ -33,6 +33,7 @@ function initApp() {
  * Thiết lập các nút điều khiển bản đồ
  */
 function setupMapControls() {
+    // 1. Nút đặt lại góc nhìn bản đồ
     const resetMapBtn = document.getElementById("resetMapButton");
     if (resetMapBtn) {
         resetMapBtn.addEventListener("click", () => {
@@ -40,10 +41,29 @@ function setupMapControls() {
         });
     }
 
+    // 2. Nút định vị GPS và vẽ bán kính
     const locateMeBtn = document.getElementById("locateMeButton");
     if (locateMeBtn) {
         locateMeBtn.addEventListener("click", () => {
             locateUser();
+        });
+    }
+
+    // 3. Nút bật/tắt vẽ Lộ trình du lịch mẫu
+    const toggleRouteBtn = document.getElementById("toggleRouteBtn");
+    if (toggleRouteBtn) {
+        toggleRouteBtn.addEventListener("click", () => {
+            const isActive = toggleTourRoute();
+            toggleRouteBtn.classList.toggle("active", isActive);
+        });
+    }
+
+    // 4. Nút bật/tắt vẽ Ranh giới Bán đảo Sơn Trà
+    const toggleAreaBtn = document.getElementById("toggleAreaBtn");
+    if (toggleAreaBtn) {
+        toggleAreaBtn.addEventListener("click", () => {
+            const isActive = toggleSonTraArea();
+            toggleAreaBtn.classList.toggle("active", isActive);
         });
     }
 }

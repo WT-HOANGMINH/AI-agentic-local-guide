@@ -152,7 +152,15 @@
                     <span class="map-subtitle">Khám phá trực quan các địa điểm</span>
                 </div>
                 <div class="map-actions">
-                    <button type="button" id="locateMeButton" class="btn-map-control" title="Xem vị trí hiện tại của tôi">
+                    <button type="button" id="toggleRouteBtn" class="btn-map-control" title="Vẽ lộ trình du lịch Đà Nẵng mẫu">
+                        <span>🗺️</span>
+                        <span>Lộ trình Tour</span>
+                    </button>
+                    <button type="button" id="toggleAreaBtn" class="btn-map-control" title="Vẽ ranh giới Bán đảo Sơn Trà">
+                        <span>⛰️</span>
+                        <span>Vùng Sơn Trà</span>
+                    </button>
+                    <button type="button" id="locateMeButton" class="btn-map-control" title="Xem vị trí hiện tại của tôi kèm bán kính">
                         <span>📍</span>
                         <span>Vị trí của tôi</span>
                     </button>
@@ -368,6 +376,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Khởi chạy ứng dụng với ES Module -->
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js?v=20261015_01"></script>
 </body>
 </html>

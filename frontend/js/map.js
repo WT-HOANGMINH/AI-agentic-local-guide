@@ -198,6 +198,14 @@ export function focusPlace(lat, lng, zoom = 15, placeId = null) {
 /**
  * Đặt lại góc nhìn bản đồ về trung tâm Đà Nẵng
  */
+let routeLayer = null;
+let areaLayer = null;
+let isRouteActive = false;
+let isAreaActive = false;
+
+/**
+ * Đặt lại góc nhìn bản đồ về trung tâm Đà Nẵng
+ */
 export function resetMapView() {
     if (!mapInstance) return;
     mapInstance.flyTo([DA_NANG.lat, DA_NANG.lng], DA_NANG.defaultZoom, {
@@ -207,7 +215,7 @@ export function resetMapView() {
 }
 
 /**
- * Định vị GPS người dùng hiện tại và ghim lên bản đồ
+ * Định vị GPS người dùng hiện tại và vẽ vòng tròn bán kính tìm kiếm quanh vị trí
  * @param {(lat: number, lng: number) => void} onSuccessCallback 
  */
 export function locateUser(onSuccessCallback = null) {
@@ -226,6 +234,17 @@ export function locateUser(onSuccessCallback = null) {
             if (userLocationLayer) {
                 userLocationLayer.clearLayers();
 
+                // 1. Vẽ vòng tròn bán kính tìm kiếm lân cận (3km)
+                const searchRadiusCircle = L.circle([lat, lng], {
+                    radius: 3000, // 3000m = 3km
+                    color: "#0284c7",
+                    weight: 2,
+                    dashArray: "6, 6",
+                    fillColor: "#38bdf8",
+                    fillOpacity: 0.12
+                }).addTo(userLocationLayer);
+
+                // 2. Vẽ marker vị trí người dùng
                 const userIcon = L.divIcon({
                     className: "user-gps-marker",
                     html: `
@@ -237,14 +256,19 @@ export function locateUser(onSuccessCallback = null) {
                 });
 
                 const userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(userLocationLayer);
-                userMarker.bindPopup("<strong>📍 Vị trí hiện tại của bạn</strong>").openPopup();
+                userMarker.bindPopup(`
+                    <div style="padding: 4px; font-size: 13px;">
+                        <strong style="color: #0284c7;">📍 Vị trí hiện tại của bạn</strong>
+                        <p style="margin: 4px 0 0; color: #64748b; font-size: 11.5px;">Bán kính tìm kiếm khám phá xung quanh: <strong>3 km</strong></p>
+                    </div>
+                `).openPopup();
             }
 
             if (mapInstance) {
-                mapInstance.flyTo([lat, lng], 15, { duration: 1.2 });
+                mapInstance.flyTo([lat, lng], 14, { duration: 1.2 });
             }
 
-            showToast("Đã xác định vị trí của bạn!", "success");
+            showToast("Đã xác định vị trí & vẽ vùng bán kính 3km quanh bạn!", "success");
 
             if (typeof onSuccessCallback === "function") {
                 onSuccessCallback(lat, lng);
@@ -264,4 +288,166 @@ export function locateUser(onSuccessCallback = null) {
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
+}
+
+/**
+ * Bật/Tắt vẽ Lộ Trình Du Lịch Đà Nẵng mẫu (L.polyline)
+ * @returns {boolean} Trạng thái hiển thị mới
+ */
+export function toggleTourRoute() {
+    if (!mapInstance) return false;
+
+    if (!routeLayer) {
+        routeLayer = L.layerGroup().addTo(mapInstance);
+    }
+
+    if (isRouteActive) {
+        routeLayer.clearLayers();
+        isRouteActive = false;
+        showToast("Đã ẩn lộ trình du lịch.", "info");
+        return false;
+    }
+
+    // Danh sách 5 điểm dừng chân tiêu biểu của chuyến khám phá Đà Nẵng 1 ngày
+    const tourWaypoints = [
+        {
+            order: 1,
+            name: "Cầu Rồng Đà Nẵng",
+            time: "08:30 - 09:30",
+            coords: [16.0611, 108.2272],
+            desc: "Khởi hành chụp ảnh biểu tượng Cầu Rồng và bờ sông Hàn."
+        },
+        {
+            order: 2,
+            name: "Chợ Hàn Đà Nẵng",
+            time: "10:00 - 11:30",
+            coords: [16.0678, 108.2241],
+            desc: "Mua sắm quà lưu niệm & thưởng thức đặc sản miền Trung."
+        },
+        {
+            order: 3,
+            name: "Bãi biển Mỹ Khê",
+            time: "14:30 - 16:30",
+            coords: [16.0592, 108.2435],
+            desc: "Dạo biển, tắm mát và ngắm cảnh bờ biển đẹp nhất hành tinh."
+        },
+        {
+            order: 4,
+            name: "Chùa Linh Ứng Bãi Bụt (Sơn Trà)",
+            time: "17:00 - 18:30",
+            coords: [16.1001, 108.2778],
+            desc: "Chiêm bái tượng Phật Bà cao 67m ngắm hoàng hôn vịnh Đà Nẵng."
+        },
+        {
+            order: 5,
+            name: "Danh thắng Ngũ Hành Sơn",
+            time: "19:00 - 21:00",
+            coords: [16.0042, 108.2618],
+            desc: "Khám phá quần thể hang động và làng đá mỹ nghệ Non Nước."
+        }
+    ];
+
+    routeLayer.clearLayers();
+
+    // 1. Vẽ đường Polyline nối các điểm
+    const latlngs = tourWaypoints.map(wp => wp.coords);
+    const polyline = L.polyline(latlngs, {
+        color: "#0284c7",
+        weight: 5,
+        opacity: 0.85,
+        dashArray: "10, 8",
+        lineCap: "round",
+        lineJoin: "round"
+    }).addTo(routeLayer);
+
+    // 2. Thêm các waypoint markers đánh số 1, 2, 3, 4, 5
+    tourWaypoints.forEach(wp => {
+        const stepIcon = L.divIcon({
+            className: "tour-step-marker",
+            html: `
+                <div class="step-pin">
+                    <span class="step-num">${wp.order}</span>
+                </div>
+            `,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -18]
+        });
+
+        const m = L.marker(wp.coords, { icon: stepIcon }).addTo(routeLayer);
+        m.bindPopup(`
+            <div style="font-size: 13px; line-height: 1.4;">
+                <span style="display:inline-block; padding: 2px 8px; border-radius: 12px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 700; margin-bottom: 4px;">
+                    Chặng ${wp.order} • ${wp.time}
+                </span>
+                <h4 style="margin: 2px 0 6px; font-size: 14px; font-weight: 700; color: #0f172a;">${escapeHTML(wp.name)}</h4>
+                <p style="margin: 0; color: #475569; font-size: 12px;">${escapeHTML(wp.desc)}</p>
+            </div>
+        `);
+    });
+
+    // 3. Tự động căn chỉnh bao quát toàn bộ lộ trình
+    mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+    isRouteActive = true;
+    showToast("Đã vẽ Lộ trình Du lịch Đà Nẵng 1 ngày (5 chặng)! Nhấp vào từng số để xem chi tiết.", "success", 4000);
+    return true;
+}
+
+/**
+ * Bật/Tắt vẽ Ranh Giới Đa Giác Bán Đảo Sơn Trà (L.polygon)
+ * @returns {boolean} Trạng thái hiển thị mới
+ */
+export function toggleSonTraArea() {
+    if (!mapInstance) return false;
+
+    if (!areaLayer) {
+        areaLayer = L.layerGroup().addTo(mapInstance);
+    }
+
+    if (isAreaActive) {
+        areaLayer.clearLayers();
+        isAreaActive = false;
+        showToast("Đã ẩn ranh giới Bán đảo Sơn Trà.", "info");
+        return false;
+    }
+
+    // Tọa độ đa giác bao quanh Bán đảo Sơn Trà
+    const sonTraBoundary = [
+        [16.095, 108.240],
+        [16.128, 108.225],
+        [16.148, 108.260],
+        [16.145, 108.305],
+        [16.115, 108.320],
+        [16.082, 108.285],
+        [16.088, 108.255]
+    ];
+
+    areaLayer.clearLayers();
+
+    const polygon = L.polygon(sonTraBoundary, {
+        color: "#059669",
+        weight: 3,
+        fillColor: "#10b981",
+        fillOpacity: 0.22,
+        dashArray: "6, 6"
+    }).addTo(areaLayer);
+
+    polygon.bindPopup(`
+        <div style="font-size: 13px; line-height: 1.45;">
+            <div style="display:inline-block; padding: 2px 8px; border-radius: 12px; background: #ecfdf5; color: #059669; font-size: 11px; font-weight: 700; margin-bottom: 6px;">
+                Khu bảo tồn thiên nhiên
+            </div>
+            <h4 style="margin: 0 0 6px; font-size: 15px; color: #064e3b; font-weight: 800;">⛰️ Bán Đảo Sơn Trà (Lá Phổi Xanh)</h4>
+            <p style="margin: 0 0 6px; color: #334155; font-size: 12px;">Diện tích hơn 4.400 ha rừng nguyên sinh, nơi cư ngụ của "Nữ hoàng linh trưởng" - loài Voọc Chà Vá Chân Nâu quý hiếm.</p>
+            <p style="margin: 0; color: #059669; font-size: 11.5px; font-weight: 600;">✨ Điểm nổi bật: Chùa Linh Ứng, Đỉnh Bàn Cờ, Cây Đa Ngàn Năm, Bãi Bụt, Bãi Rạng.</p>
+        </div>
+    `);
+
+    mapInstance.fitBounds(polygon.getBounds(), { padding: [40, 40] });
+    polygon.openPopup();
+
+    isAreaActive = true;
+    showToast("Đã vẽ ranh giới bảo tồn thiên nhiên Bán đảo Sơn Trà!", "success", 3500);
+    return true;
 }
