@@ -5,7 +5,7 @@
 // Base URL Backend API
 export const API_BASE_URL = (() => {
     // Nếu trang đang chạy trực tiếp từ backend (cùng origin)
-    if (window.location.port === "8000") {
+    if (window.location.port === "8000" || window.location.pathname.startsWith("/app")) {
         return window.location.origin;
     }
     // Mặc định kết nối tới FastAPI backend local

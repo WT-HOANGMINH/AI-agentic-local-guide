@@ -5,13 +5,16 @@
 import { initAuth } from "./auth.js";
 import { initMap, resetMapView, locateUser, toggleTourRoute, toggleSonTraArea } from "./map.js";
 import { initPlaces, setQuickSearch } from "./places.js";
-import { QUICK_TAGS } from "./config.js";
+import { API_BASE_URL, QUICK_TAGS } from "./config.js";
 
 /**
  * Khởi tạo toàn bộ ứng dụng
  */
 function initApp() {
     console.info("🚀 Khởi chạy Agentic AI Local Guide (Đà Nẵng)...");
+    document.querySelectorAll(".api-link, .footer-link").forEach(link => {
+        link.href = `${API_BASE_URL}/docs`;
+    });
 
     // 1. Khởi tạo bản đồ tương tác Leaflet
     initMap("map");

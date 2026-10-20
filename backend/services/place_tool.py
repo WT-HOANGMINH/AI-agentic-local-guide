@@ -1,5 +1,6 @@
+
 from langchain_core.tools import tool
-from sqlalchemy import select
+from sqlalchemy import select, case
 
 from backend.database import SessionLocal
 from backend.models.place import Place
@@ -21,45 +22,87 @@ def search_places(
         max_price: Maximum price level, from 1 to 5.
 
     Returns:
-        A list of matching places.
+        A list of matching places, prioritizing complete data.
     """
+
+    # Validate the requested budget.
+    try:
+        max_price = int(max_price)
+    except (TypeError, ValueError):
+        max_price = 5
+
+    max_price = max(1, min(max_price, 5))
+
+    keyword = (keyword or "").strip()
+    category = (category or "").strip()
 
     db = SessionLocal()
 
     try:
-        # Get active places from the database.
         query = select(Place).where(
             Place.is_active.is_(True)
         )
 
-        # Filter by keyword.
-        keyword = keyword.strip()
-
+        # Search by place name.
         if keyword:
             query = query.where(
                 Place.name.ilike(f"%{keyword}%")
             )
 
-        # Filter by category.
-        category = category.strip()
-
+        # Filter by exact category.
         if category:
             query = query.where(
                 Place.category == category
             )
 
-        # Filter by maximum price level.
+        # Enforce the maximum budget.
+        # Places with unknown prices are excluded.
         query = query.where(
-            (Place.price_level.is_(None))
-            | (Place.price_level <= max_price)
+            Place.price_level.is_not(None),
+            Place.price_level <= max_price,
         )
 
-        # Limit results to 20 places before executing the query.
+        # Prioritize records with coordinates and addresses.
+        data_completeness = (
+            case(
+                (
+                    Place.latitude.is_not(None)
+                    & Place.longitude.is_not(None),
+                    1,
+                ),
+                else_=0,
+            )
+            +
+            case(
+                (
+                    Place.address.is_not(None)
+                    & (Place.address != ""),
+                    1,
+                ),
+                else_=0,
+            )
+            +
+            case(
+                (
+                    Place.description.is_not(None)
+                    & (Place.description != ""),
+                    1,
+                ),
+                else_=0,
+            )
+        )
+
+        query = query.order_by(
+            data_completeness.desc(),
+            Place.price_level.asc(),
+            Place.name.asc(),
+        )
+
+        # Return at most 10 places per tool call.
         places = db.scalars(
-            query.limit(20)
+            query.limit(10)
         ).all()
 
-        # Convert database records into dictionaries.
         results = []
 
         for place in places:
@@ -78,5 +121,4 @@ def search_places(
         return results
 
     finally:
-        # Close the database session.
         db.close()
