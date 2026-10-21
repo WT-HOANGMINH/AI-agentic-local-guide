@@ -1,0 +1,14 @@
+warning: LF will be replaced by CRLF in training/data/intents_synthetic_eval.csv.
+The file will have its original line endings in your working directory.
+warning: LF will be replaced by CRLF in training/data/intents_synthetic_train.csv.
+The file will have its original line endings in your working directory.
+warning: LF will be replaced by CRLF in training/src/generate_dataset.py.
+The file will have its original line endings in your working directory.
+ training/data/intents_synthetic_eval.csv  |  6401 [32m+++[m
+ training/data/intents_synthetic_train.csv | 64001 [32m++++++++++++++++++++++++++++[m
+ training/models/intent_classifier.joblib  |   Bin [31m161751[m -> [32m6472566[m bytes
+ training/src/generate_dataset.py          |   608 [32m+[m
+ training/src/train_intent_v2.py           |   204 [32m+[m
+ 5 files changed, 71214 insertions(+)
+warning: LF will be replaced by CRLF in training/src/train_intent_v2.py.
+The file will have its original line endings in your working directory.

@@ -18,6 +18,9 @@ VALID_INTENTS = {
     "cafe",
     "itinerary",
     "transport",
+    "accommodation",
+    "weather",
+    "out_of_scope",
 }
 
 
