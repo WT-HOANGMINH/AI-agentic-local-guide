@@ -1,382 +1,195 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Agentic AI Local Guide - Trợ lý du lịch thông minh, tìm kiếm địa điểm ăn uống, tham quan và bản đồ tương tác tại Đà Nẵng">
-    <title>Agentic AI Local Guide | Khám Phá Đà Nẵng</title>
-    <link rel="icon" href="data:,">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DaNang Guide - Khám phá du lịch Đà Nẵng">
+  <title>DaNang Guide | Khám phá Đà Nẵng</title>
 
-    <!-- Leaflet CSS: Thư viện bản đồ tương tác -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-    <!-- CSS hợp nhất qua kiến trúc module sạch sẽ -->
-    <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
-    <!-- ============================================
-         THANH TOPBAR & QUẢN LÝ TÀI KHOẢN
-         ============================================ -->
-    <header class="topbar">
-        <div class="topbar-left">
-            <a class="brand" href="#" aria-label="Trang chủ LocalGuide">
-                <span class="brand-icon">✦</span>
-                <div class="brand-text">
-                    <span class="brand-title">Local<span class="brand-highlight">Guide</span></span>
-                    <span class="brand-tagline">AI Travel Companion</span>
-                </div>
-            </a>
+  <!-- THANH MENU -->
+  <div id="site-nav"></div>
 
-            <div class="topbar-location">
-                <span class="location-dot"></span>
-                <span>Đà Nẵng, Việt Nam</span>
+  <main class="container page">
+
+    <!-- BANNER CHÍNH -->
+    <section class="hero home-hero">
+      <div class="hero-content">
+        <span class="eyebrow text-white">
+          KHÁM PHÁ THÀNH PHỐ ĐÁNG SỐNG
+        </span>
+
+        <h1 class="hero-title">
+          Đà Nẵng trong<br>
+          tầm tay của bạn
+        </h1>
+
+        <p class="hero-description">
+          Tìm địa điểm thú vị, thưởng thức ẩm thực địa phương
+          và lên kế hoạch cho chuyến đi thật dễ dàng.
+        </p>
+
+        <!-- THANH TÌM KIẾM -->
+        <form class="travel-search" action="places.html" method="get">
+          <div class="search-item search-destination">
+            <span class="search-icon">⌕</span>
+            <div>
+              <label for="home-keyword">Bạn muốn đi đâu?</label>
+              <input
+                type="text"
+                id="home-keyword"
+                name="q"
+                placeholder="Địa điểm, khu vui chơi..."
+              >
             </div>
+          </div>
+
+          <div class="search-item">
+            <span class="search-icon">▦</span>
+            <div>
+              <label for="home-date">Chọn ngày đi</label>
+              <input type="date" id="home-date">
+            </div>
+          </div>
+
+          <div class="search-item">
+            <span class="search-icon">♙</span>
+            <div>
+              <label for="home-guests">Số người</label>
+              <select id="home-guests">
+                <option value="1">1 người</option>
+                <option value="2" selected>2 người</option>
+                <option value="3">3 người</option>
+                <option value="4">4 người</option>
+                <option value="5">5+ người</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="search-button">
+            Tìm kiếm →
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- CÁC TIỆN ÍCH -->
+    <section class="travel-features">
+      <a href="places.html" class="feature">
+        <span class="feature-icon">📍</span>
+        <div>
+          <strong>Địa điểm nổi bật</strong>
+          <small>Khám phá những điểm đến hấp dẫn</small>
+        </div>
+      </a>
+
+      <a href="places.html" class="feature">
+        <span class="feature-icon">🍜</span>
+        <div>
+          <strong>Ẩm thực Đà Nẵng</strong>
+          <small>Khám phá món ngon địa phương</small>
+        </div>
+      </a>
+
+      <a href="recommendations.html" class="feature">
+        <span class="feature-icon">📷</span>
+        <div>
+          <strong>Gợi ý trải nghiệm</strong>
+          <small>Lựa chọn phù hợp với sở thích</small>
+        </div>
+      </a>
+
+      <a href="map.html" class="feature">
+        <span class="feature-icon">🗺️</span>
+        <div>
+          <strong>Bản đồ du lịch</strong>
+          <small>Dễ tìm địa điểm, dễ di chuyển</small>
+        </div>
+      </a>
+    </section>
+
+    <!-- ĐỊA ĐIỂM NỔI BẬT -->
+    <section class="featured-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">KHÁM PHÁ ĐÀ NẴNG</div>
+          <h2 class="mb-0">Gợi ý dành cho bạn</h2>
+          <p class="muted mt-2 mb-0">
+            Những địa điểm thú vị dành cho chuyến đi của bạn.
+          </p>
         </div>
 
-        <div class="topbar-right">
-            <a class="api-link" href="http://127.0.0.1:8000/docs" target="_blank" rel="noopener">
-                <span>Backend API</span>
-                <span>↗</span>
-            </a>
+        <a href="places.html" class="view-all">
+          Xem tất cả →
+        </a>
+      </div>
 
-            <!-- Trạng thái chưa đăng nhập -->
-            <div id="authLoggedOut" class="auth-actions">
-                <button type="button" id="openLoginBtn" class="btn-auth-login">Đăng nhập</button>
-                <button type="button" id="openRegisterBtn" class="btn-auth-register">Đăng ký</button>
-            </div>
+      <div id="message"></div>
+      <div id="featured" class="row g-4"></div>
+    </section>
 
-            <!-- Trạng thái đã đăng nhập -->
-            <div id="authLoggedIn" class="auth-actions hidden">
-                <div class="user-profile-pill">
-                    <div class="user-avatar-circle" id="userAvatarText">U</div>
-                    <div class="user-info">
-                        <span class="user-name" id="userNameDisplay">Người dùng</span>
-                        <span class="role-badge" id="userRoleBadge">Thành viên</span>
-                    </div>
-                    <button type="button" id="logoutBtn" class="btn-logout" title="Đăng xuất khỏi tài khoản" aria-label="Đăng xuất">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+    <!-- KHÁM PHÁ THÊM -->
+    <section class="explore-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">ĐỒNG HÀNH CÙNG BẠN</div>
+          <h2>Khám phá theo cách của bạn</h2>
         </div>
-    </header>
+      </div>
 
-    <!-- ============================================
-         GIAO DIỆN CHÍNH (SIDEBAR TÌM KIẾM + BẢN ĐỒ)
-         ============================================ -->
-    <main class="layout">
-        <!-- SIDEBAR TÌM KIẾM VÀ DANH SÁCH ĐỊA ĐIỂM -->
-        <section class="sidebar">
-            <div class="intro">
-                <span class="eyebrow">YOUR LOCAL AI COMPANION</span>
-                <h1>Khám phá Đà Nẵng <span>theo cách của bạn.</span></h1>
-                <p>Tìm kiếm địa điểm tham quan đặc sắc, ẩm thực địa phương, quán cà phê và điểm vui chơi giải trí.</p>
-            </div>
-
-            <!-- Khối tìm kiếm & Bộ lọc -->
-            <div class="search-form-card">
-                <div class="search-input-wrapper">
-                    <span class="search-input-icon">🔍</span>
-                    <input
-                        type="text"
-                        id="searchInput"
-                        class="search-input"
-                        placeholder="Bạn muốn khám phá gì ở Đà Nẵng?"
-                        autocomplete="off"
-                    >
-                    <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Xóa tìm kiếm" aria-label="Xóa tìm kiếm">&times;</button>
-                </div>
-
-                <div class="filters-grid">
-                    <div class="filter-group">
-                        <label for="categorySelect" class="filter-label">Danh mục</label>
-                        <select id="categorySelect" class="filter-select">
-                            <option value="">Tất cả danh mục</option>
-                            <option value="tourist_attraction">🏛️ Điểm tham quan</option>
-                            <option value="restaurant">🍲 Nhà hàng & Ẩm thực</option>
-                            <option value="cafe">☕ Quán cà phê</option>
-                            <option value="shopping">🛍️ Mua sắm & Chợ</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label for="priceSelect" class="filter-label">Mức giá tối đa</label>
-                        <select id="priceSelect" class="filter-select">
-                            <option value="5">Tất cả mức giá</option>
-                            <option value="1">₫ (Bình dân)</option>
-                            <option value="2">₫₫ (Hợp lý)</option>
-                            <option value="3">₫₫₫ (Trung cấp)</option>
-                            <option value="4">₫₫₫₫ (Cao cấp)</option>
-                            <option value="5">₫₫₫₫₫ (Thượng lưu)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button type="button" id="searchButton" class="btn-primary-search">
-                    <span>Khám phá ngay</span>
-                    <span>→</span>
-                </button>
-
-                <!-- Thẻ gợi ý tìm kiếm nhanh -->
-                <div class="quick-tags-box">
-                    <span class="quick-tags-label">Gợi ý:</span>
-                    <div id="quickTagsContainer"></div>
-                </div>
-            </div>
-
-            <!-- Thông báo lỗi hoặc cảnh báo -->
-            <div id="errorMessage" class="alert-box hidden"></div>
-
-            <!-- Tiêu đề kết quả & Danh sách địa điểm -->
-            <div class="results-heading">
-                <h2 class="results-title">Địa điểm gợi ý</h2>
-                <span id="resultCount" class="result-count-pill">Đang tải...</span>
-            </div>
-
-            <div id="placeList" class="places-scroll-container">
-                <div class="places-loading">
-                    <span class="spinner-lg"></span>
-                    <p>Đang tải địa điểm...</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- KHU VỰC BẢN ĐỒ TƯƠNG TÁC -->
-        <section class="map-section">
-            <div class="map-header">
-                <div class="map-header-left">
-                    <h2 class="map-title">Bản đồ tương tác</h2>
-                    <span class="map-subtitle">Khám phá trực quan các địa điểm</span>
-                </div>
-                <div class="map-actions">
-                    <button type="button" id="toggleRouteBtn" class="btn-map-control" title="Vẽ lộ trình du lịch Đà Nẵng mẫu">
-                        <span>🗺️</span>
-                        <span>Lộ trình Tour</span>
-                    </button>
-                    <button type="button" id="toggleAreaBtn" class="btn-map-control" title="Vẽ ranh giới Bán đảo Sơn Trà">
-                        <span>⛰️</span>
-                        <span>Vùng Sơn Trà</span>
-                    </button>
-                    <button type="button" id="locateMeButton" class="btn-map-control" title="Xem vị trí hiện tại của tôi kèm bán kính">
-                        <span>📍</span>
-                        <span>Vị trí của tôi</span>
-                    </button>
-                    <button type="button" id="resetMapButton" class="btn-map-control" title="Đặt lại góc nhìn về trung tâm Đà Nẵng">
-                        <span>↺</span>
-                        <span>Về Đà Nẵng</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="map-wrapper">
-                <div id="map"></div>
-            </div>
-
-            <div class="map-footer">
-                <div id="connectionStatus" class="connection-status-badge">
-                    <span class="status-dot status-connecting"></span>
-                    <span>Đang kết nối Backend...</span>
-                </div>
-                <span>💡 Nhấp vào thẻ địa điểm hoặc ghim trên bản đồ để xem chi tiết và đường đi.</span>
-            </div>
-        </section>
-    </main>
-
-    <!-- ============================================
-         FOOTER CHUNG CỦA ỨNG DỤNG
-         ============================================ -->
-    <footer class="app-footer">
-        <div class="footer-left">
-            <strong>Agentic AI Local Guide</strong>
-            <span>&bull;</span>
-            <span>Hệ sinh thái AI hỗ trợ du lịch địa phương</span>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <a href="places.html" class="explore-card">
+            <span class="explore-icon">📍</span>
+            <h5>Khám phá địa điểm</h5>
+            <p>
+              Tìm kiếm các điểm tham quan, bãi biển,
+              địa điểm ăn uống và vui chơi.
+            </p>
+            <span class="explore-link">Khám phá ngay →</span>
+          </a>
         </div>
-        <div class="footer-right">
-            <span>FastAPI &bull; Leaflet OSM &bull; Modular Vanilla JS</span>
-            <a class="footer-link" href="http://127.0.0.1:8000/docs" target="_blank" rel="noopener">Swagger Docs ↗</a>
+
+        <div class="col-md-4">
+          <a href="chat.html" class="explore-card">
+            <span class="explore-icon">✦</span>
+            <h5>Trợ lý du lịch AI</h5>
+            <p>
+              Hỏi đáp, tìm hiểu thông tin và nhận
+              hỗ trợ lên kế hoạch cho chuyến đi.
+            </p>
+            <span class="explore-link">Bắt đầu trò chuyện →</span>
+          </a>
         </div>
-    </footer>
 
-    <!-- ============================================
-         MODAL ĐĂNG NHẬP / ĐĂNG KÝ (<dialog>)
-         ============================================ -->
-    <dialog id="authDialog" class="auth-dialog" aria-labelledby="authDialogTitle">
-        <div class="auth-modal-card">
-            <!-- Header Modal -->
-            <div class="auth-modal-header">
-                <div class="auth-brand-badge">
-                    <span class="brand-icon">✦</span>
-                    <h3 id="authDialogTitle" class="auth-modal-title">Tài khoản LocalGuide</h3>
-                </div>
-                <button type="button" id="closeAuthDialogBtn" class="auth-modal-close-btn" aria-label="Đóng cửa sổ">&times;</button>
-            </div>
-
-            <!-- Tabs điều hướng Đăng nhập / Đăng ký -->
-            <nav class="auth-tabs-nav" role="tablist">
-                <button type="button" class="auth-tab-btn active" data-tab="login" role="tab" aria-selected="true">
-                    Đăng nhập
-                </button>
-                <button type="button" class="auth-tab-btn" data-tab="register" role="tab" aria-selected="false">
-                    Đăng ký
-                </button>
-            </nav>
-
-            <!-- Khối thông báo lỗi / thành công trong Modal -->
-            <div id="authAlert" class="auth-alert hidden" role="alert"></div>
-
-            <!-- FORM ĐĂNG NHẬP -->
-            <div id="loginTabSection" role="tabpanel">
-                <form id="loginForm" class="auth-form" novalidate>
-                    <div class="auth-field">
-                        <label for="loginEmail" class="auth-label">Địa chỉ Email</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">✉️</span>
-                            <input
-                                type="email"
-                                id="loginEmail"
-                                class="auth-input"
-                                placeholder="name@example.com"
-                                required
-                                autocomplete="email"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="auth-field">
-                        <label for="loginPassword" class="auth-label">Mật khẩu</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">🔒</span>
-                            <input
-                                type="password"
-                                id="loginPassword"
-                                class="auth-input"
-                                placeholder="Nhập mật khẩu của bạn"
-                                required
-                                autocomplete="current-password"
-                            >
-                            <button type="button" class="toggle-password-btn" data-target="loginPassword" aria-label="Hiển thị mật khẩu">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="loginSubmitBtn" class="auth-submit-btn">
-                        <span>Đăng nhập</span>
-                    </button>
-
-                    <div class="auth-form-footer">
-                        <span>Chưa có tài khoản?</span>
-                        <a href="#" id="goToRegisterLink" class="auth-switch-link">Đăng ký ngay</a>
-                    </div>
-                </form>
-            </div>
-
-            <!-- FORM ĐĂNG KÝ -->
-            <div id="registerTabSection" class="hidden" role="tabpanel">
-                <form id="registerForm" class="auth-form" novalidate>
-                    <div class="auth-field">
-                        <label for="registerUsername" class="auth-label">Tên người dùng (Username)</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">👤</span>
-                            <input
-                                type="text"
-                                id="registerUsername"
-                                class="auth-input"
-                                placeholder="nguyenvana (3-50 ký tự)"
-                                required
-                                minlength="3"
-                                maxlength="50"
-                                autocomplete="username"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="auth-field">
-                        <label for="registerEmail" class="auth-label">Địa chỉ Email</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">✉️</span>
-                            <input
-                                type="email"
-                                id="registerEmail"
-                                class="auth-input"
-                                placeholder="name@example.com"
-                                required
-                                autocomplete="email"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="auth-field">
-                        <label for="registerPassword" class="auth-label">Mật khẩu</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">🔒</span>
-                            <input
-                                type="password"
-                                id="registerPassword"
-                                class="auth-input"
-                                placeholder="Tối thiểu 6 ký tự"
-                                required
-                                minlength="6"
-                                autocomplete="new-password"
-                            >
-                            <button type="button" class="toggle-password-btn" data-target="registerPassword" aria-label="Hiển thị mật khẩu">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="auth-field">
-                        <label for="registerConfirmPassword" class="auth-label">Xác nhận mật khẩu</label>
-                        <div class="auth-input-container">
-                            <span class="auth-field-icon">🔒</span>
-                            <input
-                                type="password"
-                                id="registerConfirmPassword"
-                                class="auth-input"
-                                placeholder="Nhập lại mật khẩu để xác nhận"
-                                required
-                                minlength="6"
-                                autocomplete="new-password"
-                            >
-                            <button type="button" class="toggle-password-btn" data-target="registerConfirmPassword" aria-label="Hiển thị mật khẩu">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="registerSubmitBtn" class="auth-submit-btn">
-                        <span>Tạo tài khoản</span>
-                    </button>
-
-                    <div class="auth-form-footer">
-                        <span>Đã có tài khoản?</span>
-                        <a href="#" id="goToLoginLink" class="auth-switch-link">Đăng nhập ngay</a>
-                    </div>
-                </form>
-            </div>
+        <div class="col-md-4">
+          <a href="map.html" class="explore-card">
+            <span class="explore-icon">🗺️</span>
+            <h5>Bản đồ & lịch trình</h5>
+            <p>
+              Xem vị trí các điểm đến và sắp xếp
+              hành trình thuận tiện hơn.
+            </p>
+            <span class="explore-link">Xem bản đồ →</span>
+          </a>
         </div>
-    </dialog>
+      </div>
+    </section>
 
-    <!-- Container cho thông báo Toast -->
-    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  </main>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div id="site-footer"></div>
 
-    <!-- Khởi chạy ứng dụng với ES Module -->
-    <script type="module" src="js/app.js?v=2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/home.js"></script>
 </body>
 </html>

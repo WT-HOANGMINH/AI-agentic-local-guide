@@ -1,0 +1,578 @@
+
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <meta name="description"
+        content="Trợ lý du lịch thông minh DaNang Guide">
+
+  <title>Trợ lý du lịch | DaNang Guide</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  >
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+
+    /* ===== GIAO DIEN CHAT AI ===== */
+
+    .dg-chat-page {
+      padding-top: 32px;
+      padding-bottom: 55px;
+    }
+
+    .dg-chat-heading {
+      margin-bottom: 26px;
+    }
+
+    .dg-chat-heading h1 {
+      font-size: 30px;
+      font-weight: 750;
+      color: #173d3a;
+      margin-bottom: 8px;
+    }
+
+    .dg-chat-heading p {
+      font-size: 15px;
+      color: #73817e;
+      margin: 0;
+    }
+
+    /* ===== KHUNG CHAT ===== */
+
+    .dg-chat {
+      display: grid;
+      grid-template-columns: 285px minmax(0, 1fr);
+      min-height: 610px;
+      border: 1px solid #e2e9e6;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    /* ===== COT BEN TRAI ===== */
+
+    .dg-sidebar {
+      background: #f7faf8;
+      padding: 27px 22px;
+      border-right: 1px solid #e5ebe8;
+    }
+
+    .dg-assistant-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #e3f1eb;
+      color: #176b60;
+      margin-bottom: 20px;
+    }
+
+    .dg-sidebar h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #203c37;
+      margin-bottom: 9px;
+    }
+
+    .dg-sidebar-description {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #788782;
+      margin-bottom: 30px;
+    }
+
+    .dg-suggestion-title {
+      font-size: 12px;
+      color: #6b7d77;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+    }
+
+    .dg-suggestion {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 13px 15px;
+      margin-bottom: 10px;
+      background: #ffffff;
+      border: 1px solid #e1e9e5;
+      border-radius: 8px;
+      color: #304a43;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .dg-suggestion:hover {
+      background: #eaf5ef;
+      border-color: #b8d8c9;
+      color: #176b60;
+    }
+
+    .dg-suggestion:focus-visible {
+      outline: 2px solid #176b60;
+      outline-offset: 2px;
+    }
+
+    .dg-sidebar-note {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e1e9e5;
+      color: #84918d;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    /* ===== KHU VUC TIN NHAN ===== */
+
+    .dg-chat-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 610px;
+    }
+
+    .dg-chat-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 19px 25px;
+      border-bottom: 1px solid #edf0ef;
+      background: #ffffff;
+    }
+
+    .dg-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 39px;
+      height: 39px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: #e9f4ef;
+      color: #176b60;
+      font-weight: 750;
+      font-size: 16px;
+    }
+
+    .dg-chat-topbar strong {
+      display: block;
+      color: #253f38;
+      font-size: 15px;
+    }
+
+    .dg-chat-topbar small {
+      display: block;
+      color: #80908a;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .dg-chat-messages {
+      flex: 1;
+      min-height: 380px;
+      max-height: 530px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 18px;
+      padding: 28px;
+      background: #ffffff;
+    }
+
+    /* ===== BONG CHAT ===== */
+
+    .dg-chat-messages .bubble {
+      max-width: 82%;
+      width: fit-content;
+      padding: 14px 18px;
+      font-size: 14px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .dg-chat-messages .bubble.bot {
+      align-self: flex-start;
+      background: #f2f5f3;
+      color: #30423d;
+      border-radius: 4px 15px 15px 15px;
+    }
+
+    .dg-chat-messages .bubble.user {
+      align-self: flex-end;
+      background: #176b60;
+      color: #ffffff;
+      border-radius: 15px 4px 15px 15px;
+    }
+
+    /* ===== KHUNG NHAP CHAT ===== */
+
+    .dg-input-area {
+      padding: 18px 24px 15px;
+      border-top: 1px solid #edf0ef;
+      background: #ffffff;
+    }
+
+    .dg-input-form {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 7px 7px 7px 16px;
+      border: 1px solid #dce5e0;
+      border-radius: 10px;
+      background: #ffffff;
+    }
+
+    .dg-input-form:focus-within {
+      border-color: #176b60;
+    }
+
+    .dg-input-form input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      box-shadow: none !important;
+      padding: 10px 2px;
+      font-size: 14px;
+      color: #263e38;
+    }
+
+    .dg-input-form input:focus {
+      outline: none;
+    }
+
+    .dg-input-form input::placeholder {
+      color: #9aa7a2;
+    }
+
+    .dg-send-button {
+      background: #176b60 !important;
+      color: #ffffff !important;
+      border: none;
+      border-radius: 7px;
+      padding: 11px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .dg-send-button:hover {
+      background: #105348 !important;
+    }
+
+    .dg-send-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .dg-chat-hint {
+      margin-top: 10px;
+      text-align: center;
+      color: #95a19d;
+      font-size: 11px;
+    }
+
+    /* ===== RESPONSIVE ===== */
+
+    @media (max-width: 991px) {
+
+      .dg-chat {
+        grid-template-columns: 235px minmax(0, 1fr);
+      }
+
+      .dg-sidebar {
+        padding: 24px 16px;
+      }
+
+    }
+
+    @media (max-width: 767px) {
+
+      .dg-chat-page {
+        padding-top: 22px;
+      }
+
+      .dg-chat-heading h1 {
+        font-size: 25px;
+      }
+
+      .dg-chat {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .dg-sidebar {
+        border-right: none;
+        border-bottom: 1px solid #e5ebe8;
+        padding: 19px;
+      }
+
+      .dg-sidebar-description,
+      .dg-sidebar-note,
+      .dg-assistant-icon {
+        display: none;
+      }
+
+      .dg-sidebar h3 {
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
+
+      .dg-suggestion-title {
+        margin-bottom: 10px;
+      }
+
+      .dg-suggestion {
+        padding: 10px 12px;
+        margin-bottom: 8px;
+      }
+
+      .dg-chat-main {
+        min-height: 480px;
+      }
+
+      .dg-chat-messages {
+        padding: 18px;
+        min-height: 310px;
+      }
+
+      .dg-chat-messages .bubble {
+        max-width: 92%;
+        font-size: 13px;
+      }
+
+      .dg-chat-topbar {
+        padding: 14px 18px;
+      }
+
+      .dg-input-area {
+        padding: 12px;
+      }
+
+      .dg-send-button {
+        padding: 10px 15px;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- THANH MENU WEBSITE -->
+  <div id="site-nav"></div>
+
+  <main class="container page dg-chat-page">
+
+    <!-- TIEU DE TRANG -->
+    <div class="dg-chat-heading">
+
+      <div class="eyebrow mb-2">
+        DANANG GUIDE
+      </div>
+
+      <h1>
+        Trợ lý du lịch Đà Nẵng
+      </h1>
+
+      <p>
+        Hỏi đáp địa điểm, khám phá ẩm thực
+        và lên kế hoạch cho hành trình của bạn.
+      </p>
+
+    </div>
+
+    <!-- KHUNG CHAT -->
+    <section class="dg-chat">
+
+      <!-- COT GOI Y BEN TRAI -->
+      <aside class="dg-sidebar">
+
+        <div class="dg-assistant-icon">
+
+          <svg width="25" height="25"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="1.8"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+               aria-hidden="true">
+
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="m15.5 8.5-2 5-5 2 2-5 5-2z"></path>
+
+          </svg>
+        </div>
+
+        <h3>Khám phá cùng DaNang Guide</h3>
+
+        <p class="dg-sidebar-description">
+          Bạn chưa biết bắt đầu từ đâu?
+          Hãy chọn một chủ đề hoặc đặt câu hỏi
+          để được hỗ trợ.
+        </p>
+
+        <div class="dg-suggestion-title">
+          Câu hỏi gợi ý
+        </div>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Gợi ý 5 địa điểm nổi tiếng ở Đà Nẵng">
+          Địa điểm nổi tiếng ở Đà Nẵng
+        </button>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Những bãi biển đẹp ở Đà Nẵng phù hợp để thư giãn">
+          Khám phá các bãi biển đẹp
+        </button>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Du lịch Đà Nẵng nên ăn những món đặc sản nào?">
+          Ăn gì khi đến Đà Nẵng?
+        </button>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Lên lịch trình du lịch Đà Nẵng 2 ngày 1 đêm">
+          Lịch trình Đà Nẵng 2 ngày
+        </button>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Tôi muốn khám phá các địa điểm thiên nhiên ít đông đúc ở Đà Nẵng">
+          Khám phá thiên nhiên
+        </button>
+
+        <p class="dg-sidebar-note">
+          Thông tin du lịch mang tính tham khảo.
+          Bạn nên xác nhận giờ mở cửa, giá vé
+          và điều kiện tham quan trước chuyến đi.
+        </p>
+
+      </aside>
+
+      <!-- PHAN CHAT CHINH -->
+      <div class="dg-chat-main">
+
+        <!-- THANH TIEU DE CHAT -->
+        <div class="dg-chat-topbar">
+
+          <div class="dg-avatar">
+            D
+          </div>
+
+          <div>
+            <strong>DaNang Guide Assistant</strong>
+            <small>
+              Trợ lý hỗ trợ thông tin du lịch
+            </small>
+          </div>
+
+        </div>
+
+        <!-- DANH SACH TIN NHAN -->
+        <div
+          id="chat-messages"
+          class="chat-messages dg-chat-messages"
+          role="log"
+          aria-live="polite"
+          aria-label="Nội dung hội thoại"
+        ></div>
+
+        <!-- KHUNG NHAP TIN NHAN -->
+        <div class="dg-input-area">
+
+          <form
+            id="chat-form"
+            class="dg-input-form"
+          >
+
+            <input
+              id="chat-input"
+              class="form-control"
+              type="text"
+              aria-label="Nhập câu hỏi du lịch"
+              placeholder="Hỏi về Đà Nẵng..."
+              required
+              autocomplete="off"
+              maxlength="2000"
+            >
+
+            <button
+              id="send-chat"
+              class="dg-send-button"
+              type="submit"
+            >
+              Gửi →
+            </button>
+
+          </form>
+
+          <div class="dg-chat-hint">
+            Thông tin do trợ lý cung cấp có thể
+            cần được kiểm tra lại.
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <div id="message"></div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <div id="site-footer"></div>
+
+  <!-- BOOTSTRAP -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- CAU HINH -->
+  <script src="js/config.js"></script>
+
+  <!-- DU LIEU DIA DIEM -->
+  <script src="js/data.js"></script>
+
+  <!-- API WEBSITE -->
+  <script src="js/api.js"></script>
+
+  <!-- KET NOI CHAT AI THAT -->
+  <script src="js/ai-chat.js"></script>
+
+  <!-- CHUC NANG CHUNG -->
+  <script src="js/common.js"></script>
+
+  <!-- GIAO DIEN CHAT -->
+  <script src="js/chat.js"></script>
+
+</body>
+</html>

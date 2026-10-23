@@ -1,0 +1,662 @@
+
+/* ==========================================
+   DA NANG GUIDE - WEBSITE STYLES
+========================================== */
+
+:root {
+  --primary: #176b60;
+  --primary-dark: #105348;
+  --heading: #173043;
+  --text: #465761;
+  --muted: #718094;
+  --border: #e7eceb;
+}
+
+body {
+  background: #ffffff;
+  color: var(--heading);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.page {
+  padding-top: 25px;
+}
+
+/* ==========================================
+   NAVBAR - THANH DIEU HUONG
+========================================== */
+
+#site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+}
+
+#site-nav .travel-navbar {
+  background: #ffffff !important;
+  padding: 15px 0;
+  box-shadow: none !important;
+}
+
+#site-nav .travel-navbar > .container {
+  max-width: 1320px;
+}
+
+/* ===== LOGO ===== */
+
+#site-nav .travel-brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 11px;
+  margin-right: 28px;
+  padding: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+#site-nav .travel-logo {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  min-width: 43px;
+  background: #e8f3ef;
+  color: var(--primary);
+  border-radius: 50%;
+}
+
+#site-nav .travel-logo svg {
+  display: block;
+  width: 25px;
+  height: 25px;
+}
+
+/* ===== TEN WEBSITE - 2 DONG ===== */
+
+#site-nav .travel-brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  line-height: 1;
+}
+
+#site-nav .travel-brand-text strong {
+  display: block !important;
+  font-size: 21px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+  color: #193d3a;
+  white-space: nowrap;
+}
+
+#site-nav .travel-brand-text strong span {
+  color: #168576;
+}
+
+#site-nav .travel-brand-text small {
+  display: block !important;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 1.4px;
+  color: #87958f;
+  white-space: nowrap;
+}
+
+/* ===== CAC MUC MENU ===== */
+
+#site-nav .travel-links {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+}
+
+#site-nav .travel-links .nav-link {
+  position: relative;
+  color: #52615d !important;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 0 !important;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+#site-nav .travel-links .nav-link:hover {
+  color: var(--primary) !important;
+}
+
+#site-nav .travel-links .nav-link.active {
+  color: var(--primary) !important;
+  font-weight: 700;
+  border-bottom-color: var(--primary);
+}
+
+/* ===== DANG NHAP & DANG KY ===== */
+
+#site-nav .travel-account {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 17px;
+  white-space: nowrap;
+}
+
+#site-nav .travel-login {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #35514a !important;
+  text-decoration: none !important;
+}
+
+#site-nav .travel-login:hover {
+  color: var(--primary) !important;
+  text-decoration: none !important;
+}
+
+#site-nav .travel-account .btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 6px;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+#site-nav .travel-register,
+#site-nav .travel-account .btn-primary {
+  color: #ffffff !important;
+  background: var(--primary) !important;
+  border: 1px solid var(--primary) !important;
+}
+
+#site-nav .travel-register:hover,
+#site-nav .travel-account .btn-primary:hover {
+  background: var(--primary-dark) !important;
+}
+
+#site-nav .travel-account .btn-outline-primary {
+  background: transparent !important;
+  border: 1px solid #c5d9d5 !important;
+  color: var(--primary) !important;
+}
+
+#site-nav .account-greeting {
+  font-size: 13px;
+  color: #667773;
+}
+
+#site-nav .navbar-toggler {
+  border: 1px solid #dce5e2;
+  border-radius: 7px;
+  box-shadow: none !important;
+}
+
+/* ==========================================
+   HERO - BANNER TRANG CHU
+========================================== */
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 490px;
+  padding: 65px 48px 36px;
+  border-radius: 15px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(7, 31, 48, 0.85) 0%,
+      rgba(7, 31, 48, 0.40) 60%,
+      rgba(7, 31, 48, 0.10) 100%
+    ),
+    url("../images/anh-dep-da-nang-thumb.jpg")
+    center / cover no-repeat;
+}
+
+.home-hero::after {
+  display: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-title {
+  font-size: clamp(36px, 4vw, 58px);
+  line-height: 1.15;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 15px;
+  letter-spacing: -1.5px;
+}
+
+.hero-description {
+  font-size: 17px;
+  max-width: 520px;
+  line-height: 1.8;
+  color: #f0f5f5;
+  margin-top: 18px;
+}
+
+/* ==========================================
+   THANH TIM KIEM
+========================================== */
+
+.travel-search {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 0.8fr auto;
+  align-items: center;
+  gap: 0;
+  background: #ffffff;
+  padding: 10px;
+  margin-top: 37px;
+  border-radius: 12px;
+  box-shadow: 0 12px 35px rgba(0,0,0,0.13);
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 8px 18px;
+  border-right: 1px solid #e1e5e9;
+  min-width: 0;
+}
+
+.search-item:nth-child(3) {
+  border-right: none;
+}
+
+.search-icon {
+  color: #087e79;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.search-item > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.search-item label {
+  display: block;
+  font-size: 14px;
+  color: #172f40;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.search-item input,
+.search-item select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #718094;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.search-item input:focus,
+.search-item select:focus {
+  outline: none;
+}
+
+.search-button {
+  border: none;
+  background: #087f79;
+  color: #ffffff;
+  padding: 17px 28px;
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.search-button:hover {
+  background: #056763;
+}
+
+/* ==========================================
+   TIEN ICH DU LICH
+========================================== */
+
+.travel-features {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin: 36px 0 55px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-decoration: none;
+  color: #173043;
+}
+
+.feature-icon {
+  font-size: 29px;
+  flex-shrink: 0;
+}
+
+.feature strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.feature small {
+  display: block;
+  font-size: 12px;
+  color: #718094;
+  line-height: 1.5;
+}
+
+.feature:hover {
+  color: #173043;
+}
+
+.feature:hover strong {
+  color: #087e79;
+}
+
+/* ==========================================
+   DIA DIEM NOI BAT
+========================================== */
+
+.featured-section {
+  margin-bottom: 70px;
+}
+
+.featured-section h2,
+.explore-section h2 {
+  font-size: 29px;
+  font-weight: 750;
+}
+
+.view-all {
+  color: #087e79;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.view-all:hover {
+  color: #005d58;
+}
+
+.place-card {
+  border-radius: 13px;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.place-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.10);
+}
+
+.place-art {
+  height: 195px;
+  overflow: hidden;
+}
+
+.place-card .card-body {
+  padding: 18px;
+}
+
+/* ==========================================
+   KHAM PHA THEM
+========================================== */
+
+.explore-section {
+  margin-bottom: 55px;
+}
+
+.explore-card {
+  display: block;
+  padding: 27px;
+  height: 100%;
+  border: 1px solid #e3ebed;
+  border-radius: 14px;
+  text-decoration: none;
+  background: #ffffff;
+  color: #192e40;
+  transition: 0.2s ease;
+}
+
+.explore-card:hover {
+  box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+  transform: translateY(-3px);
+  color: #192e40;
+}
+
+.explore-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+.explore-card h5 {
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.explore-card p {
+  color: #708092;
+  font-size: 14px;
+  line-height: 1.8;
+  min-height: 70px;
+}
+
+.explore-link {
+  color: #087e79;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ==========================================
+   RESPONSIVE - TABLET
+========================================== */
+
+@media (max-width: 1199px) {
+  #site-nav .travel-brand {
+    margin-right: 15px;
+  }
+
+  #site-nav .travel-links {
+    gap: 13px;
+  }
+}
+
+@media (max-width: 991px) {
+  #site-nav .travel-navbar {
+    padding: 12px 0;
+  }
+
+  #site-nav .travel-links {
+    align-items: flex-start;
+    gap: 4px;
+    padding: 15px 0;
+  }
+
+  #site-nav .travel-links .nav-link {
+    padding: 10px 0 !important;
+  }
+
+  #site-nav .travel-links .nav-link.active {
+    border-bottom-color: transparent;
+  }
+
+  #site-nav .travel-account {
+    justify-content: flex-start;
+    padding: 10px 0 15px;
+  }
+
+  .travel-search {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .travel-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .search-item {
+    border-right: none;
+  }
+}
+
+/* ==========================================
+   RESPONSIVE - MOBILE
+========================================== */
+
+@media (max-width: 767px) {
+  .page {
+    padding-top: 15px;
+  }
+
+  #site-nav .travel-brand-text strong {
+    font-size: 19px;
+  }
+
+  #site-nav .travel-logo {
+    width: 39px;
+    height: 39px;
+    min-width: 39px;
+  }
+
+  .home-hero {
+    padding: 35px 22px;
+    min-height: auto;
+  }
+
+  .hero-title {
+    font-size: 35px;
+  }
+
+  .hero-description {
+    font-size: 15px;
+  }
+
+  .travel-search {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px;
+  }
+
+  .search-item {
+    padding: 10px;
+    border-bottom: 1px solid #edf0f2;
+  }
+
+  .search-button {
+    width: 100%;
+  }
+
+  .travel-features {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px 12px;
+  }
+
+  .feature {
+    align-items: flex-start;
+  }
+
+  .feature-icon {
+    font-size: 23px;
+  }
+
+  .feature strong {
+    font-size: 12px;
+  }
+
+  .feature small {
+    font-size: 11px;
+  }
+
+  .featured-section h2,
+  .explore-section h2 {
+    font-size: 24px;
+  }
+
+  .explore-card p {
+    min-height: auto;
+  }
+}
+
+
+/* ===== HINH ANH THE DIA DIEM ===== */
+
+.place-art {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  overflow: hidden;
+  background: #eef3f1;
+  border-radius: 12px 12px 0 0;
+}
+
+.place-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.place-card:hover .place-image {
+  transform: scale(1.05);
+}
+
+.place-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 48px;
+  background: #edf4f1;
+}
+
+.place-art .badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  background: rgba(255,255,255,0.95) !important;
+  color: #263238;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+/* ===== KHAC PHUC HIEN THI BAN DO LEAFLET ===== */
+#map.map-box {
+    display: block;
+    width: 100%;
+    height: 500px;
+    min-height: 500px;
+    position: relative;
+    z-index: 1;
+    background: #eaf2ef;
+    border-radius: 12px;
+    overflow: hidden;
+}
