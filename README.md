@@ -20,7 +20,7 @@
 
 * **Bản đồ tương tác thời gian thực**: Sử dụng **Leaflet.js**, ghim vị trí (Pin SVG màu theo danh mục), đồng bộ 2 chiều giữa danh sách thẻ địa điểm và điểm ghim trên bản đồ, tích hợp GPS định vị và liên kết chỉ đường Google Maps.
 * **Tìm kiếm & Bộ lọc linh hoạt**: Tìm kiếm theo tên/mô tả, lọc danh mục (*Điểm tham quan, Ẩm thực, Quán cà phê, Mua sắm*), mức giá (₫ - ₫₫₫₫₫).
-* **Xác thực người dùng an toàn**: Đăng nhập/Đăng ký modal HTML5 native, cấp phát **JWT Bearer Token**, băm mật khẩu bảo mật cao bằng **Bcrypt**.
+* **Xác thực người dùng an toàn**: Đăng nhập/Đăng ký modal HTML5 native, cấp phát **JWT Bearer Token**, băm mậtpython -m http.server 5500 --directory frontend khẩu bảo mật cao bằng **Bcrypt**.
 * **AI Agent Gợi ý Du lịch**: Tích hợp **LangGraph ReAct Agent + Gemini Flash**, tự động phân tích câu hỏi kết hợp hồ sơ sở thích cá nhân để đưa ra câu trả lời tự nhiên kèm danh sách địa điểm phù hợp.
 * **Lập lịch trình chuyến đi (Trip Itinerary API)**:
   * Lập kế hoạch du lịch chi tiết theo từng ngày (sáng, trưa, chiều, tối).
@@ -169,21 +169,10 @@ Database tables initialized successfully.
 
 ### Bước 6: Khởi chạy Giao diện Frontend
 
-Bạn có thể mở giao diện bằng 1 trong các cách sau:
-
-#### Cách 1: Sử dụng Python HTTP Server (Khuyên dùng)
-Mở một cửa sổ Terminal mới và chạy:
-```bash
-python -m http.server 5500 -d frontend
-```
-Sau đó mở trình duyệt và truy cập: **`http://127.0.0.1:5500/`**
-
-#### Cách 2: Truy cập trực tiếp qua Backend static mount
-Do Backend đã tích hợp sẵn thư mục frontend, bạn có thể truy cập thẳng vào:
+Backend đã phục vụ frontend và API trên cùng một máy chủ. Sau khi chạy Backend ở Bước 5, mở:
 👉 **`http://127.0.0.1:8000/app/index.html`**
 
-#### Cách 3: Sử dụng VS Code Live Server
-Mở file `frontend/index.html` trong VS Code, nhấp chuột phải chọn **"Open with Live Server"** (Port mặc định `5500`).
+Không nên dùng `python -m http.server` trên Windows cho frontend này: một số cấu hình Windows trả các file ES module `.js` với MIME type `text/plain`, khiến trình duyệt từ chối tải ứng dụng. Nếu cần dùng máy chủ frontend riêng như VS Code Live Server, hãy xác nhận các file `.js` được phục vụ với MIME type `text/javascript`.
 
 ---
 

@@ -46,3 +46,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+        DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://root:1234@localhost:3306/agentic_local_guide?charset=utf8mb4"
+)

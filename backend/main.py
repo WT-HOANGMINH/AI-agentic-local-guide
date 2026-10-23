@@ -1,4 +1,3 @@
-
 import mimetypes
 import os
 
@@ -23,6 +22,7 @@ from backend.routes.recommendations import router as recommendations_router
 from backend.routes.itineraries import router as itineraries_router
 from backend.routes.intents import router as intents_router
 from backend.routes.ai_guide import router as ai_guide_router
+from backend.routes.agent import router as agent_router
 
 
 mimetypes.add_type("text/javascript", ".js")
@@ -173,6 +173,9 @@ app.include_router(intents_router)
 
 # API AI Local Guide: phan loai cau hoi va tim dia diem
 app.include_router(ai_guide_router)
+
+# API Chat cho frontend: POST /agent/chat (dung model intent da train)
+app.include_router(agent_router)
 
 
 # ==============================================================
