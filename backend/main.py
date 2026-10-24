@@ -1,4 +1,3 @@
-
 import mimetypes
 import os
 
@@ -23,6 +22,7 @@ from backend.routes.recommendations import router as recommendations_router
 from backend.routes.itineraries import router as itineraries_router
 from backend.routes.intents import router as intents_router
 from backend.routes.ai_guide import router as ai_guide_router
+from backend.routes.agent import router as agent_router
 
 
 mimetypes.add_type("text/javascript", ".js")
@@ -174,6 +174,9 @@ app.include_router(intents_router)
 # API AI Local Guide: phan loai cau hoi va tim dia diem
 app.include_router(ai_guide_router)
 
+# API Chat cho frontend: POST /agent/chat (dung model intent da train)
+app.include_router(agent_router)
+
 
 # ==============================================================
 # Mount Frontend
@@ -202,6 +205,11 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("Database tables initialized successfully.")
 
+        from backend.seed_places import ensure_rating_column, normalize_place_categories
+
+        ensure_rating_column()
+        normalize_place_categories()
+
         from backend.database import SessionLocal
         from backend.services.auth_service import get_password_hash
 
@@ -227,6 +235,7 @@ def startup_event():
                 )
 
             # Nap dia diem mau neu bang Place dang rong
+            # (de nap day du hon, chay: python -X utf8 -m backend.seed_places)
             if db.query(Place).count() == 0:
                 initial_places = [
                     Place(

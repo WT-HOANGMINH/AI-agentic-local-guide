@@ -1,4 +1,3 @@
-
 from sqlalchemy import Column, Integer, String, Text, Float, Boolean
 from backend.database import Base
 
@@ -17,4 +16,8 @@ class Place(Base):
 
     price_level = Column(Integer, nullable=True)
     opening_hours = Column(String(100), nullable=True)
+
+    # Danh gia 0-5 (nhap tay tu Google Maps; NULL = chua co du lieu)
+    rating = Column(Float, nullable=True)
+
     is_active = Column(Boolean, default=True, nullable=False)

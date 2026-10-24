@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="vi">
 
@@ -128,15 +127,6 @@
       outline-offset: 2px;
     }
 
-    .dg-sidebar-note {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e1e9e5;
-      color: #84918d;
-      font-size: 12px;
-      line-height: 1.7;
-    }
-
     /* ===== KHU VUC TIN NHAN ===== */
 
     .dg-chat-main {
@@ -224,7 +214,7 @@
     /* ===== KHUNG NHAP CHAT ===== */
 
     .dg-input-area {
-      padding: 18px 24px 15px;
+      padding: 18px 24px 18px;
       border-top: 1px solid #edf0ef;
       background: #ffffff;
     }
@@ -283,13 +273,6 @@
       cursor: not-allowed;
     }
 
-    .dg-chat-hint {
-      margin-top: 10px;
-      text-align: center;
-      color: #95a19d;
-      font-size: 11px;
-    }
-
     /* ===== RESPONSIVE ===== */
 
     @media (max-width: 991px) {
@@ -326,7 +309,6 @@
       }
 
       .dg-sidebar-description,
-      .dg-sidebar-note,
       .dg-assistant-icon {
         display: none;
       }
@@ -470,11 +452,19 @@
           Khám phá thiên nhiên
         </button>
 
-        <p class="dg-sidebar-note">
-          Thông tin du lịch mang tính tham khảo.
-          Bạn nên xác nhận giờ mở cửa, giá vé
-          và điều kiện tham quan trước chuyến đi.
-        </p>
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Gợi ý lịch trình di chuyển 1 ngày ở Đà Nẵng, có ăn sáng, tham quan, nghỉ trưa và đi Bà Nà">
+          Lịch trình 1 ngày có Bà Nà
+        </button>
+
+        <button
+          type="button"
+          class="suggestion dg-suggestion"
+          data-prompt="Quán ăn gần tôi nhất">
+          Quán ăn gần tôi
+        </button>
 
       </aside>
 
@@ -494,6 +484,8 @@
               Trợ lý hỗ trợ thông tin du lịch
             </small>
           </div>
+
+          <!-- Nut "Xoa hoi thoai" duoc chat.js tu them vao day -->
 
         </div>
 
@@ -535,11 +527,6 @@
 
           </form>
 
-          <div class="dg-chat-hint">
-            Thông tin do trợ lý cung cấp có thể
-            cần được kiểm tra lại.
-          </div>
-
         </div>
 
       </div>
@@ -556,23 +543,20 @@
   <!-- BOOTSTRAP -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- CAU HINH -->
-  <script src="js/config.js"></script>
+  <!-- CAU HINH (doi ?v= moi lan sua file de tranh cache) -->
+  <script src="js/config.js?v=2"></script>
 
-  <!-- DU LIEU DIA DIEM -->
+  <!-- DU LIEU DEMO (chi dung khi USE_MOCK:true) -->
   <script src="js/data.js"></script>
 
-  <!-- API WEBSITE -->
-  <script src="js/api.js"></script>
-
-  <!-- KET NOI CHAT AI THAT -->
-  <script src="js/ai-chat.js"></script>
+  <!-- API WEBSITE (da gom chuc nang chat AI that, KHONG con ai-chat.js) -->
+  <script src="js/api.js?v=2"></script>
 
   <!-- CHUC NANG CHUNG -->
-  <script src="js/common.js"></script>
+  <script src="js/common.js?v=place-images-3"></script>
 
   <!-- GIAO DIEN CHAT -->
-  <script src="js/chat.js"></script>
+  <script src="js/chat.js?v=2"></script>
 
 </body>
 </html>

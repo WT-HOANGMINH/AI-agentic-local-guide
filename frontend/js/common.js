@@ -55,10 +55,6 @@ function protect() {
 // ANH DIA DIEM
 // =========================================
 
-// Ten anh phai trung voi ten file trong frontend/images/
-
-
-
 const placeImages = {
   "Cầu Rồng": "images/caurong.jpg",
   "Bãi biển Mỹ Khê": "images/bien-my-khe-da-nang.jpg",
@@ -84,11 +80,34 @@ const placeImages = {
 
 };
 
+const placeImageAliases = {
+  'Bãi Biển Nam Ô': 'Bãi Rạn Nam Ô',
+  'Bãi Biển Mỹ Khê': 'Bãi biển Mỹ Khê',
+  'Bãi biển Nam Ô': 'Bãi Rạn Nam Ô',
+  'Bãi Bụt Sơn Trà': 'Bãi Bụt',
+  'Bảo tàng Điêu khắc Chăm': 'Bảo tàng Điêu khắc Chăm',
+  'Cầu Rồng Đà Nẵng': 'Cầu Rồng',
+  'Cầu Tình Yêu Đà Nẵng': 'Cầu Tình Yêu',
+  'Cầu vòm Đồn Cả': 'Cầu vòm Đồn Cả',
+  'Chợ Hàn': 'Chợ Hàn',
+  'Đỉnh Bàn Cờ': 'Đỉnh Bàn Cờ',
+  'Ghềnh Bàng': 'Ghềnh Bàng',
+  'Hồ Hòa Trung': 'Hồ Hòa Trung',
+  'Mũi Nghê': 'Mũi Nghê',
+  'Ngọn Thủy Sơn (Ngũ Hành Sơn)': 'Ngũ Hành Sơn',
+  'Thánh địa Mỹ Sơn': 'Thánh địa Mỹ Sơn',
+  'Bán đảo Sơn Trà': 'Bán đảo Sơn Trà'
+};
+
 
 
 // Lay anh dua theo ten dia diem
 function getPlaceImage(p) {
-  return placeImages[p.name] || p.image || "";
+  if (p.image) return p.image;
+
+  const name = String(p.name || '').trim();
+  const imageName = placeImageAliases[name] || name;
+  return placeImages[imageName] || "";
 }
 
 
@@ -253,7 +272,7 @@ function renderFooter() {
 // HIEN THI THE DIA DIEM CO ANH
 // =========================================
 
-function placeCard(p, fav = false) {
+function placeCard(p, fav = false, eagerImage = false) {
 
   // Lay duong dan anh
   const imageUrl = getPlaceImage(p);
@@ -286,7 +305,7 @@ function placeCard(p, fav = false) {
                 src="${esc(imageUrl)}"
                 alt="${esc(p.name)}"
                 class="place-image"
-                loading="lazy"
+                loading="${eagerImage ? 'eager' : 'lazy'}"
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
               >
               <span
