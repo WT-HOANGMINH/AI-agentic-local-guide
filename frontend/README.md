@@ -31,7 +31,7 @@ Backend phải bật CORS cho origin thực tế của Live Server (ví dụ `ht
 
 * Mock chỉ để trình diễn: mật khẩu được lưu ở localStorage, tuyệt đối không nhập mật khẩu thật và không triển khai lên production.
 * Ở API mode, token JWT lưu trong localStorage để thuận tiện tích hợp đồ án; production nên bàn với backend về cookie HttpOnly, CSP, xử lý XSS, CSRF và vòng đời token.
-* Endpoint `/favorites` và `/itineraries` trong README là **hợp đồng đề xuất**, không khẳng định Backend hiện đã có.
+* Backend đã hỗ trợ đầy đủ các endpoint: `/auth/*`, `/places/*`, `/recommendations*`, `/agent/chat`, `/favorites/*`, và `/itineraries/*`.
 
 ## Các trang
 
@@ -63,7 +63,7 @@ Dữ liệu địa điểm, tọa độ và đánh giá chỉ là bản minh h�
 - Place Search tìm theo tên, mô tả, khu vực và hoạt động. Recommendation demo có địa điểm mới.
 - Chỉ Mũi Nghê có tọa độ từ nguồn bản đồ đối chiếu; đây là vị trí mũi đất, không phải vị trí lối vào. Các địa điểm khác chưa được kiểm chứng tọa độ, được dẫn tới tìm kiếm OpenStreetMap thay vì tự đặt marker sai.
 - Giá vé, khoảng cách và tình trạng tiếp cận chỉ mang tính tham khảo; hãy xác minh trước khi thực địa.
-- Trong API MODE, danh sách địa điểm được lấy từ Backend; Phương cần đưa dữ liệu bổ sung vào database để chúng xuất hiện.
+- Trong API MODE, Backend đã nạp đầy đủ toàn bộ 21 địa điểm (kèm đánh giá rating xác thực, tọa độ chuẩn và danh mục) vào database để Frontend hiển thị đồng bộ.
 
 
 ## Dữ liệu demo cập nhật (21 địa điểm)

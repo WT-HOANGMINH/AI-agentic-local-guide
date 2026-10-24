@@ -13,10 +13,12 @@ from backend.models.user import User
 from backend.models.place import Place
 from backend.models.preference import UserPreference
 from backend.models.itinerary import Itinerary, ItineraryItem
+from backend.models.favorite import Favorite
 
 from backend.routes.auth import router as auth_router
 from backend.routes.users import router as users_router
 from backend.routes.places import router as places_router
+from backend.routes.favorites import router as favorites_router
 from backend.routes.preferences import router as preferences_router
 from backend.routes.recommendations import router as recommendations_router
 from backend.routes.itineraries import router as itineraries_router
@@ -164,6 +166,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(places_router)
+app.include_router(favorites_router)
 app.include_router(preferences_router)
 app.include_router(recommendations_router)
 app.include_router(itineraries_router)
@@ -235,165 +238,10 @@ def startup_event():
                 )
 
             # Nap dia diem mau neu bang Place dang rong
-            # (de nap day du hon, chay: python -X utf8 -m backend.seed_places)
             if db.query(Place).count() == 0:
-                initial_places = [
-                    Place(
-                        name="Cau Rong Da Nang",
-                        category="tourist_attraction",
-                        address=(
-                            "Duong Nguyen Van Linh, "
-                            "Hai Chau, Da Nang"
-                        ),
-                        description=(
-                            "Bieu tuong cua Da Nang, "
-                            "noi tieng voi hoat dong phun lua "
-                            "va phun nuoc vao mot so toi cuoi tuan."
-                        ),
-                        latitude=16.0611,
-                        longitude=108.2272,
-                        price_level=1,
-                        opening_hours=(
-                            "Mo ca ngay; can kiem tra lich "
-                            "phun lua va phun nuoc"
-                        ),
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Sun World Ba Na Hills va Cau Vang",
-                        category="tourist_attraction",
-                        address="Hoa Vang, Da Nang",
-                        description=(
-                            "Khu du lich tren nui voi Cau Vang, "
-                            "Lang Phap va canh quan nui."
-                        ),
-                        latitude=15.9988,
-                        longitude=107.9877,
-                        price_level=4,
-                        opening_hours="Can kiem tra gio hoat dong",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Chua Linh Ung Ban Dao Son Tra",
-                        category="tourist_attraction",
-                        address="Bai But, Ban dao Son Tra, Da Nang",
-                        description=(
-                            "Ngoi chua huong bien voi tuong "
-                            "Phat Ba Quan Am va tam nhin ra vinh Da Nang."
-                        ),
-                        latitude=16.1002,
-                        longitude=108.2758,
-                        price_level=1,
-                        opening_hours="Can kiem tra gio tham quan",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Bai bien My Khe",
-                        category="tourist_attraction",
-                        address="Duong Vo Nguyen Giap, Da Nang",
-                        description=(
-                            "Bai bien voi bai cat dai, "
-                            "phu hop tam bien va thu gian."
-                        ),
-                        latitude=16.0594,
-                        longitude=108.2464,
-                        price_level=1,
-                        opening_hours="Can kiem tra dieu kien thoi tiet",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Banh Xeo Tom Nhay Ba Duong",
-                        category="restaurant",
-                        address="K280/23 Hoang Dieu, Da Nang",
-                        description=(
-                            "Quan banh xeo va nem lui dac trung "
-                            "cua am thuc Da Nang."
-                        ),
-                        latitude=16.0592,
-                        longitude=108.2173,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio mo cua",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Mi Quang Ba Mua",
-                        category="restaurant",
-                        address="Tran Binh Trong, Hai Chau, Da Nang",
-                        description=(
-                            "Dia diem thuong thuc mi Quang, "
-                            "mot mon dac san mien Trung."
-                        ),
-                        latitude=16.0645,
-                        longitude=108.2198,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio mo cua",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Trinh Ca Phe",
-                        category="cafe",
-                        address="Nguyen Huu Tho, Da Nang",
-                        description=(
-                            "Quan ca phe co khong gian xanh, "
-                            "phong cach moc mac."
-                        ),
-                        latitude=16.0489,
-                        longitude=108.2091,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio mo cua",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Wonderlust Danang",
-                        category="cafe",
-                        address="Tran Phu, Hai Chau, Da Nang",
-                        description=(
-                            "Khong gian ca phe hien dai "
-                            "gan khu vuc trung tam."
-                        ),
-                        latitude=16.0691,
-                        longitude=108.2235,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio mo cua",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Cho Han Da Nang",
-                        category="shopping",
-                        address="119 Tran Phu, Hai Chau, Da Nang",
-                        description=(
-                            "Cho truyen thong ban dac san, "
-                            "thuc pham va qua luu niem."
-                        ),
-                        latitude=16.0682,
-                        longitude=108.2248,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio mo cua",
-                        is_active=True,
-                    ),
-                    Place(
-                        name="Cho Dem Son Tra",
-                        category="shopping",
-                        address="Mai Hac De, Son Tra, Da Nang",
-                        description=(
-                            "Khu cho dem voi cac gian hang "
-                            "am thuc va hang luu niem."
-                        ),
-                        latitude=16.0617,
-                        longitude=108.2325,
-                        price_level=2,
-                        opening_hours="Can kiem tra gio hoat dong",
-                        is_active=True,
-                    ),
-                ]
-
-                db.add_all(initial_places)
-                db.commit()
-
-                print(
-                    f"[Seeder] Added {len(initial_places)} "
-                    "sample places to the database."
-                )
+                from backend.seed_places import main as seed_places_main
+                seed_places_main()
+                print("[Seeder] Khoi tao danh sach dia diem day du cho Da Nang.")
 
         finally:
             db.close()

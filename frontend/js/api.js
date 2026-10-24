@@ -3,11 +3,16 @@
    - USE_MOCK:true  -> dung data.js + localStorage (demo)
    - USE_MOCK:false -> goi FastAPI that
    - Chat AI luon goi backend /agent/chat (ke ca khi USE_MOCK:true)
-   - Yeu thich / lich trinh nhap: luu localStorage theo tung user
-     (backend chua co route /favorites)
+   - Yeu thich / lich trinh: dong bo FastAPI backend /favorites va /itineraries
+     (kem fallback localStorage khi chua dang nhap)
    ========================================================= */
 
-const CFG = window.LOCAL_GUIDE_CONFIG;
+const CFG = window.LOCAL_GUIDE_CONFIG || {
+  USE_MOCK: false,
+  API_BASE: '',
+  TOKEN_KEY: 'localguide_token',
+  GOOGLE_CLIENT_ID: '853984856354-131ekmamkn9sqn75mbckbbm0805ab21m.apps.googleusercontent.com'
+};
 
 const store = {
   get(k, fallback = null) {
@@ -70,20 +75,49 @@ const CATEGORY_EMOJI = {
   shopping: '🛍️'
 };
 
-/* Chuyen 1 ban ghi tu backend sang dang giao dien dang dung */
+/* Chuyen 1 ban ghi tu backend sang dang giao dien dang dung va lam giau du lieu */
 function mapPlace(p) {
-  if (!p || p.category === undefined || p.district !== undefined) return p;
+  if (!p) return p;
 
   const addr = p.address || '';
   const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
 
+  // Tim trong DEMO_PLACES de lam giau thong tin chi tiet (activities, highlights, best_time, tips, ticket_price, sourceUrl)
+  const demo = (window.DEMO_PLACES || []).find(d =>
+    String(d.id) === String(p.id) ||
+    (d.name && p.name && (
+      d.name.trim().toLowerCase() === p.name.trim().toLowerCase() ||
+      p.name.trim().toLowerCase().includes(d.name.trim().toLowerCase()) ||
+      d.name.trim().toLowerCase().includes(p.name.trim().toLowerCase())
+    ))
+  );
+
+  const rawCat = p.rawCategory || p.category || (demo ? (demo.rawCategory || demo.category) : '');
+  const catLabel = CATEGORY_LABEL[rawCat] || p.category || (demo ? demo.category : 'Tham quan');
+
   return {
+    ...(demo || {}),
     ...p,
-    category: CATEGORY_LABEL[p.category] || p.category,
-    rawCategory: p.category,
-    district: parts.length >= 2 ? parts[parts.length - 2] : 'Đà Nẵng',
-    emoji: CATEGORY_EMOJI[p.category] || '📍',
-    rating: p.rating ?? null
+    id: p.id !== undefined ? p.id : (demo ? demo.id : p.id),
+    name: p.name || (demo ? demo.name : ''),
+    category: catLabel,
+    rawCategory: rawCat,
+    district: parts.length >= 2 ? parts[parts.length - 2] : ((demo && demo.district) || 'Đà Nẵng'),
+    area: (demo && demo.area) || (parts.length >= 2 ? parts[parts.length - 2] : 'Đà Nẵng'),
+    address: p.address || (demo && demo.address) || '',
+    emoji: (demo && demo.emoji) || CATEGORY_EMOJI[rawCat] || '📍',
+    rating: p.rating ?? (demo ? demo.rating : null),
+    latitude: p.latitude ?? (demo ? demo.latitude : null),
+    longitude: p.longitude ?? (demo ? demo.longitude : null),
+    opening_hours: p.opening_hours || (demo ? demo.opening_hours : ''),
+    price_level: p.price_level ?? (demo ? demo.price_level : 1),
+    ticket_price: (demo && demo.ticket_price) || (p.price_level ? (p.price_level === 1 ? 'Miễn phí / Tiết kiệm' : p.price_level === 2 ? 'Bình dân (~50.000 – 150.000 VNĐ)' : p.price_level === 3 ? 'Trung cấp (~200.000 – 600.000 VNĐ)' : 'Cao cấp (~700.000 – 1.500.000 VNĐ)') : 'Vui lòng xác nhận trước khi đi'),
+    activities: (demo && Array.isArray(demo.activities) && demo.activities.length) ? demo.activities : (p.activities || []),
+    highlights: (demo && demo.highlights) || p.highlights || '',
+    best_time: (demo && demo.best_time) || p.best_time || '',
+    tips: (demo && demo.tips) || p.tips || '',
+    distanceNote: (demo && demo.distanceNote) || p.distanceNote || '',
+    sourceUrl: p.sourceUrl || (demo && demo.sourceUrl) || null
   };
 }
 
@@ -112,9 +146,15 @@ const API = {
       if (token) headers.Authorization = `Bearer ${token}`;
     }
 
+    // Tu dong dinh tuyen sang FastAPI cong 8000 neu FE dang mo bang Live Server cong 5500/3000
+    let apiBase = CFG.API_BASE || '';
+    if (!apiBase && typeof location !== 'undefined' && (location.port === '5500' || location.port === '3000' || location.port === '5173')) {
+      apiBase = 'http://127.0.0.1:8000';
+    }
+
     let response;
     try {
-      response = await fetch(CFG.API_BASE + path, {
+      response = await fetch(apiBase + path, {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body)
@@ -195,6 +235,47 @@ const API = {
     return safe;
   },
 
+  /* ---------------- Dang nhap bang Google ---------------- */
+  async googleLogin({ credential, access_token, email, name, picture, google_id } = {}) {
+    if (!CFG.USE_MOCK) {
+      const res = await this.request('/auth/google', {
+        method: 'POST',
+        body: { credential, access_token, email, name, picture, google_id }
+      });
+
+      localStorage.setItem(CFG.TOKEN_KEY, res.access_token);
+
+      const user = {
+        id: res.user_id,
+        name: res.username || (email ? email.split('@')[0] : 'Google User'),
+        email: res.email || email,
+        role: res.role,
+        picture: picture || ''
+      };
+
+      store.set('lg_current_user', user);
+      return user;
+    }
+
+    await delay();
+    const gEmail = (email || 'google.user@gmail.com').toLowerCase();
+    const gName = name || gEmail.split('@')[0];
+
+    let users = store.get('lg_users', []);
+    let user = users.find(x => x.email === gEmail);
+
+    if (!user) {
+      user = { id: Date.now(), name: gName, email: gEmail, role: 'user', picture };
+      users.push(user);
+      store.set('lg_users', users);
+    }
+
+    const safe = cleanUser(user);
+    store.set('lg_current_user', safe);
+    localStorage.setItem(CFG.TOKEN_KEY, 'demo-google-token');
+    return safe;
+  },
+
   logout() {
     localStorage.removeItem(CFG.TOKEN_KEY);
     localStorage.removeItem('lg_current_user');
@@ -205,6 +286,25 @@ const API = {
     return store.get('lg_current_user');
   },
 
+  async getProfile() {
+    if (!CFG.USE_MOCK) {
+      try {
+        const u = await this.request('/auth/me', { auth: true });
+        const user = {
+          id: u.id,
+          name: u.username,
+          email: u.email,
+          role: u.role
+        };
+        store.set('lg_current_user', user);
+        return user;
+      } catch {
+        return this.user();
+      }
+    }
+    return this.user();
+  },
+
   isLogged() {
     return !!localStorage.getItem(CFG.TOKEN_KEY);
   },
@@ -212,70 +312,74 @@ const API = {
   /* ---------------- Danh sach dia diem ---------------- */
   async places(params = {}) {
     if (!CFG.USE_MOCK) {
-      const query = {};
+      try {
+        const query = {};
 
-      if (params.q) query.keyword = params.q;
-      if (params.keyword) query.keyword = params.keyword;
+        if (params.q) query.keyword = params.q;
+        if (params.keyword) query.keyword = params.keyword;
 
-      if (params.category && params.category !== 'all') {
-        query.category = CATEGORY_TO_DB[params.category] || params.category;
-      }
-
-      if (params.max_price) query.max_price = params.max_price;
-      let list;
-      if (params.allPages) {
-        const pageSize = 100;
-        let skip = 0;
-        let total = Infinity;
-        list = [];
-
-        while (skip < total) {
-          const qs = new URLSearchParams({
-            ...query,
-            skip: String(skip),
-            limit: String(pageSize)
-          });
-          const data = await this.request('/places/?' + qs);
-          const page = normalizePlaces(data).map(mapPlace);
-          list.push(...page);
-          skip += page.length;
-          total = Number(data.total ?? skip);
-          if (!page.length) break;
+        if (params.category && params.category !== 'all') {
+          query.category = CATEGORY_TO_DB[params.category] || params.category;
         }
-      } else {
-        query.limit = params.limit || 100;
-        const qs = new URLSearchParams(query);
-        const data = await this.request('/places/?' + qs);
-        list = normalizePlaces(data).map(mapPlace);
+
+        if (params.max_price) query.max_price = params.max_price;
+        let list;
+        if (params.allPages) {
+          const pageSize = 100;
+          let skip = 0;
+          let total = Infinity;
+          list = [];
+
+          while (skip < total) {
+            const qs = new URLSearchParams({
+              ...query,
+              skip: String(skip),
+              limit: String(pageSize)
+            });
+            const data = await this.request('/places/?' + qs);
+            const page = normalizePlaces(data).map(mapPlace);
+            list.push(...page);
+            skip += page.length;
+            total = Number(data.total ?? skip);
+            if (!page.length) break;
+          }
+        } else {
+          query.limit = params.limit || 100;
+          const qs = new URLSearchParams(query);
+          const data = await this.request('/places/?' + qs);
+          list = normalizePlaces(data).map(mapPlace);
+        }
+
+        // Cac nhan nhu "Biển", "Thiên nhiên" cung la tourist_attraction trong DB,
+        // nen loc them theo ten/mo ta cho dung chu de.
+        const topicWords = {
+          'Biển': ['biển', 'bãi'],
+          'Thiên nhiên': ['rừng', 'núi', 'đèo', 'bán đảo', 'thiên nhiên'],
+          'Văn hóa': ['phố cổ', 'chùa', 'bảo tàng', 'nhà thờ', 'thánh địa', 'làng']
+        };
+
+        const words = topicWords[params.category];
+        if (words) {
+          const filtered = list.filter(p => {
+            const text = `${p.name} ${p.description || ''}`.toLocaleLowerCase('vi');
+            return words.some(w => text.includes(w));
+          });
+          list = filtered.length ? filtered : list;
+        }
+
+        return list;
+      } catch (err) {
+        console.warn('Backend /places fetch failed, falling back to DEMO_PLACES:', err);
       }
-
-      // Cac nhan nhu "Biển", "Thiên nhiên" cung la tourist_attraction trong DB,
-      // nen loc them theo ten/mo ta cho dung chu de.
-      const topicWords = {
-        'Biển': ['biển', 'bãi'],
-        'Thiên nhiên': ['rừng', 'núi', 'đèo', 'bán đảo', 'thiên nhiên'],
-        'Văn hóa': ['phố cổ', 'chùa', 'bảo tàng', 'nhà thờ', 'thánh địa', 'làng']
-      };
-
-      const words = topicWords[params.category];
-      if (words) {
-        const filtered = list.filter(p => {
-          const text = `${p.name} ${p.description || ''}`.toLocaleLowerCase('vi');
-          return words.some(w => text.includes(w));
-        });
-        list = filtered.length ? filtered : list;
-      }
-
-      return list;
     }
 
     await delay();
     const q = (params.q || '').toLocaleLowerCase('vi');
 
-    return window.DEMO_PLACES.filter(p =>
+    return (window.DEMO_PLACES || []).map(mapPlace).filter(p =>
       (!q ||
         (
-          p.name + ' ' + p.description + ' ' + p.district + ' ' +
+          p.name + ' ' + (p.description || '') + ' ' + (p.district || '') + ' ' +
           (p.area || '') + ' ' + (p.activities || []).join(' ')
         )
           .toLocaleLowerCase('vi')
@@ -287,11 +391,20 @@ const API = {
   /* ---------------- Chi tiet 1 dia diem ---------------- */
   async place(id) {
     if (!CFG.USE_MOCK) {
-      return mapPlace(await this.request('/places/' + encodeURIComponent(id)));
+      try {
+        const data = await this.request('/places/' + encodeURIComponent(id));
+        return mapPlace(data);
+      } catch (err) {
+        // Fallback sang DEMO_PLACES neu backend khong tim thay ID hoac backend offline
+        const demo = (window.DEMO_PLACES || []).find(p => String(p.id) === String(id));
+        if (demo) return mapPlace(demo);
+        throw err;
+      }
     }
 
     await delay();
-    return window.DEMO_PLACES.find(p => String(p.id) === String(id)) || null;
+    const demo = (window.DEMO_PLACES || []).find(p => String(p.id) === String(id)) || null;
+    return demo ? mapPlace(demo) : null;
   },
 
   /* ---------------- Dia diem gan toi ---------------- */
@@ -315,12 +428,25 @@ const API = {
   /* ---------------- Goi y ca nhan hoa ---------------- */
   async recommend(category = 'all') {
     if (!CFG.USE_MOCK) {
+      const query = category && category !== 'all'
+        ? `?category=${encodeURIComponent(category)}`
+        : '';
+
       // Co dang nhap thi dung goi y theo so thich, neu loi thi lay danh sach thuong
       try {
         const data = await this.request('/recommendations/for-me', { auth: true });
-        return normalizePlaces(data).map(mapPlace);
+        let list = normalizePlaces(data).map(mapPlace);
+        if (category && category !== 'all') {
+          const catLower = category.toLowerCase();
+          const filtered = list.filter(p =>
+            (p.category && p.category.toLowerCase() === catLower) ||
+            (p.rawCategory && p.rawCategory.toLowerCase() === (CATEGORY_TO_DB[category] || category).toLowerCase())
+          );
+          if (filtered.length) return filtered;
+        }
+        return list;
       } catch {
-        const data = await this.request('/recommendations/trending');
+        const data = await this.request('/recommendations' + query);
         return normalizePlaces(data).map(mapPlace);
       }
     }
@@ -362,36 +488,67 @@ const API = {
     return result.reply || result.answer || result.response || 'AI chưa trả về nội dung.';
   },
 
-  /* ---------------- Yeu thich (luu localStorage theo user) ---------------- */
+  /* ---------------- Yeu thich (Dong bo Backend /favorites + Cache Local) ---------------- */
   async favorites() {
-    const ids = store.get('lg_favorites_' + this.user()?.email, []);
+    if (!CFG.USE_MOCK && this.isLogged()) {
+      try {
+        const ids = await this.request('/favorites', { auth: true });
+        if (Array.isArray(ids)) {
+          store.set('lg_favorites_' + this.user()?.email, ids);
+          return ids;
+        }
+      } catch (err) {
+        console.warn('Khong lay duoc yeu thich tu backend, dung cache:', err.message);
+      }
+    }
 
-    if (!CFG.USE_MOCK && ids.length) {
-      // Lay thong tin day du tung dia diem tu backend
+    // Tra ve mang ID de places.js va recommendations.js dung saved.includes(p.id)
+    return store.get('lg_favorites_' + this.user()?.email, []);
+  },
+
+  async favoritePlaces() {
+    if (!CFG.USE_MOCK && this.isLogged()) {
+      try {
+        const data = await this.request('/favorites/details', { auth: true });
+        return normalizePlaces(data).map(mapPlace);
+      } catch {}
+    }
+    const ids = await this.favorites();
+    if (!ids.length) return [];
+    if (!CFG.USE_MOCK) {
       const results = await Promise.all(
         ids.map(id => this.place(id).catch(() => null))
       );
       return results.filter(Boolean);
     }
-
-    if (CFG.USE_MOCK) {
-      return window.DEMO_PLACES.filter(p => ids.includes(p.id));
-    }
-
-    return [];
+    return window.DEMO_PLACES.filter(p => ids.includes(p.id));
   },
 
   async toggleFavorite(id) {
     const key = 'lg_favorites_' + this.user()?.email;
     let ids = store.get(key, []);
 
-    ids = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
+    if (!CFG.USE_MOCK && this.isLogged()) {
+      try {
+        const res = await this.request('/favorites/' + encodeURIComponent(id), {
+          method: 'POST',
+          auth: true
+        });
+        if (res && Array.isArray(res.place_ids)) {
+          store.set(key, res.place_ids);
+          return res.place_ids;
+        }
+      } catch (err) {
+        console.warn('Khong dong bo duoc yeu thich len server:', err.message);
+      }
+    }
 
+    ids = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
     store.set(key, ids);
     return ids;
   },
 
-  /* ---------------- Lich trinh nhap (danh sach dia diem da chon) ---------------- */
+  /* ---------------- Lich trinh (danh sach dia diem da chon) ---------------- */
   async saveItinerary(ids) {
     store.set('lg_itinerary_' + this.user()?.email, ids);
 
@@ -430,7 +587,28 @@ const API = {
   },
 
   async itinerary() {
-    return store.get('lg_itinerary_' + this.user()?.email, []);
+    const local = store.get('lg_itinerary_' + this.user()?.email, []);
+
+    // Neu local chua co nhung da dang nhap API that, thu lay tu server
+    if (!CFG.USE_MOCK && this.isLogged() && !local.length) {
+      try {
+        const data = await this.request('/itineraries/?limit=1', { auth: true });
+        const list = data.itineraries || [];
+        if (list.length && list[0].id) {
+          const detail = await this.request('/itineraries/' + list[0].id, { auth: true });
+          const ids = (detail.items || []).map(item => item.place_id).filter(Boolean);
+          if (ids.length) {
+            store.set('lg_itinerary_' + this.user()?.email, ids);
+            store.set('lg_itinerary_server_id_' + this.user()?.email, detail.id);
+            return ids;
+          }
+        }
+      } catch (err) {
+        console.warn('Khong lay duoc lich trinh tu backend:', err.message);
+      }
+    }
+
+    return local;
   }
 };
 

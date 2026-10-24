@@ -1,5 +1,5 @@
 
-document.addEventListener("DOMContentLoaded", async () => {
+async function loadFeaturedPlaces() {
   const host = document.querySelector("#featured");
   if (!host) return;
 
@@ -12,13 +12,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter(place => getPlaceImage(place))
       .slice(0, 5);
 
+    const isEn = window.getLang && window.getLang() === 'en';
+
     host.innerHTML = featuredPlaces.map(p => `
       <div class="col-12 col-sm-6 col-lg">
         ${placeCard(p, false, true)}
       </div>
     `).join("") || `
       <div class="col-12 empty">
-        Chưa có địa điểm nổi bật với ảnh đã xác minh.
+        ${isEn ? 'No featured places with verified photos found.' : 'Chưa có địa điểm nổi bật với ảnh đã xác minh.'}
       </div>
     `;
 
@@ -28,4 +30,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (error) {
     flash(error.message);
   }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadFeaturedPlaces();
+  window.addEventListener("languageChanged", () => {
+    loadFeaturedPlaces();
+  });
 });

@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function load() {
-    host.innerHTML = '<div class="col-12 muted">Đang tải địa điểm…</div>';
+    const isEn = window.getLang && window.getLang() === 'en';
+    host.innerHTML = `<div class="col-12 muted">${isEn ? 'Loading places…' : 'Đang tải địa điểm…'}</div>`;
     loadMore.hidden = true;
     try {
       const places = await API.places({
@@ -37,9 +38,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (places.length) {
         renderNextPage(saved);
       } else {
-        host.innerHTML = '<div class="col-12 empty">Không tìm thấy địa điểm phù hợp.</div>';
+        host.innerHTML = `<div class="col-12 empty">${isEn ? 'No matching places found.' : 'Không tìm thấy địa điểm phù hợp.'}</div>`;
       }
-      $('#count').textContent = places.length + ' địa điểm';
+      $('#count').textContent = places.length + (isEn ? ' places found' : ' địa điểm');
+      loadMore.textContent = isEn ? 'Load more' : 'Xem thêm';
       loadMore.onclick = () => renderNextPage(saved);
     } catch (e) {
       host.innerHTML = '';
@@ -53,5 +55,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   category.addEventListener('change', load);
   wirePlaceActions(host);
+
+  window.addEventListener('languageChanged', () => {
+    load();
+  });
+
   await load();
 });

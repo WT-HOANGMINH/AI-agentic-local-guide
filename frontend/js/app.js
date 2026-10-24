@@ -5,7 +5,8 @@
 import { initAuth } from "./auth.js";
 import { initMap, resetMapView, locateUser, toggleTourRoute, toggleSonTraArea } from "./map.js";
 import { initPlaces, setQuickSearch } from "./places.js";
-import { API_BASE_URL, QUICK_TAGS } from "./config.js";
+const API_BASE_URL = (typeof window !== "undefined" && window.API_BASE_URL) || "http://127.0.0.1:8000";
+const QUICK_TAGS = (typeof window !== "undefined" && window.QUICK_TAGS) || [];
 
 /**
  * Khởi tạo toàn bộ ứng dụng

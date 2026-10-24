@@ -197,4 +197,56 @@ def get_trending_places(
     db: Session = Depends(get_db)
 ):
     """Lấy danh sách các địa điểm nổi bật và được yêu thích nhất."""
-    return db.query(Place).filter(Place.is_active == True).limit(limit).all()
+    return db.query(Place).filter(Place.is_active == True).order_by(Place.rating.desc().nullslast(), Place.id.asc()).limit(limit).all()
+
+
+@router.get(
+    "",
+    response_model=list[PlaceResponse],
+    summary="Lấy danh sách gợi ý địa điểm theo danh mục hoặc nổi bật"
+)
+@router.get(
+    "/",
+    response_model=list[PlaceResponse],
+    include_in_schema=False
+)
+def get_recommendations_by_category(
+    category: str | None = Query(default=None, description="Lọc theo danh mục: all, tourist_attraction, restaurant, cafe, shopping hoặc tiếng Việt"),
+    limit: int = Query(default=8, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    """
+    Trả về danh sách địa điểm đề xuất theo danh mục hoặc nổi bật.
+    Hỗ trợ cả danh mục chuẩn (tourist_attraction, restaurant, cafe, shopping) và danh mục tiếng Việt từ Frontend.
+    """
+    category_alias = {
+        "tham quan": "tourist_attraction",
+        "biển": "tourist_attraction",
+        "thiên nhiên": "tourist_attraction",
+        "văn hóa": "tourist_attraction",
+        "ẩm thực": "restaurant",
+        "quán ăn": "restaurant",
+        "cà phê": "cafe",
+        "mua sắm": "shopping",
+    }
+
+    query = db.query(Place).filter(Place.is_active == True)
+
+    if category and category.strip().lower() != "all":
+        cat_clean = category.strip().lower()
+        db_cat = category_alias.get(cat_clean, cat_clean)
+        query = query.filter(Place.category == db_cat)
+
+        topic_words = {
+            "biển": ["biển", "bãi"],
+            "thiên nhiên": ["rừng", "núi", "đèo", "bán đảo", "suối", "thác", "hồ", "ghềnh"],
+            "văn hóa": ["phố cổ", "chùa", "bảo tàng", "nhà thờ", "thánh địa", "làng", "công viên văn hóa"]
+        }
+        words = topic_words.get(cat_clean)
+        if words:
+            from sqlalchemy import or_
+            filters = [Place.name.ilike(f"%{w}%") for w in words] + [Place.description.ilike(f"%{w}%") for w in words]
+            query = query.filter(or_(*filters))
+
+    return query.order_by(Place.rating.desc().nullslast(), Place.id.asc()).limit(limit).all()
+

@@ -145,6 +145,10 @@ DATABASE_URL=mysql+pymysql://root:1234@localhost:3306/agentic_local_guide
 
 # Khóa bí mật mã hóa JWT
 SECRET_KEY=agentic-ai-local-guide-secret-key-2026
+
+# Cấu hình Google OAuth 2.0 Đăng nhập
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
 
 > [!NOTE]
