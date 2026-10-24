@@ -76,7 +76,7 @@
         <div class="eyebrow">Chào mừng trở lại</div>
         <h1 class="h2 mb-3">Đăng nhập</h1>
 
-        <div id="message"></div>
+        <div id="message" role="status"></div>
 
         <form id="auth-form" data-type="login">
           <label class="form-label" for="email">Email</label>
@@ -139,7 +139,7 @@
         </p>
 
         <p class="small muted mt-3 text-center">
-          Đăng nhập mạng xã hội sẽ hoạt động sau khi hoàn tất cấu hình OAuth.
+          Đăng nhập với Google hoặc bằng email và mật khẩu.
         </p>
 
       </div>
@@ -156,20 +156,90 @@
   <script src="js/auth.js"></script>
 
   <script>
-    // Chua ket noi OAuth: khong gia lap dang nhap thanh cong.
-    document.getElementById('google-login').addEventListener('click', () => {
-      const message = document.getElementById('message');
-      message.className = 'alert alert-info mt-3';
-      message.textContent =
-        'Google Login chưa được cấu hình. Hãy hoàn tất OAuth ở backend trước.';
+    const BACKEND_URL = "http://127.0.0.1:8000";
+    const messageBox = document.getElementById("message");
+
+    function showMessage(text, type = "info") {
+      messageBox.className = `alert alert-${type} mt-3`;
+      messageBox.textContent = text;
+    }
+
+    // ĐĂNG NHẬP BẰNG GOOGLE
+    document.getElementById("google-login").addEventListener("click", () => {
+      window.location.href = BACKEND_URL + "/api/auth/google";
     });
 
-    document.getElementById('facebook-login').addEventListener('click', () => {
-      const message = document.getElementById('message');
-      message.className = 'alert alert-info mt-3';
-      message.textContent =
-        'Facebook Login chưa được cấu hình. Hãy hoàn tất OAuth ở backend trước.';
+    // FACEBOOK: CHƯA CẤU HÌNH
+    document.getElementById("facebook-login").addEventListener("click", () => {
+      showMessage(
+        "Facebook Login đang được phát triển. Vui lòng sử dụng Google hoặc email.",
+        "info"
+      );
     });
+
+    // XỬ LÝ KẾT QUẢ GOOGLE OAUTH
+    async function handleGoogleCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const authStatus = params.get("oauth") || params.get("auth");
+
+      if (authStatus !== "success") {
+        if (authStatus === "error") {
+          showMessage(
+            "Đăng nhập Google không thành công. Vui lòng thử lại.",
+            "danger"
+          );
+        }
+        return;
+      }
+
+      showMessage("Đang xác minh tài khoản Google...", "info");
+
+      try {
+        const response = await fetch(
+          BACKEND_URL + "/api/auth/me",
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "Accept": "application/json"
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Không thể xác minh phiên đăng nhập.");
+        }
+
+        const data = await response.json();
+
+        if (!data.user || !data.user.id) {
+          throw new Error("Không tìm thấy thông tin tài khoản.");
+        }
+
+        // Lưu thông tin hiển thị, không lưu token hoặc secret
+        sessionStorage.setItem(
+          "danang_oauth_user",
+          JSON.stringify(data.user)
+        );
+
+        showMessage(
+          "Đăng nhập Google thành công! Đang chuyển về trang chủ...",
+          "success"
+        );
+
+        // Chuyển về trang chủ
+        window.location.replace("index.html?auth=success");
+
+      } catch (error) {
+        console.error("Google OAuth:", error);
+        showMessage(
+          "Google đã chuyển về website nhưng không thể xác minh phiên đăng nhập. Kiểm tra Backend và CORS.",
+          "danger"
+        );
+      }
+    }
+
+    handleGoogleCallback();
   </script>
 </body>
 </html>

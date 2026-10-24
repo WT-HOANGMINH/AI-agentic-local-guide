@@ -42,14 +42,41 @@ function flash(message, type = 'danger', target = '#message') {
 
 // ===== KIEM TRA DANG NHAP =====
 
-function protect() {
-  if (!API.isLogged()) {
-    location.replace('login.html');
-    return false;
-  }
-  return true;
-}
 
+async function protect() {
+  // 1. Kiểm tra tài khoản Email Demo
+  if (API.isLogged()) {
+    return true;
+  }
+
+  // 2. Kiểm tra tài khoản Google OAuth từ Backend
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/api/auth/me",
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+
+      if (data.user) {
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error("Lỗi kiểm tra đăng nhập:", error);
+  }
+
+  // 3. Chỉ chuyển về Login nếu cả hai đều chưa đăng nhập
+  window.location.replace("login.html");
+  return false;
+}
 
 // =========================================
 // ANH DIA DIEM
