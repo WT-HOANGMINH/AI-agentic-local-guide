@@ -3,6 +3,7 @@ import mimetypes
 import os
 from urllib.parse import urlsplit
 
+from fastapi.responses import RedirectResponse
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -298,7 +299,7 @@ def startup_event():
         finally:
             db.close()
 
-
+    
     except Exception as error:
         # Production phai dung neu khoi tao database that bai
         if os.getenv("APP_ENV", "development").lower() == "production":
@@ -316,12 +317,13 @@ def startup_event():
 # Home API
 # ==============================================================
 
-@app.get("/")
-def home():
-    return {
-        "message": "Agentic AI Local Guide is running!"
-    }
 
+@app.get("/")
+def root():
+    return RedirectResponse(
+        url="/app/index.html",
+        status_code=302
+    )
 
 # ==============================================================
 # Backend Health Check
