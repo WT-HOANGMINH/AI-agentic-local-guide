@@ -34,7 +34,19 @@
       color: #202124;
     }
 
+    .facebook-login {
+      background: #1877f2;
+      border: 1px solid #1877f2;
+      color: #fff;
+    }
+
+    .facebook-login:hover {
+      background: #166fe5;
+      color: #fff;
+    }
+
     .social-icon {
+
       width: 21px;
       height: 21px;
       object-fit: contain;
@@ -91,12 +103,30 @@
         <div class="d-grid gap-3">
           <div id="google-signin-btn-container" class="w-100 d-flex justify-content-center"></div>
 
-          <div class="text-center mt-1">
+          <div class="text-center mt-0 mb-1">
             <a href="#" id="google-quick-help" class="text-secondary small" style="font-size: 12px; text-decoration: none;">
               Tùy chọn đăng nhập Google khác (Tài khoản thử nghiệm)
             </a>
           </div>
+
+          <button
+            type="button"
+            class="social-login facebook-login"
+            id="facebook-login-btn"
+          >
+            <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            <span>Tiếp tục với Facebook</span>
+          </button>
+
+          <div class="text-center mt-0">
+            <a href="#" id="facebook-quick-help" class="text-secondary small" style="font-size: 12px; text-decoration: none;">
+              Tùy chọn đăng nhập Facebook khác (Tài khoản thử nghiệm / Quick Login)
+            </a>
+          </div>
         </div>
+
 
         <p class="mt-4 mb-0 text-center muted">
           Chưa có tài khoản?
@@ -115,12 +145,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="js/config.js?v=social-auth-v3"></script>
+  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/vi_VN/sdk.js"></script>
+  <script src="js/config.js?v=social-auth-v4"></script>
   <script src="js/data.js"></script>
-  <script src="js/api.js?v=social-auth-v3"></script>
+  <script src="js/api.js?v=social-auth-v4"></script>
   <script src="js/common.js?v=switch-toggle-3"></script>
-  <script src="js/auth.js?v=no-fb-1"></script>
+  <script src="js/auth.js?v=fb-auth-v1"></script>
 
 </body>
+
 
 </html>

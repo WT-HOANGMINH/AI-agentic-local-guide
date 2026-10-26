@@ -29,3 +29,12 @@ class GoogleLoginRequest(BaseModel):
     name: str | None = Field(default=None, description="Họ tên người dùng Google")
     picture: str | None = Field(default=None, description="Ảnh đại diện Google")
     google_id: str | None = Field(default=None, description="Google Subject ID")
+
+
+class FacebookLoginRequest(BaseModel):
+    access_token: str | None = Field(default=None, description="Facebook OAuth Access Token")
+    signed_request: str | None = Field(default=None, description="Facebook signed_request parameter")
+    email: EmailStr | None = Field(default=None, description="Email tài khoản Facebook")
+    name: str | None = Field(default=None, description="Họ tên người dùng Facebook")
+    picture: str | None = Field(default=None, description="Ảnh đại diện Facebook")
+    facebook_id: str | None = Field(default=None, description="Facebook User ID")

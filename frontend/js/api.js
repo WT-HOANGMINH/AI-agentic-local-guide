@@ -11,8 +11,10 @@ const CFG = window.LOCAL_GUIDE_CONFIG || {
   USE_MOCK: false,
   API_BASE: '',
   TOKEN_KEY: 'localguide_token',
-  GOOGLE_CLIENT_ID: '853984856354-131ekmamkn9sqn75mbckbbm0805ab21m.apps.googleusercontent.com'
+  GOOGLE_CLIENT_ID: '853984856354-131ekmamkn9sqn75mbckbbm0805ab21m.apps.googleusercontent.com',
+  FACEBOOK_APP_ID: '1092777120272337'
 };
+
 
 const store = {
   get(k, fallback = null) {
@@ -82,24 +84,49 @@ function mapPlace(p) {
   const addr = p.address || '';
   const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
 
+  // Chuẩn hóa tên để so khớp chính xác với DEMO_PLACES
+  const normalize = (str) => String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+  const pNorm = normalize(p.name);
+
   // Tim trong DEMO_PLACES de lam giau thong tin chi tiet (activities, highlights, best_time, tips, ticket_price, sourceUrl)
-  const demo = (window.DEMO_PLACES || []).find(d =>
-    String(d.id) === String(p.id) ||
-    (d.name && p.name && (
-      d.name.trim().toLowerCase() === p.name.trim().toLowerCase() ||
-      p.name.trim().toLowerCase().includes(d.name.trim().toLowerCase()) ||
-      d.name.trim().toLowerCase().includes(p.name.trim().toLowerCase())
-    ))
-  );
+  // Ưu tiên so khớp theo TÊN để tránh xung đột ID tự tăng giữa database và demo
+  const demo = (window.DEMO_PLACES || []).find(d => {
+    const dNorm = normalize(d.name);
+    return dNorm && pNorm && dNorm === pNorm;
+  }) || (window.DEMO_PLACES || []).find(d => {
+    const dNorm = normalize(d.name);
+    return dNorm && pNorm && (dNorm.includes(pNorm) || pNorm.includes(dNorm));
+  }) || (window.DEMO_PLACES || []).find(d => {
+    const dNorm = normalize(d.name);
+    return String(d.id) === String(p.id) && (!dNorm || !pNorm || dNorm === pNorm);
+  });
 
   const rawCat = p.rawCategory || p.category || (demo ? (demo.rawCategory || demo.category) : '');
   const catLabel = CATEGORY_LABEL[rawCat] || p.category || (demo ? demo.category : 'Tham quan');
+
+  // Lấy ảnh chuẩn cho địa điểm
+  let placeImg = '';
+  if (typeof getPlaceImage === 'function') {
+    placeImg = getPlaceImage(p) || (demo ? getPlaceImage(demo) : '');
+  }
+  if (!placeImg && demo && demo.image) {
+    placeImg = demo.image;
+  }
+  if (!placeImg && p.image) {
+    placeImg = p.image;
+  }
 
   return {
     ...(demo || {}),
     ...p,
     id: p.id !== undefined ? p.id : (demo ? demo.id : p.id),
     name: p.name || (demo ? demo.name : ''),
+    image: placeImg,
     category: catLabel,
     rawCategory: rawCat,
     district: parts.length >= 2 ? parts[parts.length - 2] : ((demo && demo.district) || 'Đà Nẵng'),
@@ -276,7 +303,49 @@ const API = {
     return safe;
   },
 
+  /* ---------------- Dang nhap bang Facebook ---------------- */
+  async facebookLogin({ access_token, signed_request, email, name, picture, facebook_id } = {}) {
+    if (!CFG.USE_MOCK) {
+      const res = await this.request('/auth/facebook', {
+        method: 'POST',
+        body: { access_token, signed_request, email, name, picture, facebook_id }
+      });
+
+      localStorage.setItem(CFG.TOKEN_KEY, res.access_token);
+
+      const user = {
+        id: res.user_id,
+        name: res.username || (name || (email ? email.split('@')[0] : 'Facebook User')),
+        email: res.email || email,
+        role: res.role,
+        picture: picture || ''
+      };
+
+      store.set('lg_current_user', user);
+      return user;
+    }
+
+    await delay();
+    const fbEmail = (email || (facebook_id ? `fb_${facebook_id}@facebook.com` : 'facebook.user@gmail.com')).toLowerCase();
+    const fbName = name || fbEmail.split('@')[0];
+
+    let users = store.get('lg_users', []);
+    let user = users.find(x => x.email === fbEmail);
+
+    if (!user) {
+      user = { id: Date.now(), name: fbName, email: fbEmail, role: 'user', picture };
+      users.push(user);
+      store.set('lg_users', users);
+    }
+
+    const safe = cleanUser(user);
+    store.set('lg_current_user', safe);
+    localStorage.setItem(CFG.TOKEN_KEY, 'demo-facebook-token');
+    return safe;
+  },
+
   logout() {
+
     localStorage.removeItem(CFG.TOKEN_KEY);
     localStorage.removeItem('lg_current_user');
     location.href = 'login.html';

@@ -65,7 +65,7 @@ const placeImages = {
   "Cầu Tình Yêu": "images/cautinhyeu.webp",
   "Đỉnh Bàn Cờ": "images/dinhbanco.jpg",
   "Ghềnh Bàng": "images/ghenhbang.jpg",
-  "Bãi Bụt": "images/baibut.webp",
+  "Bãi Bụt": "images/baibut.png",
   "Mũi Nghê": "images/Muinghe.webp",
   "Hải đăng Tiên Sa": "images/haidangtiensa.jpg",
   "Nhất Lâm Thủy Trang Trà": "images/nhatlamthuytrangtra.jpg",
@@ -76,11 +76,52 @@ const placeImages = {
   "Bãi Rạn Nam Ô": "images/rannamo.webp",
   "Rừng thông Bồ Bồ": "images/rungthongbobo.jpg",
   "Thánh địa Mỹ Sơn": "images/thanhdiamyson.jpg",
-  "Công viên Văn hóa Ấn Tượng Hội An": "images/congvienantuonghoian.jpg"
-
+  "Công viên Văn hóa Ấn Tượng Hội An": "images/congvienantuonghoian.jpg",
+  "Mì Quảng Bà Mua": "images/miquangbamua.png",
+  "Trình Cà Phê": "images/trinhcaphe.jpg",
+  "Wonderlust Danang": "images/wonderlustdanang.png",
+  "Sun World Bà Nà Hills và Cầu Vàng": "images/banahills.jpg",
+  "Chùa Linh Ứng Sơn Trà": "images/chualinhung.jpg",
+  "Bãi biển Non Nước": "images/biennonnuoc.jpg",
+  "Nhà thờ Chính tòa Đà Nẵng": "images/nhathochinhtoa.png",
+  "Làng đá mỹ nghệ Non Nước": "images/langdamynghenonnuoc.png",
+  "Đèo Hải Vân": "images/deohaivan.jpg",
+  "Biển An Bàng": "images/bienanbang.png",
+  "Làng gốm Thanh Hà": "images/langgomthanhha.jpg",
+  "Công viên Đất nung Thanh Hà": "images/congviendatnungthanhha.png",
+  "Làng rau Trà Quế": "images/langrautraque.jpg",
+  "Bánh xèo Bà Dưỡng": "images/banhxeobaduong.jpg",
+  "Bánh tráng cuốn thịt heo Trần": "images/banhtrangcuonthitheotran.jpg",
+  "Bún chả cá Nguyễn Chí Thanh": "images/bunchacanguyenchithanh.png",
+  "Bánh mì Phượng": "images/banhmiphuong.jpg",
+  "Cao lầu Thanh": "images/caolauthanh.jpg",
+  "Cơm gà Bà Buội": "images/comgababuoi.png",
+  "Cộng Cà Phê Bạch Đằng": "images/congcaphebachdang.jpg",
+  "Hội An Roastery": "images/hoianroastery.png",
+  "Faifo Coffee": "images/faifocoffee.png",
+  "Chợ Cồn": "images/chocon.png",
+  "Chợ đêm Sơn Trà": "images/chodemsontra.jpg",
+  "Chợ Hội An": "images/chohoian.png",
+  "Chợ đêm Hội An": "images/chodemhoian.png",
+  "Phố cổ Hội An": "images/phocohoian.jpg",
+  "Phố cổ Hộ An": "images/phocohoian.jpg",
+  "Chùa Cầu Hội An": "images/chuacauhoian.jpg",
+  "Rừng dừa Bảy Mẫu": "images/rungduabaymau.jpg",
+  "Bãi Bắc": "images/vinhbaibac.jpg",
+  "Cộng Cà Phê": "images/congcaphebachdang.jpg",
+  "Bánh cuốn thịt heo Trần": "images/banhtrangcuonthitheotran.jpg",
+  "Faifo coffe": "images/faifocoffee.png",
+  "faifo coffe": "images/faifocoffee.png"
 };
 
+
 const placeImageAliases = {
+  'Phố cổ Hộ An': 'Phố cổ Hội An',
+  'phố cổ hộ an': 'Phố cổ Hội An',
+  'faifo coffe': 'Faifo Coffee',
+  'Faifo coffe': 'Faifo Coffee',
+  'Bánh cuốn thịt heo Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'bánh cuốn thịt heo trần': 'Bánh tráng cuốn thịt heo Trần',
   'Bãi Biển Nam Ô': 'Bãi Rạn Nam Ô',
   'Bãi Biển Mỹ Khê': 'Bãi biển Mỹ Khê',
   'Bãi biển Nam Ô': 'Bãi Rạn Nam Ô',
@@ -96,19 +137,208 @@ const placeImageAliases = {
   'Mũi Nghê': 'Mũi Nghê',
   'Ngọn Thủy Sơn (Ngũ Hành Sơn)': 'Ngũ Hành Sơn',
   'Thánh địa Mỹ Sơn': 'Thánh địa Mỹ Sơn',
-  'Bán đảo Sơn Trà': 'Bán đảo Sơn Trà'
+  'Bán đảo Sơn Trà': 'Bán đảo Sơn Trà',
+  'Mỳ Quảng Bà Mua': 'Mì Quảng Bà Mua',
+  'Mỳ quảng bà mua': 'Mì Quảng Bà Mua',
+  'Mì Quảng': 'Mì Quảng Bà Mua',
+  'Mỳ Quảng': 'Mì Quảng Bà Mua',
+  'Mì Quảng Bà Mua - Trần Bình Trọng': 'Mì Quảng Bà Mua',
+  'Trình Cà Phê - Không Gian Xanh & Vintage': 'Trình Cà Phê',
+  'Trình Cafe': 'Trình Cà Phê',
+  'Trình cafe': 'Trình Cà Phê',
+  'Trinh Ca Phe': 'Trình Cà Phê',
+  'Wonderlust': 'Wonderlust Danang',
+  'Wonderlust Danang - Cà phê Concept': 'Wonderlust Danang',
+  'Wonderlust Danang - Concept Cafe': 'Wonderlust Danang',
+  'Wonderlust Cafe': 'Wonderlust Danang',
+  'Wonderlust cafe': 'Wonderlust Danang',
+  'Wonderlust Đà Nẵng': 'Wonderlust Danang',
+  'Sun World Bà Nà Hills & Cầu Vàng': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Sun World Bà Nà Hills': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Bà Nà Hills và Cầu Vàng': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Bà Nà Hills': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Ba Na Hills': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Bà Nà': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Cầu Vàng': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Cầu Vàng Bà Nà Hills': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Cầu Vàng - Bà Nà Hills': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Golden Bridge': 'Sun World Bà Nà Hills và Cầu Vàng',
+  'Chùa Linh Ứng - Bán Đảo Sơn Trà': 'Chùa Linh Ứng Sơn Trà',
+  'Chùa Linh Ứng': 'Chùa Linh Ứng Sơn Trà',
+  'Chùa Linh Ứng Bãi Bụt': 'Chùa Linh Ứng Sơn Trà',
+  'Chùa Linh Ứng (Bãi Bụt)': 'Chùa Linh Ứng Sơn Trà',
+  'Chùa Linh Ứng - Bãi Bụt': 'Chùa Linh Ứng Sơn Trà',
+  'Chua Linh Ung': 'Chùa Linh Ứng Sơn Trà',
+  'Linh Ứng Tự': 'Chùa Linh Ứng Sơn Trà',
+  'Tượng Phật Bà Quan Âm': 'Chùa Linh Ứng Sơn Trà',
+  'Bãi Biển Non Nước': 'Bãi biển Non Nước',
+  'Biển Non Nước': 'Bãi biển Non Nước',
+  'Bãi tắm Non Nước': 'Bãi biển Non Nước',
+  'Non Nuoc Beach': 'Bãi biển Non Nước',
+  'Nhà thờ Chính Tòa Đà Nẵng': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Nhà thờ Con Gà': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Nhà thờ Con Gà Đà Nẵng': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Nhà thờ Chính tòa': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Nhà thờ Chính Tòa': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Da Nang Cathedral': 'Nhà thờ Chính tòa Đà Nẵng',
+  'Làng Đá Mỹ Nghệ Non Nước': 'Làng đá mỹ nghệ Non Nước',
+  'Làng đá Non Nước': 'Làng đá mỹ nghệ Non Nước',
+  'Làng Đá Non Nước': 'Làng đá mỹ nghệ Non Nước',
+  'Làng nghề đá Non Nước': 'Làng đá mỹ nghệ Non Nước',
+  'Làng điêu khắc đá Non Nước': 'Làng đá mỹ nghệ Non Nước',
+  'Non Nuoc Stone Carving Village': 'Làng đá mỹ nghệ Non Nước',
+  'Deo Hai Van': 'Đèo Hải Vân',
+  'Đèo Hải Vân Đà Nẵng': 'Đèo Hải Vân',
+  'Hai Van Pass': 'Đèo Hải Vân',
+  'Bãi biển An Bàng': 'Biển An Bàng',
+  'Bãi Biển An Bàng': 'Biển An Bàng',
+  'An Bang Beach': 'Biển An Bàng',
+  'Làng Gốm Thanh Hà': 'Làng gốm Thanh Hà',
+  'Làng gốm Thanh Hà Hội An': 'Làng gốm Thanh Hà',
+  'Thanh Ha Pottery Village': 'Làng gốm Thanh Hà',
+  'Làng Rau Trà Quế': 'Làng rau Trà Quế',
+  'Làng rau Trà Quế Hội An': 'Làng rau Trà Quế',
+  'Tra Que Vegetable Village': 'Làng rau Trà Quế',
+  'Bánh Xèo Bà Dưỡng': 'Bánh xèo Bà Dưỡng',
+  'Bánh Xèo Tôm Nhảy Bà Dưỡng': 'Bánh xèo Bà Dưỡng',
+  'Bánh xèo tôm nhảy Bà Dưỡng': 'Bánh xèo Bà Dưỡng',
+  'Bánh xèo Bà Dưỡng - Hoàng Diệu': 'Bánh xèo Bà Dưỡng',
+  'Banh xeo Ba Duong': 'Bánh xèo Bà Dưỡng',
+  'Ba Duong Sizzling Pancake': 'Bánh xèo Bà Dưỡng',
+  'Bánh Tráng Cuốn Thịt Heo Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'Bánh tráng thịt heo Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'Bánh Tráng Thịt Heo Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'Thịt heo Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'Ẩm thực Trần': 'Bánh tráng cuốn thịt heo Trần',
+  'Banh trang cuon thit heo Tran': 'Bánh tráng cuốn thịt heo Trần',
+  'Bún Chả Cá Nguyễn Chí Thanh': 'Bún chả cá Nguyễn Chí Thanh',
+  'Bún chả cá 109 Nguyễn Chí Thanh': 'Bún chả cá Nguyễn Chí Thanh',
+  'Bún chả cá Nguyễn Chí Thanh Đà Nẵng': 'Bún chả cá Nguyễn Chí Thanh',
+  'Bun cha ca Nguyen Chi Thanh': 'Bún chả cá Nguyễn Chí Thanh',
+  'Bánh Mì Phượng': 'Bánh mì Phượng',
+  'bánh mì Phượng': 'Bánh mì Phượng',
+  'Bánh mì Phượng Hội An': 'Bánh mì Phượng',
+  'Banh mi Phuong': 'Bánh mì Phượng',
+  'Banh Mi Phuong Hoi An': 'Bánh mì Phượng',
+  'Cao Lầu Thanh': 'Cao lầu Thanh',
+  'cao lầu thanh': 'Cao lầu Thanh',
+  'Cao lầu Thanh Hội An': 'Cao lầu Thanh',
+  'Cao Lầu Thanh Hội An': 'Cao lầu Thanh',
+  'Thanh Cao Lầu': 'Cao lầu Thanh',
+  'Cao lau Thanh': 'Cao lầu Thanh',
+  'Cơm Gà Bà Buội': 'Cơm gà Bà Buội',
+  'Cơm gà Bà Buội Hội An': 'Cơm gà Bà Buội',
+  'Com ga Ba Buoi': 'Cơm gà Bà Buội',
+  'Cộng Cà Phê': 'Cộng Cà Phê Bạch Đằng',
+  'Cộng Cafe': 'Cộng Cà Phê Bạch Đằng',
+  'Cộng cafe': 'Cộng Cà Phê Bạch Đằng',
+  'Cong Ca Phe': 'Cộng Cà Phê Bạch Đằng',
+  'Cong Cafe': 'Cộng Cà Phê Bạch Đằng',
+  'Cộng Cà Phê - Bạch Đằng': 'Cộng Cà Phê Bạch Đằng',
+  'Cộng Cà Phê 96 Bạch Đằng': 'Cộng Cà Phê Bạch Đằng',
+  'Hoi An Roastery': 'Hội An Roastery',
+  'Hội An Roastery - Espresso & Coffee House': 'Hội An Roastery',
+  'Hoi An Roastery Espresso & Coffee House': 'Hội An Roastery',
+  'Xưởng cà phê rang xay Hội An': 'Hội An Roastery',
+  'Faifo Cafe': 'Faifo Coffee',
+  'Faifo coffee': 'Faifo Coffee',
+  'Cà phê Faifo': 'Faifo Coffee',
+  'Faifo Coffee Hội An': 'Faifo Coffee',
+  'Faifo Coffee 130 Trần Phú': 'Faifo Coffee',
+  'Chợ Cồn Đà Nẵng': 'Chợ Cồn',
+  'chợ cồn': 'Chợ Cồn',
+  'Cho Con': 'Chợ Cồn',
+  'Cho Con Da Nang': 'Chợ Cồn',
+  'Con Market': 'Chợ Cồn',
+  'Chợ Đêm Sơn Trà': 'Chợ đêm Sơn Trà',
+  'chợ đên sơn trà': 'Chợ đêm Sơn Trà',
+  'chợ đêm sơn trà': 'Chợ đêm Sơn Trà',
+  'Cho Dem Son Tra': 'Chợ đêm Sơn Trà',
+  'Son Tra Night Market': 'Chợ đêm Sơn Trà',
+  'Cho Hoi An': 'Chợ Hội An',
+  'chợ hội an': 'Chợ Hội An',
+  'Hoi An Market': 'Chợ Hội An',
+  'Hoi An Central Market': 'Chợ Hội An',
+  'Chợ Đêm Hội An': 'Chợ đêm Hội An',
+  'chợ đêm hội an': 'Chợ đêm Hội An',
+  'Cho Dem Hoi An': 'Chợ đêm Hội An',
+  'Hoi An Night Market': 'Chợ đêm Hội An',
+  'Chợ đêm Nguyễn Hoàng': 'Chợ đêm Hội An',
+  'Pho Co Hoi An': 'Phố cổ Hội An',
+  'pho co hoi an': 'Phố cổ Hội An',
+  'Hoi An Ancient Town': 'Phố cổ Hội An',
+  'Phố Cổ Hội An': 'Phố cổ Hội An',
+  'Rung Dua Bay Mau': 'Rừng dừa Bảy Mẫu',
+  'rung dua bay mau': 'Rừng dừa Bảy Mẫu',
+  'Rừng Dừa Bảy Mẫu': 'Rừng dừa Bảy Mẫu',
+  'Rừng dừa Cẩm Thanh': 'Rừng dừa Bảy Mẫu',
+  'Rừng Dừa Cẩm Thanh': 'Rừng dừa Bảy Mẫu',
+  'Bay Mau Coconut Forest': 'Rừng dừa Bảy Mẫu',
+  'Ấn Tượng Hội An': 'Công viên Văn hóa Ấn Tượng Hội An',
+  'Công viên Ấn Tượng Hội An': 'Công viên Văn hóa Ấn Tượng Hội An',
+  'Ký Ức Hội An': 'Công viên Văn hóa Ấn Tượng Hội An',
+  'Hoi An Memories Land': 'Công viên Văn hóa Ấn Tượng Hội An',
+  'Bãi biển An Bàng': 'Biển An Bàng',
+  'An Bang Beach': 'Biển An Bàng',
+  'Thanh Ha Pottery Village': 'Làng gốm Thanh Hà',
+  'Làng Gốm Thanh Hà': 'Làng gốm Thanh Hà',
+  'Công viên đất nung Thanh Hà': 'Công viên Đất nung Thanh Hà',
+  'Công viên Đất nung Thanh Hà': 'Công viên Đất nung Thanh Hà',
+  'Công viên Đất Nung Thanh Hà': 'Công viên Đất nung Thanh Hà',
+  'Thanh Ha Terracotta Park': 'Công viên Đất nung Thanh Hà',
+  'Chùa Cầu': 'Chùa Cầu Hội An',
+  'Chùa Cầu Hội An': 'Chùa Cầu Hội An',
+  'Chùa cầu Hội An': 'Chùa Cầu Hội An',
+  'chùa cầu hội an': 'Chùa Cầu Hội An',
+  'chùa cầu': 'Chùa Cầu Hội An',
+  'Chua Cau': 'Chùa Cầu Hội An',
+  'Chua Cau Hoi An': 'Chùa Cầu Hội An',
+  'Japanese Covered Bridge': 'Chùa Cầu Hội An',
+  'Japanese Bridge': 'Chùa Cầu Hội An',
+  'Bãi Bụt Sơn Trà': 'Bãi Bụt',
+  'Bai But': 'Bãi Bụt',
+  'Bai But Bay': 'Bãi Bụt',
+  'Bai But Son Tra': 'Bãi Bụt',
+  'Vịnh Bãi Bắc': 'Bán đảo Sơn Trà',
+  'Bãi Bắc': 'Bán đảo Sơn Trà'
 };
+
 
 
 
 // Lay anh dua theo ten dia diem
 function getPlaceImage(p) {
+  if (!p) return "";
+
+  const rawName = String(p.name || '').trim();
+  if (rawName) {
+    const aliasName = placeImageAliases[rawName] || rawName;
+    if (placeImages[aliasName]) return placeImages[aliasName];
+    if (placeImages[rawName]) return placeImages[rawName];
+
+    // Khớp thông minh theo chữ thường / tên phụ
+    const nameLower = rawName.toLowerCase();
+    for (const [key, imgPath] of Object.entries(placeImages)) {
+      const keyLower = key.toLowerCase();
+      if (nameLower === keyLower || nameLower.includes(keyLower) || keyLower.includes(nameLower)) {
+        return imgPath;
+      }
+    }
+
+    for (const [alias, target] of Object.entries(placeImageAliases)) {
+      const aLower = alias.toLowerCase();
+      if (nameLower === aLower || nameLower.includes(aLower) || aLower.includes(nameLower)) {
+        if (placeImages[target]) return placeImages[target];
+      }
+    }
+  }
+
+  // Fallback: nếu không có trong placeImages nhưng đối tượng có ảnh riêng
   if (p.image) return p.image;
 
-  const name = String(p.name || '').trim();
-  const imageName = placeImageAliases[name] || name;
-  return placeImages[imageName] || "";
+  return "";
 }
+
 
 
 // =========================================
@@ -257,8 +487,159 @@ const PLACE_NAME_MAP_EN = {
     name: 'Hoi An Memories Land',
     description: 'World-renowned cultural theme park featuring the largest outdoor performance show in Vietnam.',
     district: 'Hoi An'
+  },
+  'Mì Quảng Bà Mua': {
+    name: 'Ba Mua Quang Noodles',
+    description: 'Traditional Quang-style noodles with savory shrimp, pork, quail eggs, native chicken, fresh herbs, and toasted sesame rice crackers.',
+    district: 'Hai Chau'
+  },
+  'Trình Cà Phê': {
+    name: 'Trinh Coffee - Greenery & Vintage Vibe',
+    description: 'Rustic cafe with vintage decor serving signature rich avocado coffee, featuring a tranquil garden to work and relax.',
+    district: 'Hai Chau'
+  },
+  'Wonderlust Danang': {
+    name: 'Wonderlust Danang - Concept Cafe',
+    description: 'Modern open-concept cafe bathed in natural sunlight through a soaring glass ceiling, serving refreshing craft drinks and pastries.',
+    district: 'Hai Chau'
+  },
+  'Sun World Bà Nà Hills và Cầu Vàng': {
+    name: 'Sun World Ba Na Hills & Golden Bridge',
+    description: 'World-famous mountaintop resort featuring the iconic Golden Bridge held by giant stone hands, French Village, and Guinness-record cable cars.',
+    district: 'Hoa Vang'
+  },
+  'Chùa Linh Ứng Sơn Trà': {
+    name: 'Linh Ung Pagoda Son Tra',
+    description: 'Serene Buddhist sanctuary overlooking the ocean with a towering 67-meter Lady Buddha statue gazing upon Da Nang Bay.',
+    district: 'Son Tra'
+  },
+  'Bãi biển Non Nước': {
+    name: 'Non Nuoc Beach',
+    description: 'Pristine beach with silky white sand and calm azure waters nestled at the foot of the Marble Mountains.',
+    district: 'Ngu Hanh Son'
+  },
+  'Nhà thờ Chính tòa Đà Nẵng': {
+    name: 'Da Nang Cathedral (Pink Church)',
+    description: 'Historic French Gothic cathedral with distinctive pastel pink facade and a rooster weathercock atop its steeple.',
+    district: 'Hai Chau'
+  },
+  'Làng đá mỹ nghệ Non Nước': {
+    name: 'Non Nuoc Stone Carving Village',
+    description: 'Centuries-old artisanal craft village renowned for intricate marble sculptures, Buddha statues, and fine stone jewelry.',
+    district: 'Ngu Hanh Son'
+  },
+  'Đèo Hải Vân': {
+    name: 'Hai Van Pass',
+    description: 'Breathtaking coastal mountain pass with winding cliffside roads offering panoramic vistas of Da Nang Bay and Lang Co Lagoon.',
+    district: 'Lien Chieu'
+  },
+  'Biển An Bàng': {
+    name: 'An Bang Beach',
+    description: 'Serene beach famous for fine sand, gentle turquoise surf, rustic seaside cafes, and relaxed bohemian atmosphere near Hoi An.',
+    district: 'Hoi An'
+  },
+  'Làng gốm Thanh Hà': {
+    name: 'Thanh Ha Pottery Village',
+    description: 'Over 500-year-old terracotta craft village along the Thu Bon River where visitors can shape their own clay pottery.',
+    district: 'Hoi An'
+  },
+  'Làng rau Trà Quế': {
+    name: 'Tra Que Herb & Vegetable Village',
+    description: 'Charming organic farming village celebrated for cultivating fragrant culinary herbs using traditional algae fertilizers.',
+    district: 'Hoi An'
+  },
+  'Bánh xèo Bà Dưỡng': {
+    name: 'Ba Duong Sizzling Pancake',
+    description: 'Legendary eatery hidden in an alleyway, famous for crispy stuffed rice crepes, grilled pork skewers, and signature rich peanut liver dipping sauce.',
+    district: 'Hai Chau'
+  },
+  'Bánh tráng cuốn thịt heo Trần': {
+    name: 'Tran Special Pork Rolled in Rice Paper',
+    description: 'Renowned Da Nang specialty featuring signature two-edged pork belly wrapped in fresh rice paper with a bouquet of wild herbs and savory fermented anchovy dip (mam nem).',
+    district: 'Hai Chau'
+  },
+  'Bún chả cá Nguyễn Chí Thanh': {
+    name: 'Nguyen Chi Thanh Fish Cake Noodle Soup',
+    description: 'Legendary family-recipe fish cake noodles operating for over 50 years, featuring fragrant broth simmered with pumpkin, cabbage, and homemade steamed and fried mackerel cakes.',
+    district: 'Hai Chau'
+  },
+  'Bánh mì Phượng': {
+    name: 'Banh Mi Phuong Hoi An',
+    description: 'Internationally acclaimed Vietnamese baguette made famous by Anthony Bourdain, loaded with rich pate, tender roasted pork, fresh herbs, and secret savory sauce.',
+    district: 'Hoi An'
+  },
+  'Cao lầu Thanh': {
+    name: 'Thanh Cao Lau Hoi An',
+    description: 'Authentic local eatery serving traditional Hoi An Cao Lau noodles with chewy lye-soaked noodles, tender char siu pork, crispy croutons, and aromatic garden herbs.',
+    district: 'Hoi An'
+  },
+  'Cơm gà Bà Buội': {
+    name: 'Ba Buoi Chicken Rice',
+    description: 'Historic Hoi An culinary landmark since the 1950s, famous for golden turmeric-infused rice cooked in rich chicken broth topped with tender free-range shredded chicken.',
+    district: 'Hoi An'
+  },
+  'Cộng Cà Phê Bạch Đằng': {
+    name: 'Cong Caphe - Bach Dang',
+    description: 'Iconic retro military-chic Vietnamese coffee house perched right along the Han River waterfront, famous for its signature frozen coconut coffee.',
+    district: 'Hai Chau'
+  },
+  'Hội An Roastery': {
+    name: 'Hoi An Roastery - Espresso & Coffee House',
+    description: 'Rustic wooden coffee house and artisanal roastery nestled in Hoi An Ancient Town, renowned for premium slow-dripped Vietnamese coffee, espresso, and cozy vintage atmosphere.',
+    district: 'Hoi An'
+  },
+  'Faifo Coffee': {
+    name: 'Faifo Coffee',
+    description: 'Famous cafe in Hoi An Ancient Town featuring a charming rooftop terrace with sweeping panoramic views over historic yellow walls and tiled rooftops.',
+    district: 'Hoi An'
+  },
+  'Chợ Cồn': {
+    name: 'Con Market (Cho Con)',
+    description: "Da Nang's most vibrant food paradise and wholesale market, packed with stalls serving tantalizing local street food delicacies at affordable prices.",
+    district: 'Hai Chau'
+  },
+  'Chợ đêm Sơn Trà': {
+    name: 'Son Tra Night Market',
+    description: 'Bustling night market located right by the Dragon Bridge and Love Pier, brimming with sizzling fresh seafood stalls, street snacks, and lively souvenir shopping.',
+    district: 'Son Tra'
+  },
+  'Chợ Hội An': {
+    name: 'Hoi An Market',
+    description: 'Historic central market nestled by the Thu Bon River, brimming with colorful fresh produce, traditional spices, and authentic Hoi An street delicacies.',
+    district: 'Hoi An'
+  },
+  'Chợ đêm Hội An': {
+    name: 'Hoi An Night Market',
+    description: 'Lively pedestrian night market on Nguyen Hoang street, illuminated by hundreds of glowing silk lanterns, vibrant souvenir stalls, and tasty street snacks.',
+    district: 'Hoi An'
+  },
+  'Phố cổ Hội An': {
+    name: 'Hoi An Ancient Town',
+    description: 'UNESCO World Heritage site celebrated for its exceptionally well-preserved traditional Asian trading port, yellow shophouses, and romantic lantern-lit canals.',
+    district: 'Hoi An'
+  },
+  'Rừng dừa Bảy Mẫu': {
+    name: 'Bay Mau Coconut Forest',
+    description: 'Lush eco-tourism haven in Cam Thanh featuring thrilling spinning basket boat rides through winding waterways shaded by water coconut palms.',
+    district: 'Hoi An'
+  },
+  'Chùa Cầu Hội An': {
+    name: 'Japanese Covered Bridge (Chua Cau)',
+    description: 'Iconic 400-year-old wooden covered bridge and temple spanning a tranquil canal, a cherished symbol of Hoi An heritage.',
+    district: 'Hoi An'
+  },
+  'Chùa Cầu': {
+    name: 'Japanese Covered Bridge (Chua Cau)',
+    description: 'Iconic 400-year-old wooden covered bridge and temple spanning a tranquil canal, a cherished symbol of Hoi An heritage.',
+    district: 'Hoi An'
+  },
+  'Công viên Đất nung Thanh Hà': {
+    name: 'Thanh Ha Terracotta Park',
+    description: 'Vietnam\'s largest ceramic museum and art park featuring unique red terracotta architectural pavilions, pottery models of world wonders, and clay crafting workshops.',
+    district: 'Hoi An'
   }
 };
+
 
 // Hàm lấy dữ liệu bản dịch cho địa điểm
 function getLocalizedPlace(originalPlace) {
