@@ -8,7 +8,7 @@ services:
 
     buildCommand: |
       pip install -r requirements.txt
-      python training/src/train_intent_v2.py --final
+      python -u training/src/train_intent_v2.py --final
       test -f training/models/intent_classifier.joblib
 
     startCommand: >-
