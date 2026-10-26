@@ -1,16 +1,15 @@
 
+import os
 from pathlib import Path
 import joblib
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-MODEL_PATH = (
-    PROJECT_ROOT
-    / "training"
-    / "models"
-    / "intent_classifier.joblib"
+DEFAULT_MODEL_PATH = (
+    PROJECT_ROOT / "training" / "models" / "intent_classifier.joblib"
 )
+MODEL_PATH = Path(os.getenv("INTENT_MODEL_PATH") or DEFAULT_MODEL_PATH).expanduser()
+
 
 VALID_INTENTS = {
     "food",
@@ -34,13 +33,18 @@ def load_model():
     artifact = joblib.load(MODEL_PATH)
 
     # Model moi duoc luu trong dictionary.
-    if isinstance(artifact, dict) and "model" in artifact:
-        loaded_model = artifact["model"]
+    if isinstance(artifact, dict):
+        loaded_model = artifact.get("model")
         labels = artifact.get("labels", [])
+        if loaded_model is None:
+            loaded_model = artifact.get("pipeline")
     else:
         # Ho tro Pipeline cu.
         loaded_model = artifact
         labels = getattr(loaded_model, "classes_", [])
+
+    if loaded_model is None:
+        raise ValueError("Artifact khong chua model phan loai y dinh.")
 
     model_labels = set(str(label) for label in labels)
 

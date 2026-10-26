@@ -43,38 +43,41 @@ function flash(message, type = 'danger', target = '#message') {
 // ===== KIEM TRA DANG NHAP =====
 
 
+
 async function protect() {
-  // 1. Kiểm tra tài khoản Email Demo
-  if (API.isLogged()) {
-    return true;
-  }
 
-  // 2. Kiểm tra tài khoản Google OAuth từ Backend
-  try {
-    const response = await fetch(
-      "http://127.0.0.1:8000/api/auth/me",
-      {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Accept": "application/json"
-        }
-      }
-    );
+  // 1. Neu dang chay che do Demo
+  if (window.LOCAL_GUIDE_CONFIG?.USE_MOCK) {
 
-    if (response.ok) {
-      const data = await response.json();
-
-      if (data.user) {
-        return true;
-      }
+    if (API.isLogged()) {
+      return true;
     }
-  } catch (error) {
-    console.error("Lỗi kiểm tra đăng nhập:", error);
+
+    window.location.replace("login.html");
+    return false;
   }
 
-  // 3. Chỉ chuyển về Login nếu cả hai đều chưa đăng nhập
+  // 2. Kiem tra dang nhap voi Backend
+  try {
+
+    // API.getProfile() goi /auth/me bang JWT
+    const user = await API.getProfile();
+
+    if (user) {
+      console.log("Dang nhap thanh cong:", user.name);
+      return true;
+    }
+
+  } catch (error) {
+    console.error(
+      "Loi xac minh tai khoan:",
+      error
+    );
+  }
+
+  // 3. Chua dang nhap hoac token khong hop le
   window.location.replace("login.html");
+
   return false;
 }
 

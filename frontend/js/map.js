@@ -12,13 +12,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Khoi tao ban do Da Nang
   const map = L.map('map').setView([16.0678, 108.2208], 12);
 
-  L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+  // Tai ban do nen OpenStreetMap
+  const baseMap = L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">' +
+        'OpenStreetMap</a> contributors'
     }
-  ).addTo(map);
+  );
+
+  // Bao khi tai ban do thanh cong
+  baseMap.on('load', () => {
+    console.log('Da tai xong ban do OpenStreetMap.');
+  });
+
+  // Bao loi neu khong tai duoc anh nen
+  baseMap.on('tileerror', (error) => {
+    console.error('Khong tai duoc tile ban do:', error.tile?.src);
+  });
+
+  // Them lop nen vao Leaflet
+  baseMap.addTo(map);
+
 
   const markers = L.layerGroup().addTo(map);
   const userLocationLayer = L.layerGroup().addTo(map);

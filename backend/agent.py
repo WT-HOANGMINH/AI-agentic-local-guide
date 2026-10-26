@@ -1,73 +1,31 @@
+import inspect
 
-import os
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.prebuilt import create_react_agent
+from backend.database import get_db
+from backend.services.chat_service import answer
 
-from backend.services.place_tool import search_places
-from backend.services.weather_service import get_weather_forecast
-
-
-# Load environment variables from the project root .env file.
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise RuntimeError(
-        "GEMINI_API_KEY is missing. Please check your .env file."
-    )
+router = APIRouter(prefix="/agent", tags=["Agent Chat"])
 
 
-# Initialize the Gemini language model.
-llm = ChatGoogleGenerativeAI(
-      model="gemini-3.8-flash",
-    google_api_key=api_key,
-    temperature=0.2,
-)
+class ChatIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    # Vi tri nguoi dung (tuy chon) de tim "gan toi" va lap lich trinh
+    latitude: float | None = None
+    longitude: float | None = None
 
 
-# Register tools available to the AI Agent.
-tools = [
-    search_places,
-    get_weather_forecast,
-]
+@router.post("/chat")
+def chat(payload: ChatIn, db: Session = Depends(get_db)):
+    message = payload.message.strip()
 
+    # Neu chat_service.answer() da ho tro lat/lng (sau khi them planner_service)
+    # thi truyen kem vi tri; neu chua thi goi nhu cu de khong bi loi.
+    params = inspect.signature(answer).parameters
 
-# Create the LangGraph ReAct Agent.
-agent = create_react_agent(
-    model=llm,
-    tools=tools,
-    prompt=(
-        "You are the AI Local Guide for Da Nang, Vietnam. "
-        "Help users discover places and plan local activities. "
-        "Use search_places when users ask about attractions, "
-        "restaurants, cafes, shopping, or places within their budget. "
-        "Use get_weather_forecast when users ask about weather. "
-        "Use the available tools when current database or weather "
-        "information is needed. "
-        "Answer in the same language as the user. "
-        "Do not invent place details or weather information. "
-        "If the tools do not provide enough information, say so clearly."
-    ),
-)
+    if "lat" in params and "lng" in params:
+        return answer(message, db, payload.latitude, payload.longitude)
 
-
-def ask_agent(message: str) -> str:
-    """
-    Send a message to the AI Agent and return its response.
-    """
-    result = agent.invoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message,
-                }
-            ]
-        },
-        config={"recursion_limit": 10},
-    )
-
-    return result["messages"][-1].content
+    return answer(message, db)

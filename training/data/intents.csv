@@ -784,3 +784,43 @@ Find a convenient route to the beach.,transport
 How can I get to the night market?,transport
 What is the cheapest way to travel in Da Nang?,transport
 Help me choose transport for sightseeing.,transport
+Hãy xếp lịch trình có thời gian nghỉ trưa và các bữa ăn hợp lý,itinerary
+Đề xuất giờ tham quan văn hóa và thiên nhiên trong một ngày,itinerary
+Tôi muốn dành buổi sáng đi biển và buổi chiều khám phá văn hóa,itinerary
+Lên lịch trình Đà Nẵng ba ngày có thời gian nghỉ ngơi,itinerary
+Sắp xếp các điểm tham quan gần nhau để giảm thời gian di chuyển,itinerary
+Lập kế hoạch ăn sáng ăn trưa và ăn tối quanh các điểm tham quan,itinerary
+Tôi muốn có lịch trình linh hoạt nếu trời mưa,itinerary
+Gợi ý khung giờ nghỉ ngơi giữa các hoạt động,itinerary
+Lên lịch trình Hội An có phố cổ ăn uống và trải nghiệm văn hóa,itinerary
+Sắp xếp lịch trình thiên nhiên tránh nắng nóng buổi trưa,itinerary
+Ngày mai Đà Nẵng có mưa không,weather
+Dự báo thời tiết Đà Nẵng ba ngày tới,weather
+Cuối tuần này ở Hội An có nắng không,weather
+Thời tiết hiện tại ở Đà Nẵng thế nào,weather
+Khả năng mưa ở Đà Nẵng chiều nay là bao nhiêu,weather
+Tôi nên mang áo mưa khi đi tham quan ngày mai không,weather
+Dự báo nhiệt độ ở Đà Nẵng trong tuần này,weather
+Hôm nay thời tiết có thuận lợi để đi biển không,weather
+Ngày mai trời có phù hợp để tham quan ngoài trời không,weather
+Cho tôi xem dự báo mưa và nhiệt độ ở Hội An,weather
+Tìm khách sạn gần biển Mỹ Khê,accommodation
+Gợi ý chỗ nghỉ giá hợp lý ở Đà Nẵng,accommodation
+Tôi cần homestay cho gia đình ở Hội An,accommodation
+Khách sạn nào có hồ bơi gần trung tâm,accommodation
+Tìm nơi lưu trú có chỗ đỗ xe,accommodation
+Gợi ý khách sạn gần các điểm tham quan,accommodation
+Tôi muốn tìm phòng nghỉ cho hai người,accommodation
+Có homestay nào yên tĩnh ở Đà Nẵng không,accommodation
+Giúp tôi tìm resort gần biển,accommodation
+Tìm khách sạn phù hợp với ngân sách tiết kiệm,accommodation
+Giải thích định lý Pythagore giúp tôi,out_of_scope
+Viết một chương trình Python để sắp xếp danh sách,out_of_scope
+Ai là tổng thống của Pháp,out_of_scope
+Hãy dịch đoạn văn này sang tiếng Nhật,out_of_scope
+Tư vấn cách sửa máy giặt tại nhà,out_of_scope
+Tạo giúp tôi một bài thơ về mùa thu,out_of_scope
+Tôi muốn học cách giải phương trình bậc hai,out_of_scope
+Cho tôi công thức nấu bánh kem,out_of_scope
+Hãy phân tích thị trường chứng khoán,out_of_scope
+Giải thích cơ chế hoạt động của động cơ phản lực,out_of_scope

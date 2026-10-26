@@ -1,13 +1,25 @@
 
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="DaNang Guide — Du lịch Đà Nẵng">
 
-  <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <meta
+    name="description"
+    content="DaNang Guide — Du lịch Đà Nẵng"
+  >
+
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  >
+
   <link rel="stylesheet" href="css/style.css">
 
   <title>Đăng nhập | DaNang Guide</title>
@@ -27,6 +39,11 @@
 
     .social-login:hover {
       opacity: 0.9;
+    }
+
+    .social-login:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
     .google-login {
@@ -67,19 +84,44 @@
 </head>
 
 <body>
+
+  <!-- THANH DIEU HUONG -->
   <div id="site-nav"></div>
 
   <main class="container page">
+
     <section class="card-soft auth-shell">
+
       <div class="card-body">
 
-        <div class="eyebrow">Chào mừng trở lại</div>
-        <h1 class="h2 mb-3">Đăng nhập</h1>
+        <div class="eyebrow">
+          Chào mừng trở lại
+        </div>
 
-        <div id="message" role="status"></div>
+        <h1 class="h2 mb-3">
+          Đăng nhập
+        </h1>
 
-        <form id="auth-form" data-type="login">
-          <label class="form-label" for="email">Email</label>
+        <!-- THONG BAO -->
+        <div
+          id="message"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- DANG NHAP EMAIL -->
+        <form
+          id="auth-form"
+          data-type="login"
+        >
+
+          <label
+            class="form-label"
+            for="email"
+          >
+            Email
+          </label>
+
           <input
             class="form-control mb-3"
             id="email"
@@ -89,7 +131,13 @@
             autocomplete="email"
           >
 
-          <label class="form-label" for="password">Mật khẩu</label>
+          <label
+            class="form-label"
+            for="password"
+          >
+            Mật khẩu
+          </label>
+
           <input
             class="form-control mb-4"
             id="password"
@@ -100,42 +148,69 @@
             autocomplete="current-password"
           >
 
-          <button type="submit" class="btn btn-primary w-100 py-2">
+          <button
+            type="submit"
+            class="btn btn-primary w-100 py-2"
+          >
             Đăng nhập
           </button>
+
         </form>
 
+        <!-- PHAN CACH -->
         <div class="auth-divider">
           HOẶC ĐĂNG NHẬP VỚI
         </div>
 
+        <!-- DANG NHAP MANG XA HOI -->
         <div class="d-grid gap-3">
+
+          <!-- GOOGLE -->
           <button
             type="button"
             class="social-login google-login"
             id="google-login"
           >
+
             <img
               class="social-icon"
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
               alt=""
             >
+
             Tiếp tục với Google
+
           </button>
 
+          <!-- FACEBOOK -->
           <button
             type="button"
             class="social-login facebook-login"
             id="facebook-login"
           >
-            <span aria-hidden="true" style="font-size:22px">f</span>
+
+            <span
+              aria-hidden="true"
+              style="font-size:22px"
+            >
+              f
+            </span>
+
             Tiếp tục với Facebook
+
           </button>
+
         </div>
 
+        <!-- DANG KY -->
         <p class="mt-4 mb-0 text-center muted">
+
           Chưa có tài khoản?
-          <a href="register.html">Đăng ký</a>
+
+          <a href="register.html">
+            Đăng ký
+          </a>
+
         </p>
 
         <p class="small muted mt-3 text-center">
@@ -143,12 +218,18 @@
         </p>
 
       </div>
+
     </section>
+
   </main>
 
+  <!-- FOOTER -->
   <div id="site-footer"></div>
 
+  <!-- THU VIEN -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- JAVASCRIPT DU AN -->
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/api.js"></script>
@@ -156,90 +237,158 @@
   <script src="js/auth.js"></script>
 
   <script>
-    const BACKEND_URL = "http://127.0.0.1:8000";
-    const messageBox = document.getElementById("message");
+    // =====================================
+    // CAU HINH BACKEND
+    // =====================================
+
+    const BACKEND_URL =
+      window.LOCAL_GUIDE_CONFIG.API_BASE;
+
+    const messageBox =
+      document.getElementById("message");
+
+    const googleButton =
+      document.getElementById("google-login");
+
+    const facebookButton =
+      document.getElementById("facebook-login");
+
+
+    // =====================================
+    // HIEN THI THONG BAO
+    // =====================================
 
     function showMessage(text, type = "info") {
-      messageBox.className = `alert alert-${type} mt-3`;
+
+      messageBox.className =
+        `alert alert-${type} mt-3`;
+
       messageBox.textContent = text;
     }
 
-    // ĐĂNG NHẬP BẰNG GOOGLE
-    document.getElementById("google-login").addEventListener("click", () => {
-      window.location.href = BACKEND_URL + "/api/auth/google";
-    });
 
-    // FACEBOOK: CHƯA CẤU HÌNH
-    document.getElementById("facebook-login").addEventListener("click", () => {
-      showMessage(
-        "Facebook Login đang được phát triển. Vui lòng sử dụng Google hoặc email.",
-        "info"
-      );
-    });
+    // =====================================
+    // DANG NHAP GOOGLE
+    // =====================================
 
-    // XỬ LÝ KẾT QUẢ GOOGLE OAUTH
-    async function handleGoogleCallback() {
-      const params = new URLSearchParams(window.location.search);
-      const authStatus = params.get("oauth") || params.get("auth");
+    googleButton.addEventListener(
+      "click",
+      async () => {
 
-      if (authStatus !== "success") {
-        if (authStatus === "error") {
+        try {
+
+          googleButton.disabled = true;
+
+          // Phai mo trang tu chinh FastAPI (cong 8000)
+          // de cookie OAuth hoat dong.
+          if (window.location.origin !== new URL(BACKEND_URL).origin) {
+            throw new Error(
+              "Hay mo trang dang nhap tai http://127.0.0.1:8000/app/login.html"
+            );
+          }
+
           showMessage(
-            "Đăng nhập Google không thành công. Vui lòng thử lại.",
+            "Đang kết nối đến Google...",
+            "info"
+          );
+
+          // Lay URL dang nhap tu Backend
+          const response = await fetch(
+            BACKEND_URL + "/auth/google/url",
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                Accept: "application/json"
+              }
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              "Không lấy được đường dẫn đăng nhập Google."
+            );
+          }
+
+          const data = await response.json();
+
+          // Kiem tra URL Google
+          if (
+            !data.auth_url ||
+            !data.auth_url.startsWith(
+              "https://accounts.google.com/"
+            )
+          ) {
+            throw new Error(
+              "Đường dẫn Google OAuth không hợp lệ."
+            );
+          }
+
+          // Chuyen den trang Google
+          window.location.assign(data.auth_url);
+
+        } catch (error) {
+
+          console.error(
+            "Google Login Error:",
+            error
+          );
+
+          showMessage(
+            error.message ||
+              "Không thể đăng nhập bằng Google.",
             "danger"
           );
+
+          googleButton.disabled = false;
         }
-        return;
       }
+    );
 
-      showMessage("Đang xác minh tài khoản Google...", "info");
 
-      try {
-        const response = await fetch(
-          BACKEND_URL + "/api/auth/me",
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              "Accept": "application/json"
-            }
-          }
-        );
+    // =====================================
+    // FACEBOOK LOGIN
+    // =====================================
 
-        if (!response.ok) {
-          throw new Error("Không thể xác minh phiên đăng nhập.");
-        }
-
-        const data = await response.json();
-
-        if (!data.user || !data.user.id) {
-          throw new Error("Không tìm thấy thông tin tài khoản.");
-        }
-
-        // Lưu thông tin hiển thị, không lưu token hoặc secret
-        sessionStorage.setItem(
-          "danang_oauth_user",
-          JSON.stringify(data.user)
-        );
+    facebookButton.addEventListener(
+      "click",
+      () => {
 
         showMessage(
-          "Đăng nhập Google thành công! Đang chuyển về trang chủ...",
-          "success"
+          "Facebook Login chưa được cấu hình trong Backend mới.",
+          "info"
         );
 
-        // Chuyển về trang chủ
-        window.location.replace("index.html?auth=success");
-
-      } catch (error) {
-        console.error("Google OAuth:", error);
-        showMessage(
-          "Google đã chuyển về website nhưng không thể xác minh phiên đăng nhập. Kiểm tra Backend và CORS.",
-          "danger"
-        );
       }
+    );
+
+
+    // =====================================
+    // THONG BAO LOI OAUTH NEU CO
+    // =====================================
+
+    // Backend xu ly callback Google va luu cookie HttpOnly.
+    // Trang login khong nhan JWT qua URL nua.
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (
+      params.get("auth") === "error" ||
+      params.get("oauth") === "error"
+    ) {
+      showMessage(
+        "Đăng nhập Google không thành công. Vui lòng thử lại.",
+        "danger"
+      );
+
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname
+      );
     }
 
-    handleGoogleCallback();
   </script>
+
 </body>
 </html>

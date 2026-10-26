@@ -1,35 +1,125 @@
+
 import os
+
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
 
-# Cấu hình chuỗi kết nối MySQL
+APP_ENV = os.getenv(
+    "APP_ENV",
+    "development"
+).lower()
+
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:1234@localhost:3306/agentic_local_guide"
-)
+    ""
+).strip()
 
-# Thử kết nối MySQL, nếu chưa khởi động MySQL thì tự động chuyển sang SQLite cục bộ an toàn
-try:
-    engine = create_engine(
-        DATABASE_URL,
-        echo=False,
-        pool_pre_ping=True
+
+def normalize_url(url):
+    if url.startswith("postgres://"):
+        return url.replace(
+            "postgres://",
+            "postgresql+psycopg://",
+            1
+        )
+
+    if url.startswith("postgresql://"):
+        return url.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1
+        )
+
+    return url
+
+
+def connect_database(url):
+    options = {
+        "pool_pre_ping": True,
+        "echo": False
+    }
+
+    if url.startswith("sqlite"):
+        options["connect_args"] = {
+            "check_same_thread": False
+        }
+
+    db_engine = create_engine(
+        url,
+        **options
     )
-    # Kiểm tra thử kết nối
-    with engine.connect() as conn:
-        pass
-    print("[Database] Successfully connected to MySQL Database.")
-except Exception as err:
-    print(f"[Database] MySQL unavailable. Activating fallback local SQLite database: sqlite:///./local_guide.db")
-    DATABASE_URL = "sqlite:///./local_guide.db"
-    engine = create_engine(
-        DATABASE_URL,
-        echo=False,
-        connect_args={"check_same_thread": False}
+
+    with db_engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+    return db_engine
+
+
+if APP_ENV == "production":
+
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "Production requires DATABASE_URL"
+        )
+
+    DATABASE_URL = normalize_url(
+        DATABASE_URL
     )
+
+    if not DATABASE_URL.startswith(
+        "postgresql+psycopg://"
+    ):
+        raise RuntimeError(
+            "Production requires PostgreSQL"
+        )
+
+    # Production: khong fallback sang SQLite
+    engine = connect_database(
+        DATABASE_URL
+    )
+
+    print(
+        "[Database] PostgreSQL connected successfully"
+    )
+
+else:
+
+    # Local: dung SQLite neu chua cau hinh DB
+    if not DATABASE_URL:
+        DATABASE_URL = "sqlite:///./local_guide.db"
+
+    DATABASE_URL = normalize_url(
+        DATABASE_URL
+    )
+
+    try:
+        engine = connect_database(
+            DATABASE_URL
+        )
+
+        print(
+            "[Database] Local database connected"
+        )
+
+    except Exception as error:
+        print(
+            "[Database] Local connection failed:",
+            type(error).__name__
+        )
+
+        DATABASE_URL = "sqlite:///./local_guide.db"
+
+        engine = connect_database(
+            DATABASE_URL
+        )
+
+        print(
+            "[Database] Local SQLite activated"
+        )
+
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -42,7 +132,9 @@ Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
+
     finally:
         db.close()

@@ -10,6 +10,7 @@ class PlaceBase(BaseModel):
     longitude: float | None = Field(default=None, ge=-180, le=180, description="Kinh độ (Longitude)")
     price_level: int | None = Field(default=None, ge=1, le=5, description="Mức giá từ 1 đến 5")
     opening_hours: str | None = Field(default=None, max_length=100, description="Giờ mở cửa")
+    rating: float | None = Field(default=None, ge=0, le=5, description="Đánh giá từ 0 đến 5")
 
 
 class PlaceCreate(PlaceBase):
@@ -25,6 +26,7 @@ class PlaceUpdate(BaseModel):
     longitude: float | None = Field(default=None, ge=-180, le=180)
     price_level: int | None = Field(default=None, ge=1, le=5)
     opening_hours: str | None = None
+    rating: float | None = Field(default=None, ge=0, le=5)
     is_active: bool | None = None
 
 

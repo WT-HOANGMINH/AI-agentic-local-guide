@@ -1,0 +1,47 @@
+
+services:
+  - type: web
+    name: danang-guide-hiep
+    runtime: python
+    plan: free
+    branch: hiep
+
+    buildCommand: |
+      pip install -r requirements.txt
+      python training/src/train_intent_v2.py --final
+      test -f training/models/intent_classifier.joblib
+
+    startCommand: >-
+      uvicorn backend.main:app
+      --host 0.0.0.0
+      --port $PORT
+
+    autoDeployTrigger: off
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+
+      - key: APP_ENV
+        value: production
+
+      - key: ENABLE_DEMO_ADMIN
+        value: "false"
+
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+
+      - key: PUBLIC_ORIGIN
+        sync: false

@@ -5,10 +5,36 @@ from dotenv import load_dotenv
 import bcrypt
 from jose import jwt, JWTError
 
+
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "agentic-ai-local-guide-secret-key")
+APP_ENV = os.getenv(
+    "APP_ENV",
+    "development"
+).strip().lower()
+
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    ""
+).strip()
+
+# Production bat buoc co khoa JWT manh
+if APP_ENV == "production":
+
+    if (
+        len(SECRET_KEY) < 32
+        or SECRET_KEY == "agentic-ai-local-guide-secret-key"
+    ):
+        raise RuntimeError(
+            "Production requires a strong SECRET_KEY"
+        )
+
+# Cho phep khoa cu khi kiem thu Local
+elif not SECRET_KEY:
+    SECRET_KEY = "agentic-ai-local-guide-secret-key"
+
 ALGORITHM = "HS256"
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
