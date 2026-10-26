@@ -1,7 +1,7 @@
 
 services:
   - type: web
-    name: danang-guide-hiep
+    name: danang-guide
     runtime: python
     plan: free
     branch: hiep
