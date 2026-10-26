@@ -261,7 +261,7 @@ const API = {
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
-
+    
     if (auth && validLocalToken(token)) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -269,7 +269,7 @@ const API = {
     let response;
 
     try {
-
+      
     response = await fetch(
   (CFG.API_BASE || '').replace(/\/$/, '') + path,
   {

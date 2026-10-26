@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Khoi tao ban do Da Nang
   const map = L.map('map').setView([16.0678, 108.2208], 12);
 
-
+  
   // Tai ban do nen OpenStreetMap
   const baseMap = L.tileLayer(
     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',

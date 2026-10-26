@@ -249,3 +249,4 @@ def get_recommendations_by_category(
             query = query.filter(or_(*filters))
 
     return query.order_by(Place.rating.desc().nullslast(), Place.id.asc()).limit(limit).all()
+
