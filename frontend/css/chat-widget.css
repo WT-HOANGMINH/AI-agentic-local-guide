@@ -1,0 +1,509 @@
+
+/* DANANG GUIDE - FLOATING AI CHAT */
+
+#dgfw-root {
+  --dgfw-primary: #176b60;
+  --dgfw-dark: #105348;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.dgfw-launcher {
+  position: fixed;
+  right: 25px;
+  bottom: 25px;
+  z-index: 1501;
+
+  width: 68px;
+  height: 68px;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: linear-gradient(135deg, #19a58f, #176b60);
+  box-shadow: 0 9px 28px rgba(23, 107, 96, 0.32);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+
+.dgfw-launcher::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 2px solid rgba(23, 107, 96, 0.3);
+  border-radius: 50%;
+  animation: dgfw-pulse 2.4s infinite;
+}
+
+.dgfw-launcher:hover {
+  transform: scale(1.09);
+}
+
+.dgfw-launcher:focus-visible,
+.dgfw-close:focus-visible,
+.dgfw-form button:focus-visible {
+  outline: 3px solid #f9c74f;
+  outline-offset: 3px;
+}
+
+.dgfw-bot {
+  font-size: 34px;
+  line-height: 1;
+  animation: dgfw-float 3s ease-in-out infinite;
+}
+
+.dgfw-ai-tag {
+  position: absolute;
+  right: -4px;
+  top: -3px;
+
+  background: #facc15;
+  color: #173d3a;
+
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 2px solid white;
+}
+
+.dgfw-greeting {
+  position: fixed;
+  right: 25px;
+  bottom: 105px;
+  z-index: 1501;
+
+  max-width: 235px;
+  padding: 12px 16px;
+
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+
+  background: white;
+  color: #244943;
+
+  border: 1px solid #deebe6;
+  border-radius: 16px;
+
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  line-height: 1.5;
+
+  animation: dgfw-appear 0.5s ease;
+}
+
+.dgfw-greeting button {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  color: #80918c;
+  cursor: pointer;
+}
+
+.dgfw-greeting[hidden],
+.dgfw-panel[hidden] {
+  display: none !important;
+}
+
+.dgfw-panel {
+  position: fixed;
+  right: 25px;
+  bottom: 107px;
+  z-index: 1502;
+
+  width: min(390px, calc(100vw - 24px));
+  height: min(570px, calc(100dvh - 135px));
+
+  display: flex;
+  flex-direction: column;
+
+  background: white;
+  border: 1px solid #e1eae6;
+  border-radius: 22px;
+
+  box-shadow: 0 18px 60px rgba(21, 56, 50, 0.2);
+  overflow: hidden;
+
+  animation: dgfw-appear 0.25s ease;
+}
+
+.dgfw-header {
+  padding: 17px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  background: linear-gradient(120deg, #176b60, #219b87);
+  color: white;
+}
+
+.dgfw-avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+
+  display: grid;
+  place-items: center;
+
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  font-size: 23px;
+}
+
+.dgfw-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.dgfw-heading strong {
+  font-size: 15px;
+}
+
+.dgfw-heading small {
+  font-size: 11px;
+  color: #e6fcf3;
+}
+
+.dgfw-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #86efac;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.dgfw-close {
+  border: 0;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+
+  font-size: 23px;
+  cursor: pointer;
+}
+
+.dgfw-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+
+  padding: 20px 15px;
+  background: #f7faf9;
+}
+
+.dgfw-message {
+  max-width: 86%;
+  padding: 12px 14px;
+
+  border-radius: 16px;
+  line-height: 1.55;
+  font-size: 13px;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dgfw-assistant {
+  align-self: flex-start;
+  background: white;
+  color: #28423b;
+  border: 1px solid #e5eeea;
+  border-bottom-left-radius: 5px;
+}
+
+.dgfw-user {
+  align-self: flex-end;
+  background: var(--dgfw-primary);
+  color: white;
+  border-bottom-right-radius: 5px;
+}
+
+.dgfw-suggestions {
+  display: flex;
+  gap: 7px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: white;
+}
+
+.dgfw-suggestions button {
+  flex: 0 0 auto;
+  border: 1px solid #d6e7e1;
+  border-radius: 30px;
+
+  background: #f1f8f5;
+  color: #176b60;
+
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.dgfw-suggestions button:hover {
+  background: #e1f1e9;
+}
+
+.dgfw-form {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 12px;
+  background: white;
+  border-top: 1px solid #edf1ef;
+}
+
+.dgfw-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+
+  border: 1px solid #dbe8e2;
+  border-radius: 25px;
+
+  background: #f8fbf9;
+  font-size: 13px;
+  outline: none;
+}
+
+.dgfw-form input:focus {
+  border-color: #1d9c84;
+}
+
+.dgfw-form button {
+  width: 43px;
+  height: 43px;
+  flex-shrink: 0;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: var(--dgfw-primary);
+  color: white;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.dgfw-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dgfw-note {
+  background: white;
+  padding: 0 12px 11px;
+
+  font-size: 10px;
+  color: #91a19b;
+  text-align: center;
+}
+
+@keyframes dgfw-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  70%, 100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes dgfw-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes dgfw-appear {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .dgfw-launcher {
+    right: 16px;
+    bottom: 16px;
+    width: 60px;
+    height: 60px;
+  }
+
+  .dgfw-greeting {
+    right: 14px;
+    bottom: 89px;
+  }
+
+  .dgfw-panel {
+    right: 10px;
+    bottom: 85px;
+    width: calc(100vw - 20px);
+    height: min(600px, calc(100dvh - 105px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dgfw-launcher::before,
+  .dgfw-bot,
+  .dgfw-panel,
+  .dgfw-greeting {
+    animation: none;
+  }
+}
+
+
+/* Hinh robot AI noi goc duoi ben phai */
+
+.dgfw-launcher {
+  width: 82px;
+  height: 82px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  box-shadow: none;
+  padding: 0;
+}
+
+.dgfw-bot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  animation: dgfw-robot-float 3s ease-in-out infinite;
+  filter: drop-shadow(0 7px 9px rgba(74, 34, 170, 0.23));
+}
+
+.dgfw-launcher:hover {
+  transform: scale(1.12);
+}
+
+.dgfw-launcher::before {
+  border-color: rgba(104, 73, 220, 0.25);
+}
+
+/* Hieu ung robot bay len xuong nhe */
+@keyframes dgfw-robot-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+/* Khung chat hien phia tren robot */
+.dgfw-panel {
+  bottom: 120px;
+}
+
+/* Tuong thich dien thoai */
+@media (max-width: 600px) {
+  .dgfw-launcher {
+    width: 68px;
+    height: 68px;
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .dgfw-panel {
+    bottom: 95px;
+  }
+}
+
+/* Han che chuyen dong khi nguoi dung yeu cau */
+@media (prefers-reduced-motion: reduce) {
+  .dgfw-bot-image {
+    animation: none;
+  }
+}
+
+/* Chatbot AI - hinh tron, khong khung trang */
+
+.dgfw-launcher {
+  width: 72px;
+  height: 72px;
+  right: 24px;
+  bottom: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.dgfw-launcher::before {
+  display: none;
+}
+
+.dgfw-bot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  background: transparent;
+  filter: drop-shadow(0 4px 8px rgba(80, 40, 160, 0.18));
+}
+
+.dgfw-ai-tag {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  z-index: 2;
+  border-radius: 12px;
+  background: #facc15;
+  color: #333;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+
+/* Cho phep keo tha chatbot AI */
+
+.dgfw-launcher {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dgfw-launcher.dgfw-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.dgfw-bot-image {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.dgfw-ai-tag {
+  pointer-events: none;
+}

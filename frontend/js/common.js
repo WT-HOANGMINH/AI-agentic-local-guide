@@ -510,4 +510,9 @@ async function wirePlaceActions(container) {
 document.addEventListener('DOMContentLoaded', () => {
   renderNav();
   renderFooter();
+
+  // Nap chatbot AI noi tren cac trang
+  const chatScript = document.createElement('script');
+  chatScript.src = 'js/chat-widget.js';
+  document.body.appendChild(chatScript);
 });
