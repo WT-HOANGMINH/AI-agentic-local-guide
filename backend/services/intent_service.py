@@ -1,6 +1,7 @@
 
 import os
 from pathlib import Path
+from functools import lru_cache
 import joblib
 
 
@@ -23,6 +24,7 @@ VALID_INTENTS = {
 }
 
 
+@lru_cache(maxsize=1)
 def load_model():
     """Nap model hoac artifact da duoc huan luyen."""
     if not MODEL_PATH.exists():
@@ -61,17 +63,17 @@ def load_model():
 
     return loaded_model
 
-
-# Chi nap model mot lan khi service duoc import.
-model = load_model()
-
-
 def predict_intent(text: str) -> dict:
     """Phan loai cau hoi bang model AI da huan luyen."""
+
     if not isinstance(text, str) or not text.strip():
         raise ValueError("Cau hoi khong duoc de trong.")
 
     cleaned_text = text.strip()
+
+    # Chi tai model khi co yeu cau dau tien
+    model = load_model()
+
     predicted_label = str(model.predict([cleaned_text])[0])
 
     if predicted_label not in VALID_INTENTS:
