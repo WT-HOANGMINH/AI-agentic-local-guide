@@ -257,9 +257,15 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("Database tables initialized successfully.")
 
-        from backend.seed_places import ensure_rating_column, normalize_place_categories
+
+        from backend.seed_places import (
+            ensure_rating_column,
+            ensure_place_detail_columns,
+            normalize_place_categories,
+        )
 
         ensure_rating_column()
+        ensure_place_detail_columns()
         normalize_place_categories()
 
         from backend.database import SessionLocal

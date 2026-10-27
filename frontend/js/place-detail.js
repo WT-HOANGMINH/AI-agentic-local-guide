@@ -20,10 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    const places = await API.places({});
-    const place = places.find(
-      item => String(item.id) === String(id)
-    );
+    const place = await API.place(id);
 
     if (!place) {
       throw new Error('Địa điểm không tồn tại trong dữ liệu.');
@@ -150,11 +147,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             place.distanceNote || 'Chưa có dữ liệu xác minh'
           )}</p>
 
-          <div class="detail-label">Giờ mở cửa</div>
-          <p>Vui lòng kiểm tra nguồn chính thức trước khi đi.</p>
+          <div class="detail-label">Địa chỉ đầy đủ</div>
+          <p>${escapeHTML(place.address || "Chưa có thông tin địa chỉ.")}</p>
 
-          <div class="detail-label">Giá vé</div>
-          <p>Vui lòng xác nhận giá vé trước chuyến đi.</p>
+          <div class="detail-label">Giờ mở cửa</div>
+          <p>${escapeHTML(place.opening_hours || "Chưa có thông tin giờ mở cửa.")}</p>
+
+
+        <div class="detail-label">Giá vé</div>
+
+    <p>
+          ${escapeHTML(
+          place.ticket_info || "Chưa cập nhật thông tin giá vé."
+  )}
+    </p>
+
+          ${place.ticket_source_url &&
+          place.ticket_source_url.startsWith("https://")
+          ? `
+       <a href="${escapeHTML(place.ticket_source_url)}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="small">
+         Xem nguồn tham khảo giá vé ↗
+        </a>
+  `
+  : ""
+}
+
         </div>
       </div>
 
