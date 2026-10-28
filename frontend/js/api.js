@@ -261,7 +261,7 @@ const API = {
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
-    
+
     if (auth && validLocalToken(token)) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -269,7 +269,7 @@ const API = {
     let response;
 
     try {
-      
+
     response = await fetch(
   (CFG.API_BASE || '').replace(/\/$/, '') + path,
   {
@@ -474,63 +474,67 @@ const API = {
   // KIỂM TRA ĐĂNG NHẬP
   // ==============================
 
-  isLogged() {
-    const token = localStorage.getItem(
-      CFG.TOKEN_KEY
-    );
 
-    return CFG.USE_MOCK
-      ? !!token
-      : validLocalToken(token);
-  },
+isLogged() {
+  const token = localStorage.getItem(CFG.TOKEN_KEY);
+
+  return CFG.USE_MOCK
+    ? !!token
+    : validLocalToken(token) ||
+      this._cookieAuthenticated === true;
+},
 
   // ==============================
   // LẤY THÔNG TIN TÀI KHOẢN
   // ==============================
 
-  async getProfile() {
 
-    if (CFG.USE_MOCK) {
-      return this.user();
-    }
+async getProfile() {
 
-    try {
-      const result = await this.request(
-        '/auth/me',
-        {
-          auth: true
-        }
-      );
+  if (CFG.USE_MOCK) {
+    return this.user();
+  }
 
-      const user = {
-        id: result.id,
-
-        name:
-          result.username ||
-          result.name ||
-          result.email,
-
-        email: result.email,
-
-        role: result.role
-      };
-
-      store.set(
-        'lg_current_user',
-        user
-      );
-
-      return user;
-
-    } catch (error) {
-
-      if (!this.isLogged()) {
-        return null;
+  try {
+    const result = await this.request(
+      '/auth/me',
+      {
+        auth: true
       }
+    );
 
-      throw error;
+    // Backend da xac thuc phien dang nhap
+    this._cookieAuthenticated = true;
+
+    const user = {
+      id: result.id,
+
+      name:
+        result.username ||
+        result.name ||
+        result.email,
+
+      email: result.email,
+
+      role: result.role
+    };
+
+    store.set('lg_current_user', user);
+
+    return user;
+
+  } catch (error) {
+
+    // Khong xac thuc duoc phien
+    this._cookieAuthenticated = false;
+
+    if (!this.isLogged()) {
+      return null;
     }
-  },
+
+    throw error;
+  }
+},
 
   // ==============================
   // LẤY DANH SÁCH ĐỊA ĐIỂM

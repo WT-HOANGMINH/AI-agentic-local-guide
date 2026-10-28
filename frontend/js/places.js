@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!host || !form || !q || !category) {
     return;
   }
+  // Kiem tra dang nhap truoc khi hien thi dia diem
+try {
+  await API.getProfile();
+} catch (error) {
+  console.warn('Khong the xac thuc phien:', error);
+}
 
   // =====================================
   // 2. HAM TAI DANH SACH DIA DIEM
