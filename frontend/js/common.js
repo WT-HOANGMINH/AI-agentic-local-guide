@@ -453,6 +453,46 @@ function placeCard(p, fav = false) {
 // XU LY YEU THICH VA LICH TRINH
 // =========================================
 
+function markItineraryButton(button, added) {
+  if (!button) return;
+
+  button.textContent = added
+    ? '✓ Đã thêm'
+    : '+ Lịch trình';
+
+  button.classList.toggle('btn-success', added);
+  button.classList.toggle('btn-outline-secondary', !added);
+
+  button.disabled = added;
+}
+
+// Cap nhat trang thai cac nut khi tai danh sach
+async function syncItineraryButtons(container) {
+  if (!container || !API.isLogged()) return;
+
+  const buttons = container.querySelectorAll('[data-add]');
+  if (!buttons.length) return;
+
+  try {
+    const ids = await API.itinerary();
+    const savedIds = new Set(ids.map(Number));
+
+    buttons.forEach(button => {
+      const id = Number(button.dataset.add);
+
+      markItineraryButton(
+        button,
+        savedIds.has(id)
+      );
+    });
+
+  } catch (error) {
+    console.warn(
+      'Khong the tai trang thai lich trinh:',
+      error
+    );
+  }
+}
 async function wirePlaceActions(container) {
 
   container.addEventListener('click', async event => {
@@ -482,19 +522,45 @@ async function wirePlaceActions(container) {
         favoriteButton.classList.toggle('btn-outline-secondary');
       }
 
-      if (addButton) {
 
-        const ids = await API.itinerary();
-        const id = Number(addButton.dataset.add);
+if (addButton) {
 
-        if (ids.includes(id)) {
-          flash('Địa điểm đã có trong lịch trình.', 'info');
-          return;
-        }
+  if (addButton.disabled) return;
 
-        await API.saveItinerary([...ids, id]);
-        flash('Đã thêm vào lịch trình.', 'success');
-      }
+  addButton.disabled = true;
+
+  try {
+    const ids = await API.itinerary();
+    const id = Number(addButton.dataset.add);
+
+    const alreadyAdded = ids.some(
+      savedId => Number(savedId) === id
+    );
+
+    if (alreadyAdded) {
+      markItineraryButton(addButton, true);
+      flash('Địa điểm đã có trong lịch trình.', 'info');
+      return;
+    }
+
+    await API.saveItinerary([...ids, id]);
+
+    // Doi nut sang mau xanh sau khi luu thanh cong
+    markItineraryButton(addButton, true);
+
+    flash(
+      'Đã thêm vào lịch trình thành công!',
+      'success'
+    );
+
+  } catch (error) {
+    addButton.disabled = false;
+
+    flash(
+      error.message || 'Không thể thêm vào lịch trình.'
+    );
+  }
+}
 
     } catch (error) {
       flash(error.message);

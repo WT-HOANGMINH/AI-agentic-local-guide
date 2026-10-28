@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!host || !sel) {
     return;
   }
+  // Kiem tra phien dang nhap Facebook truoc khi hien thi goi y
+try {
+  await API.getProfile();
+} catch (error) {
+  console.warn('Khong the xac thuc phien:', error);
+}
 
   // 3. Hàm tải danh sách địa điểm gợi ý
   async function load() {
@@ -44,6 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
 
       }).join('') || '<div class="empty">Chưa có gợi ý.</div>';
+      // Cap nhat nut Da them vao lich trinh
+      await syncItineraryButtons(host);
 
     } catch (error) {
 

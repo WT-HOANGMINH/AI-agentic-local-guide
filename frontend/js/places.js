@@ -67,6 +67,8 @@ try {
 
         }).join('');
 
+        await syncItineraryButtons(host);
+
       } else {
 
         // Khong tim thay dia diem phu hop
