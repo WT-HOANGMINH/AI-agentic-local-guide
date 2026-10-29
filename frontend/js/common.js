@@ -582,3 +582,5 @@ document.addEventListener('DOMContentLoaded', () => {
   chatScript.src = 'js/chat-widget.js';
   document.body.appendChild(chatScript);
 });
+
+// CI/CD smoke test: verify Render auto-deploy after CI passes.
