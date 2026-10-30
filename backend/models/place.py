@@ -15,6 +15,10 @@ class Place(Base):
     longitude = Column(Float, nullable=True)
 
     price_level = Column(Integer, nullable=True)
+
+    # Thong tin gia ve tham quan
+    ticket_info = Column(String(255), nullable=True)
+    ticket_source_url = Column(String(500), nullable=True)
     opening_hours = Column(String(100), nullable=True)
 
     # Danh gia 0-5 (nhap tay tu Google Maps; NULL = chua co du lieu)

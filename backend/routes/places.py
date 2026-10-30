@@ -168,6 +168,8 @@ def get_nearby_places(
                 longitude=place.longitude,
                 price_level=place.price_level,
                 opening_hours=place.opening_hours,
+                ticket_info=place.ticket_info,
+                ticket_source_url=place.ticket_source_url,
                 is_active=place.is_active,
                 distance_km=round(distance, 2)
             )
