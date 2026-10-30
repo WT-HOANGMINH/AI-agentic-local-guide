@@ -4,6 +4,7 @@ name: DaNang Guide CI
 on:
   push:
     branches:
+      - main
       - hiep
   workflow_dispatch:
 
