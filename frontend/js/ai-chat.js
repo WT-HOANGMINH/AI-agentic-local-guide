@@ -3,6 +3,20 @@
 (function () {
   window.API = window.API || {};
 
+  let userPosition = {};
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        userPosition = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+      },
+      () => {},
+      { timeout: 8000 }
+    );
+  }
+
   // Cho phep API_BASE co hoac khong co hau to /api
   function base() {
     const cfg = window.LOCAL_GUIDE_CONFIG || {};
@@ -15,6 +29,14 @@
 
   function setSid(v) {
     try { sessionStorage.setItem('dg_sid', v); } catch (e) { /* bo qua */ }
+  }
+
+  function chatPayload(message) {
+    return {
+      message,
+      session_id: getSid(),
+      ...userPosition
+    };
   }
 
   async function post(path, body) {
@@ -33,7 +55,7 @@
 
   // Ban khong streaming (du phong): tra ve toan bo cau tra loi
   window.API.chat = async function (message) {
-    const response = await post('/api/ai-guide/chat', { message: message, session_id: getSid() });
+    const response = await post('/api/ai-guide/chat', chatPayload(message));
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(result.error || result.detail || `Lỗi HTTP ${response.status}`);
@@ -42,10 +64,10 @@
     return result.reply || 'AI chưa trả về nội dung.';
   };
 
-  // Nhận token trực tiếp từ Gemini, cùng metadata gợi ý cho UI.
+  // Nhận token và metadata từ backend cho giao diện chat.
   window.API.chatStream = async function (message, handlers) {
     const h = handlers || {};
-    const response = await post('/api/ai-guide/chat-stream', { message: message, session_id: getSid() });
+    const response = await post('/api/ai-guide/chat-stream', chatPayload(message));
     if (!response.ok || !response.body) {
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || result.detail || `Lỗi HTTP ${response.status}`);

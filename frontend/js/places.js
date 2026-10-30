@@ -1,127 +1,89 @@
-
-/* =====================================
-   DA NANG GUIDE - PLACES
-===================================== */
-
 document.addEventListener('DOMContentLoaded', async () => {
-
-  // =====================================
-  // 1. LAY CAC THANH PHAN GIAO DIEN
-  // =====================================
-
   const host = $('#places-grid');
   const form = $('#search-form');
-  const q = $('#query');
+  const query = $('#query');
   const category = $('#category');
   const count = $('#count');
+  const loadMore = $('#load-more');
 
-  // Kiem tra cac thanh phan co ton tai khong
-  if (!host || !form || !q || !category) {
-    return;
+  if (!host || !form || !query || !category || !loadMore) return;
+
+  try {
+    await API.getProfile();
+  } catch (error) {
+    console.warn('Không thể xác thực phiên người dùng.', error);
   }
-  // Kiem tra dang nhap truoc khi hien thi dia diem
-try {
-  await API.getProfile();
-} catch (error) {
-  console.warn('Khong the xac thuc phien:', error);
-}
 
-  // =====================================
-  // 2. HAM TAI DANH SACH DIA DIEM
-  // =====================================
+  let currentPlaces = [];
+  let savedIds = [];
+  let loadedCount = 0;
+
+  async function renderNextPage() {
+    const start = loadedCount;
+    const page = currentPlaces.slice(start, start + 100);
+
+    host.insertAdjacentHTML(
+      'beforeend',
+      page.map((place, index) => `
+        <div class="col-md-6 col-xl-4">
+          ${placeCard(place, savedIds.includes(place.id), start + index < 8)}
+        </div>
+      `).join('')
+    );
+
+    loadedCount += page.length;
+    loadMore.hidden = loadedCount >= currentPlaces.length;
+    await syncItineraryButtons(host);
+  }
 
   async function load() {
-
-    // Hien thi trang thai dang tai
-    host.innerHTML = `
-      <div class="col-12 muted">
-        Đang tải địa điểm…
-      </div>
-    `;
+    host.innerHTML = '<div class="col-12 muted">Đang tải địa điểm…</div>';
+    loadMore.hidden = true;
 
     try {
-
-      // Lay danh sach dia diem theo tu khoa va danh muc
-      const places = await API.places({
-        q: q.value.trim(),
-        category: category.value
+      currentPlaces = await API.places({
+        q: query.value.trim(),
+        category: category.value,
+        allPages: true
       });
-
-      // Lay danh sach yeu thich cua tai khoan Demo
-      const saved = API.isLogged()
-        ? await API.favorites()
-        : [];
-
-      // Hien thi danh sach dia diem
-      if (places.length > 0) {
-
-        host.innerHTML = places.map(place => {
-
-          const isFavorite = saved.includes(place.id);
-
-          return `
-            <div class="col-md-6 col-xl-4">
-              ${placeCard(place, isFavorite)}
-            </div>
-          `;
-
-        }).join('');
-
-        await syncItineraryButtons(host);
-
-      } else {
-
-        // Khong tim thay dia diem phu hop
-        host.innerHTML = `
-          <div class="col-12 empty">
-            Không tìm thấy địa điểm phù hợp.
-          </div>
-        `;
-      }
-
-      // Cap nhat so luong dia diem
-      if (count) {
-        count.textContent = places.length + ' địa điểm';
-      }
-
-    } catch (error) {
-
-      // Xu ly loi khi tai du lieu
-      host.innerHTML = '';
-
-      flash(
-        error.message || 'Không thể tải danh sách địa điểm.'
+      currentPlaces.sort(
+        (a, b) => Number(Boolean(getPlaceImage(b))) - Number(Boolean(getPlaceImage(a)))
       );
+      savedIds = API.isLogged() ? await API.favorites() : [];
+      loadedCount = 0;
+      host.replaceChildren();
+
+      if (currentPlaces.length) {
+        await renderNextPage();
+      } else {
+        host.innerHTML = '<div class="col-12 empty">Không tìm thấy địa điểm phù hợp.</div>';
+      }
+
+      if (count) {
+        count.textContent = currentPlaces.length + ' địa điểm';
+      }
+    } catch (error) {
+      host.replaceChildren();
+      flash(error.message || 'Không thể tải danh sách địa điểm.');
     }
   }
 
-  // =====================================
-  // 3. XU LY FORM TIM KIEM
-  // =====================================
-
   form.addEventListener('submit', event => {
-
     event.preventDefault();
-
     load();
   });
-
-  // =====================================
-  // 4. LOC DIA DIEM THEO DANH MUC
-  // =====================================
-
   category.addEventListener('change', load);
-
-  // =====================================
-  // 5. XU LY YEU THICH VA THEM LICH TRINH
-  // =====================================
+  loadMore.addEventListener('click', async () => {
+    loadMore.disabled = true;
+    try {
+      await renderNextPage();
+    } catch (error) {
+      flash(error.message || 'Không thể tải thêm địa điểm.');
+    } finally {
+      loadMore.disabled = false;
+    }
+  });
 
   wirePlaceActions(host);
-
-  // =====================================
-  // 6. TAI DIA DIEM KHI MO TRANG
-  // =====================================
-
   await load();
-
 });

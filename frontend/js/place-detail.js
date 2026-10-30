@@ -73,7 +73,12 @@ document.addEventListener('DOMContentLoaded', async () => {
               ? `<img id="place-photo"
                    class="detail-photo mb-3"
                    src="${escapeHTML(image)}"
-                   alt="${name}">`
+                   alt="${name}">
+                 <div id="place-photo-fallback"
+                      class="detail-photo-fallback mb-3"
+                      role="img"
+                      aria-label="Ảnh minh họa địa điểm"
+                      hidden>📍</div>`
               : `<div class="detail-panel">📍 ${name}</div>`
           }
 
@@ -192,6 +197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (photo) {
       photo.addEventListener('error', () => {
         photo.style.display = 'none';
+        const fallback = document.querySelector('#place-photo-fallback');
+        if (fallback) fallback.hidden = false;
       });
     }
 

@@ -1,4 +1,3 @@
-
 import mimetypes
 import os
 from urllib.parse import urlsplit
@@ -292,7 +291,6 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("Database tables initialized successfully.")
 
-
         from backend.seed_places import (
             ensure_rating_column,
             ensure_place_detail_columns,
@@ -332,6 +330,7 @@ def startup_event():
                 )
 
             # Nap dia diem mau neu bang Place dang rong
+            # (de nap day du hon, chay: python -X utf8 -m backend.seed_places)
             if db.query(Place).count() == 0:
                 from backend.seed_places import main as seed_places_main
                 seed_places_main()

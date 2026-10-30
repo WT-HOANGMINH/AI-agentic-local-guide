@@ -457,6 +457,8 @@ def main():
             row = db.query(Place).filter(Place.name == data["name"]).first()
             if row:
                 for key, value in data.items():
+                    if key == "rating" and value is None:
+                        continue
                     setattr(row, key, value)
                 updated += 1
             else:

@@ -7,7 +7,6 @@ import re
 
 from backend.services.slot_service import strip_accents
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL_PATH = (
     PROJECT_ROOT / "training" / "models" / "intent_classifier.joblib"

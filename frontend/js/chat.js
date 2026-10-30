@@ -23,6 +23,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let isSending = false;
 
+  const WELCOME =
+    'Xin chào! Mình là trợ lý du lịch DaNang Guide. ' +
+    'Bạn muốn khám phá địa điểm, tìm món ăn ngon ' +
+    'hay lên lịch trình du lịch Đà Nẵng?';
+
+  function renderBotText(element, text) {
+    element.replaceChildren();
+
+    const lines = String(text).split('\n');
+    lines.forEach((line, index) => {
+      const header = line.match(/^=+\s*(.+?)\s*=+$/);
+      const timed = line.match(/^(\d{2}:\d{2}\s*[–-]\s*\d{2}:\d{2})(\s+)(.*)$/);
+
+      if (header) {
+        const strong = document.createElement('strong');
+        strong.textContent = header[1];
+        element.appendChild(strong);
+      } else if (timed) {
+        const strong = document.createElement('strong');
+        strong.textContent = timed[1];
+        element.append(strong, document.createTextNode(timed[2] + timed[3]));
+      } else {
+        element.appendChild(document.createTextNode(line));
+      }
+
+      if (index < lines.length - 1) {
+        element.appendChild(document.createTextNode('\n'));
+      }
+    });
+  }
+
   // =====================================
   // HIEN THI TIN NHAN
   // =====================================
@@ -34,7 +65,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     div.className =
       'bubble ' + (who === 'user' ? 'user' : 'bot');
 
-    div.textContent = text;
+    if (who === 'user') {
+      div.textContent = text;
+    } else {
+      renderBotText(div, text);
+    }
 
     messages.appendChild(div);
 
@@ -47,12 +82,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   // LOI CHAO BAN DAU
   // =====================================
 
-  appendMessage(
-    'bot',
-    'Xin chào! Mình là trợ lý du lịch DaNang Guide. ' +
-    'Bạn muốn khám phá địa điểm, tìm món ăn ngon ' +
-    'hay lên lịch trình du lịch Đà Nẵng?'
-  );
+  appendMessage('bot', WELCOME);
+
+  function resetChat() {
+    if (isSending) return;
+    messages.replaceChildren();
+    try {
+      sessionStorage.removeItem('dg_sid');
+    } catch (error) {
+      console.warn('Không thể đặt lại phiên chat trong trình duyệt.', error);
+    }
+    appendMessage('bot', WELCOME);
+  }
+
+  const topbar = document.querySelector('.dg-chat-topbar');
+  if (topbar) {
+    const clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.textContent = 'Xóa hội thoại';
+    clearButton.className = 'btn btn-sm btn-outline-secondary';
+    clearButton.style.marginLeft = 'auto';
+    clearButton.addEventListener('click', resetChat);
+    topbar.appendChild(clearButton);
+  }
 
   // =====================================
   // GUI CAU HOI DEN CHAT AI
@@ -206,6 +258,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         (error.message || 'Có lỗi xảy ra.');
 
     } finally {
+
+      if (textEl.textContent) {
+        renderBotText(textEl, textEl.textContent);
+      }
 
       bubble.classList.remove('streaming');
 

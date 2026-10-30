@@ -1,6 +1,6 @@
 # 🌴 Agentic AI Local Guide - Khám Phá Đà Nẵng
 
-> Hệ thống trợ lý du lịch địa phương thông minh cho thành phố Đà Nẵng, tích hợp **Agentic AI** (LangGraph & Google Gemini), tìm kiếm điểm đến (POI) trên bản đồ tương tác, lập lịch trình tự động và quản lý hồ sơ sở thích cá nhân hóa.
+> Hệ thống trợ lý du lịch địa phương thông minh cho thành phố Đà Nẵng, dùng mô hình phân loại ý định tự huấn luyện cho chat, tìm kiếm điểm đến (POI), dự báo thời tiết và lập lịch trình tự động. Một API Gemini riêng vẫn có thể dùng cho tích hợp cũ.
 
 ---
 
@@ -21,7 +21,8 @@
 * **Bản đồ tương tác thời gian thực**: Sử dụng **Leaflet.js**, ghim vị trí (Pin SVG màu theo danh mục), đồng bộ 2 chiều giữa danh sách thẻ địa điểm và điểm ghim trên bản đồ, tích hợp GPS định vị và liên kết chỉ đường Google Maps.
 * **Tìm kiếm & Bộ lọc linh hoạt**: Tìm kiếm theo tên/mô tả, lọc danh mục (*Điểm tham quan, Ẩm thực, Quán cà phê, Mua sắm*), mức giá (₫ - ₫₫₫₫₫).
 * **Xác thực người dùng an toàn**: Đăng nhập/Đăng ký modal HTML5 native, cấp phát **JWT Bearer Token**, băm mật khẩu bảo mật cao bằng **Bcrypt**.
-* **AI Agent Gợi ý Du lịch**: Tích hợp **LangGraph ReAct Agent + Gemini Flash**, tự động phân tích câu hỏi kết hợp hồ sơ sở thích cá nhân để đưa ra câu trả lời tự nhiên kèm danh sách địa điểm phù hợp.
+* **Chat AI dùng model đã huấn luyện**: `POST /agent/chat` nạp `training/models/intent_classifier.joblib`, tra cứu địa điểm trong database và tạo lịch trình bằng planner nội bộ; luồng này không gọi Gemini.
+* **Dự báo thời tiết**: Planner lấy dữ liệu dự báo từ Open-Meteo để tư vấn lịch trình, giờ nghỉ và hoạt động ngoài trời.
 * **Lập lịch trình chuyến đi (Trip Itinerary API)**:
   * Lập kế hoạch du lịch chi tiết theo từng ngày (sáng, trưa, chiều, tối).
   * **AI Smart Generator**: Tự động sinh lịch trình tối ưu 1 - 7 ngày dựa trên các địa điểm thực tế tại Đà Nẵng.
@@ -36,7 +37,7 @@
 | Thành phần | Công nghệ sử dụng |
 | :--- | :--- |
 | **Backend** | Python 3.10+, FastAPI, Uvicorn, SQLAlchemy 2.0 |
-| **AI / Agent** | LangGraph, LangChain, Google Gemini API (`gemini-3.8-flash` / `gemini-1.5-flash`) |
+| **AI / Agent** | Mô hình intent scikit-learn đã huấn luyện, planner nội bộ; Gemini chỉ dùng bởi API tích hợp cũ `/api/ai-guide/ask` |
 | **Bảo mật** | JWT (python-jose), Bcrypt |
 | **Cơ sở dữ liệu** | MySQL (Chính) / Tự động chuyển đổi sang SQLite (Dự phòng) |
 | **Frontend** | Vanilla HTML5/CSS3, JavaScript ES Modules (Kiến trúc Module hóa) |
@@ -148,7 +149,7 @@ SECRET_KEY=agentic-ai-local-guide-secret-key-2026
 ```
 
 > [!NOTE]
-> Nếu chưa có **Gemini API Key** hoặc **MySQL chưa bật**, ứng dụng vẫn chạy: chat dùng dữ liệu địa phương và thông báo khi câu trả lời chưa được token-stream; MySQL chuyển sang SQLite.
+> Chat `/agent/chat` dùng dữ liệu địa phương và không cần **Gemini API Key**. Key chỉ cần cho API tích hợp cũ `/api/ai-guide/ask`. Nếu **MySQL chưa bật**, backend sẽ thử dùng SQLite cục bộ.
 
 #### Đăng nhập Google / Facebook (tùy chọn)
 
@@ -174,6 +175,17 @@ Chạy máy chủ Uvicorn:
 ```bash
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+
+### Huấn luyện lại model chat
+
+Chat sử dụng bộ dữ liệu trong `training/data/` và lưu model tại
+`training/models/intent_classifier.joblib`. Sau khi cài requirements, chạy:
+
+```bash
+python training/src/train_intent_v2.py --final
+```
+
+Lệnh này huấn luyện đủ tám intent; không cần Gemini API Key để trả lời trong giao diện chat.
 
 Khi khởi động thành công, màn hình terminal sẽ hiển thị:
 ```text
@@ -259,8 +271,8 @@ Hệ thống được thiết kế theo tiêu chuẩn công nghiệp với khả
 
 1. **Database Fallback**:
    Nếu máy chưa cài đặt hoặc chưa khởi động dịch vụ MySQL trên cổng `3306`, [`backend/database.py`](backend/database.py) sẽ tự động kích hoạt cơ sở dữ liệu nhúng **SQLite** (`sqlite:///./local_guide.db`) để ứng dụng không bị gián đoạn.
-2. **AI Agent Fallback**:
-   Nếu `GEMINI_API_KEY` chưa được điền hoặc gặp sự cố mất kết nối mạng ngoài, [`backend/routes/recommendations.py`](backend/routes/recommendations.py) sẽ kích hoạt **Smart Recommendation Engine** để phân tích câu hỏi của du khách và lọc địa điểm phù hợp trong database, luôn trả về HTTP `200 OK` thay vì crash 500.
+2. **Chat AI nội bộ**:
+   [`backend/routes/agent.py`](backend/routes/agent.py) dùng model đã huấn luyện và planner cục bộ; không phụ thuộc Gemini. API tích hợp cũ `/api/ai-guide/ask` là luồng riêng.
 3. **Frontend Mock Fallback**:
    Nếu Backend tạm thời ngắt kết nối, [`frontend/js/places.js`](frontend/js/places.js) sẽ tự động nạp danh sách 10 địa điểm nổi tiếng Đà Nẵng từ mock data để bản đồ và giao diện vẫn hiển thị sinh động.
 4. **Bảo vệ mã hóa Console Windows**:
