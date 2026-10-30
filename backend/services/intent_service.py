@@ -3,6 +3,9 @@ import os
 from pathlib import Path
 from functools import lru_cache
 import joblib
+import re
+
+from backend.services.slot_service import strip_accents
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +24,11 @@ VALID_INTENTS = {
     "accommodation",
     "weather",
     "out_of_scope",
+    # y dinh hoi thoai (them boi add_dialogue_data.py)
+    "modify_itinerary",
+    "clarify_reply",
+    "greeting",
+    "ask_detail",
 }
 
 
@@ -90,5 +98,21 @@ def predict_intent(text: str) -> dict:
             float(max(probabilities)),
             4,
         )
+
+    normalized = strip_accents(cleaned_text)
+    rules = (
+        (r"\b(lap lich trinh|lich trinh|ke hoach du lich|plan (a )?trip|itinerary)\b", "itinerary"),
+        (r"\b(thoi tiet|du bao|mua ngay mai|weather|forecast)\b", "weather"),
+        (r"\b(dia diem|diem du lich|noi tieng|tham quan|attraction|famous places)\b", "attraction"),
+        (r"\b(quan an|an gi|mon an|am thuc|an sang|an trua|an toi|food|restaurant)\b", "food"),
+        (r"\b(quan ca phe|cafe|coffee shop)\b", "cafe"),
+        (r"\b(di lai|phuong tien|xe buyt|taxi|how to get|transport)\b", "transport"),
+        (r"\b(xin chao|chao ban|hello|hi there)\b", "greeting"),
+    )
+    for pattern, intent in rules:
+        if re.search(pattern, normalized):
+            result["intent"] = intent
+            result["confidence"] = max(result["confidence"], 0.9)
+            break
 
     return result

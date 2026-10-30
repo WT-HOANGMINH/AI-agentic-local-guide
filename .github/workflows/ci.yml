@@ -35,7 +35,7 @@ jobs:
           python -m pip check
 
       - name: Check Backend syntax
-        run: python -m compileall -q backend training
+        run: python -m compileall -q backend training tests
 
       - name: Check Frontend syntax
         run: |
@@ -55,7 +55,16 @@ jobs:
       - name: Train AI model
         run: python training/src/train_intent_v2.py --final
 
+      - name: Train slot extraction model
+        run: |
+          python training/src/generate_slots.py
+          python training/src/train_slots.py
+
       - name: Verify AI model
         run: |
           test -f training/models/intent_classifier.joblib
-          python -c "import joblib; joblib.load('training/models/intent_classifier.joblib'); print('AI MODEL OK')"
+          test -f training/models/slot_tagger.joblib
+          python -c "import joblib; joblib.load('training/models/intent_classifier.joblib'); joblib.load('training/models/slot_tagger.joblib'); print('AI MODELS OK')"
+
+      - name: Run regression tests
+        run: python -m pytest -q tests

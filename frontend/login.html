@@ -267,107 +267,70 @@
     }
 
 
-    // =====================================
-    // DANG NHAP GOOGLE
-    // =====================================
+    async function startSocialLogin(provider, button, allowedPrefix) {
+      button.disabled = true;
+      showMessage(`Đang kết nối đến ${provider}...`, "info");
 
-    googleButton.addEventListener(
-      "click",
-      async () => {
-
-        try {
-
-          googleButton.disabled = true;
-
-          // Phai mo trang tu chinh FastAPI (cong 8000)
-          // de cookie OAuth hoat dong.
-          if (window.location.origin !== new URL(BACKEND_URL).origin) {
-            throw new Error(
-              "Hay mo trang dang nhap tai http://127.0.0.1:8000/app/login.html"
-            );
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/auth/${provider}/url`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            headers: { Accept: "application/json" }
           }
-
-          showMessage(
-            "Đang kết nối đến Google...",
-            "info"
-          );
-
-          // Lay URL dang nhap tu Backend
-          const response = await fetch(
-            BACKEND_URL + "/auth/google/url",
-            {
-              method: "GET",
-              credentials: "include",
-              headers: {
-                Accept: "application/json"
-              }
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(
-              "Không lấy được đường dẫn đăng nhập Google."
-            );
-          }
-
-          const data = await response.json();
-
-          // Kiem tra URL Google
-          if (
-            !data.auth_url ||
-            !data.auth_url.startsWith(
-              "https://accounts.google.com/"
-            )
-          ) {
-            throw new Error(
-              "Đường dẫn Google OAuth không hợp lệ."
-            );
-          }
-
-          // Chuyen den trang Google
-          window.location.assign(data.auth_url);
-
-        } catch (error) {
-
-          console.error(
-            "Google Login Error:",
-            error
-          );
-
-          showMessage(
-            error.message ||
-              "Không thể đăng nhập bằng Google.",
-            "danger"
-          );
-
-          googleButton.disabled = false;
-        }
-      }
-    );
-
-
-    // =====================================
-    // FACEBOOK LOGIN
-    // =====================================
-
-    facebookButton.addEventListener(
-      "click",
-      () => {
-
-        showMessage(
-          "Facebook Login chưa được cấu hình trong Backend mới.",
-          "info"
         );
+        const data = await response.json().catch(() => ({}));
 
+        if (!response.ok) {
+          throw new Error(
+            data.detail ||
+            data.error ||
+            `Không thể bắt đầu đăng nhập ${provider} (HTTP ${response.status}).`
+          );
+        }
+
+        if (
+          typeof data.auth_url !== "string" ||
+          !data.auth_url.startsWith(allowedPrefix)
+        ) {
+          throw new Error(`Đường dẫn OAuth ${provider} không hợp lệ.`);
+        }
+
+        window.location.assign(data.auth_url);
+      } catch (error) {
+        console.error(`${provider} login error:`, error);
+        showMessage(
+          error.message || `Không thể đăng nhập bằng ${provider}.`,
+          "danger"
+        );
+        button.disabled = false;
       }
-    );
+    }
+
+    googleButton.addEventListener("click", () => {
+      startSocialLogin(
+        "google",
+        googleButton,
+        "https://accounts.google.com/"
+      );
+    });
+
+    facebookButton.addEventListener("click", () => {
+      startSocialLogin(
+        "facebook",
+        facebookButton,
+        "https://www.facebook.com/"
+      );
+    });
 
 
     // =====================================
     // THONG BAO LOI OAUTH NEU CO
     // =====================================
 
-    // Backend xu ly callback Google va luu cookie HttpOnly.
+    // Backend xử lý callback và lưu cookie HttpOnly.
     // Trang login khong nhan JWT qua URL nua.
 
     const params = new URLSearchParams(window.location.search);
@@ -377,14 +340,17 @@
       params.get("oauth") === "error"
     ) {
       showMessage(
-        "Đăng nhập Google không thành công. Vui lòng thử lại.",
+        `Đăng nhập ${params.get("provider") || "mạng xã hội"} không thành công. Vui lòng thử lại hoặc kiểm tra cấu hình OAuth.`,
         "danger"
       );
 
+      params.delete("auth");
+      params.delete("oauth");
+      params.delete("provider");
       window.history.replaceState(
         {},
         "",
-        window.location.pathname
+        window.location.pathname + (params.toString() ? `?${params}` : "")
       );
     }
 

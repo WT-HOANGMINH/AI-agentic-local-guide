@@ -47,7 +47,7 @@
 ## 📁 Cấu trúc thư mục
 
 ```text
-AI-agentic-local-guide-main/
+agentic-ai-local-guide/
 ├── backend/
 │   ├── models/             # SQLAlchemy ORM Models (User, Place, Preference, Itinerary)
 │   ├── routes/             # FastAPI Routers (auth, users, places, preferences, recommendations, itineraries)
@@ -84,7 +84,7 @@ AI-agentic-local-guide-main/
 ### Bước 1: Mở Terminal tại thư mục dự án
 Mở **Command Prompt**, **PowerShell**, hoặc **VS Code Terminal** tại thư mục gốc của dự án:
 ```bash
-cd C:\Users\Administrator\Downloads\AI-agentic-local-guide-main
+cd C:\Users\Administrator\Downloads\agentic-ai-local-guide
 ```
 
 ---
@@ -138,6 +138,7 @@ Mở file `.env` và cập nhật các thông số (nếu có):
 ```ini
 # Google Gemini API Key (Lấy miễn phí tại: https://aistudio.google.com/app/apikey)
 GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
 
 # Cấu hình kết nối MySQL (Nếu MySQL không bật, Backend sẽ tự động dùng SQLite: local_guide.db)
 DATABASE_URL=mysql+pymysql://root:1234@localhost:3306/agentic_local_guide
@@ -147,7 +148,23 @@ SECRET_KEY=agentic-ai-local-guide-secret-key-2026
 ```
 
 > [!NOTE]
-> Nếu bạn chưa có **Gemini API Key** hoặc **MySQL chưa bật**, ứng dụng vẫn khởi chạy bình thường nhờ cơ chế Fallback tự động.
+> Nếu chưa có **Gemini API Key** hoặc **MySQL chưa bật**, ứng dụng vẫn chạy: chat dùng dữ liệu địa phương và thông báo khi câu trả lời chưa được token-stream; MySQL chuyển sang SQLite.
+
+#### Đăng nhập Google / Facebook (tùy chọn)
+
+Tạo OAuth app ở Google Cloud Console và Meta for Developers, sau đó cấu hình các biến môi trường sau trong `.env` (hoặc Environment của Render):
+
+```ini
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+FACEBOOK_APP_ID=
+FACEBOOK_APP_SECRET=
+FACEBOOK_REDIRECT_URI=http://127.0.0.1:8000/auth/facebook/callback
+FRONTEND_URL=http://127.0.0.1:5500
+```
+
+Đăng ký đúng từng callback URL ở trang cấu hình của nhà cung cấp. Trên môi trường deploy, thay các URL localhost bằng URL HTTPS thực tế; `FRONTEND_URL` chỉ là origin, không kèm đường dẫn. Giữ các secret trong biến môi trường, không đưa vào frontend hay commit vào Git. Nếu thiếu cấu hình, endpoint OAuth sẽ báo lỗi cấu hình rõ ràng thay vì giả lập đăng nhập.
 
 ---
 
@@ -174,7 +191,7 @@ Bạn có thể mở giao diện bằng 1 trong các cách sau:
 #### Cách 1: Sử dụng Python HTTP Server (Khuyên dùng)
 Mở một cửa sổ Terminal mới và chạy:
 ```bash
-python -m http.server 5500 -d frontend
+python -m http.server 5500 --directory frontend
 ```
 Sau đó mở trình duyệt và truy cập: **`http://127.0.0.1:5500/`**
 
@@ -184,6 +201,8 @@ Do Backend đã tích hợp sẵn thư mục frontend, bạn có thể truy cậ
 
 #### Cách 3: Sử dụng VS Code Live Server
 Mở file `frontend/index.html` trong VS Code, nhấp chuột phải chọn **"Open with Live Server"** (Port mặc định `5500`).
+
+Khi frontend chạy ở localhost (ví dụ cổng `5500`) và backend ở cổng `8000`, cấu hình sẽ tự gửi API tới backend. Khi frontend được phục vụ từ chính ứng dụng FastAPI, API dùng cùng origin. Có thể đặt `window.LOCAL_GUIDE_API_BASE` trước `js/config.js` để chỉ định backend khác.
 
 ---
 
@@ -211,6 +230,26 @@ Dự án đi kèm file **`postman_collection.json`** với 27 API endpoints đã
 2. Nhấn nút **Import** ở góc trên bên trái.
 3. Chọn file [`postman_collection.json`](postman_collection.json) trong thư mục gốc.
 4. Chạy request **`1. Authentication > Đăng nhập Admin`**: Hệ thống sẽ tự động lưu JWT Token vào biến `{{token}}` cho tất cả các request phía sau.
+
+### 3. Kiểm thử và huấn luyện AI
+
+Từ thư mục gốc dự án, trong PowerShell:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+python -m pytest -q tests
+python -m compileall -q backend training tests
+```
+
+Để huấn luyện lại bộ trích thông tin trên Windows (đảm bảo console dùng UTF-8):
+
+```powershell
+python -X utf8 training\src\export_place_names.py
+python -X utf8 training\src\generate_slots.py
+python -X utf8 training\src\train_slots.py
+```
+
+CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để diễn đạt câu trả lời đã được kiểm chứng và gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả địa phương qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý.
 
 ---
 

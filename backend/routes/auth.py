@@ -1,6 +1,7 @@
 
 import os
 import hmac
+import logging
 import secrets
 import urllib.parse
 import uuid
@@ -33,6 +34,7 @@ from backend.services.auth_service import (
     verify_password,
 )
 
+logger = logging.getLogger(__name__)
 
 # ==============================================
 # CONFIGURATION
@@ -45,6 +47,7 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
 SESSION_COOKIE = "danang_session"
 STATE_COOKIE = "google_oauth_state"
+FACEBOOK_STATE_COOKIE = "facebook_oauth_state"
 
 IS_PRODUCTION = (
     os.getenv("APP_ENV", "development").lower()
@@ -182,6 +185,95 @@ def google_callback_url():
     )
 
 
+def facebook_callback_url():
+    return os.getenv(
+        "FACEBOOK_REDIRECT_URI",
+        "http://127.0.0.1:8000/auth/facebook/callback"
+    )
+
+
+def _session_cookie_samesite():
+    return "none" if IS_PRODUCTION else "lax"
+
+
+def _oauth_redirect_url(provider, success):
+    frontend_url = (
+        os.getenv("FRONTEND_URL") or os.getenv("PUBLIC_ORIGIN", "")
+    ).strip().rstrip("/")
+    if not frontend_url:
+        page = "index.html" if success else "login.html"
+        query = "?auth=success" if success else f"?auth=error&provider={provider}"
+        return f"/app/{page}{query}"
+
+    parsed = urllib.parse.urlsplit(frontend_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise RuntimeError("FRONTEND_URL must be an absolute HTTP(S) URL.")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise RuntimeError("FRONTEND_URL must not contain credentials, query, or fragment.")
+    if parsed.path not in {"", "/"}:
+        raise RuntimeError("FRONTEND_URL must be an origin without a path.")
+
+    page = "index.html" if success else "login.html"
+    query = (
+        f"?auth=success&provider={provider}"
+        if success
+        else f"?auth=error&provider={provider}"
+    )
+    return f"{frontend_url}/{page}{query}"
+
+
+def _oauth_user(db, email, name, provider):
+    user = db.query(User).filter(User.email == email).first()
+    if user and not user.is_active:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị vô hiệu hóa")
+    if user and user.role == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin cần dùng phương thức đăng nhập riêng",
+        )
+    if user is None:
+        username = (
+            (name.replace(" ", "_")[:35] or f"{provider}_user")
+            + "_"
+            + uuid.uuid4().hex[:8]
+        )
+        user = User(
+            username=username,
+            email=email,
+            password=get_password_hash(secrets.token_urlsafe(32)),
+            role="user",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+
+def _oauth_session_response(user, provider):
+    token = create_access_token({
+        "sub": str(user.id),
+        "username": user.username,
+        "role": user.role,
+    })
+    response = RedirectResponse(
+        url=_oauth_redirect_url(provider, success=True),
+        status_code=303,
+    )
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite=_session_cookie_samesite(),
+        max_age=3600,
+        path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 # ==============================================
 # DISABLE OLD GOOGLE LOGIN
 # ==============================================
@@ -204,7 +296,10 @@ def get_google_auth_url(response: Response):
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(
             status_code=503,
-            detail="Google OAuth chưa được cấu hình"
+            detail=(
+                "Google OAuth chưa được cấu hình. Hãy thiết lập "
+                "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI."
+            )
         )
 
     state = secrets.token_urlsafe(32)
@@ -237,6 +332,46 @@ def get_google_auth_url(response: Response):
 
     return {
         "auth_url": auth_url
+    }
+
+
+@router.get("/facebook/url")
+def get_facebook_auth_url(response: Response):
+    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Facebook OAuth chưa được cấu hình. Hãy thiết lập "
+                "FACEBOOK_APP_ID, FACEBOOK_APP_SECRET và FACEBOOK_REDIRECT_URI."
+            ),
+        )
+
+    state = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=FACEBOOK_STATE_COOKIE,
+        value=state,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    version = os.getenv("FACEBOOK_GRAPH_VERSION", "v24.0")
+    params = {
+        "client_id": app_id,
+        "redirect_uri": facebook_callback_url(),
+        "response_type": "code",
+        "scope": "email,public_profile",
+        "state": state,
+    }
+    return {
+        "auth_url": (
+            f"https://www.facebook.com/{version}/dialog/oauth?"
+            + urllib.parse.urlencode(params)
+        )
     }
 
 
@@ -368,7 +503,7 @@ def google_callback(
 
     # 8. Redirect không chứa JWT
     redirect = RedirectResponse(
-        url="/app/index.html?auth=success",
+        url=_oauth_redirect_url("google", success=True),
         status_code=303
     )
 
@@ -378,7 +513,7 @@ def google_callback(
         value=jwt_token,
         httponly=True,
         secure=IS_PRODUCTION,
-        samesite="lax",
+        samesite=_session_cookie_samesite(),
         max_age=3600,
         path="/"
     )
@@ -393,6 +528,92 @@ def google_callback(
     redirect.headers["Referrer-Policy"] = "no-referrer"
 
     return redirect
+
+
+@router.get("/facebook/callback")
+def facebook_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
+):
+    if error or not code or not state:
+        response = RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
+        )
+        response.delete_cookie(FACEBOOK_STATE_COOKIE, path="/")
+        return response
+
+    saved_state = request.cookies.get(FACEBOOK_STATE_COOKIE)
+    if not saved_state or not hmac.compare_digest(saved_state, state):
+        raise HTTPException(
+            status_code=400,
+            detail="Facebook OAuth state không hợp lệ",
+        )
+
+    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Facebook OAuth chưa được cấu hình",
+        )
+
+    graph_base = (
+        "https://graph.facebook.com/"
+        + os.getenv("FACEBOOK_GRAPH_VERSION", "v24.0")
+    )
+    try:
+        token_response = httpx.get(
+            f"{graph_base}/oauth/access_token",
+            params={
+                "client_id": app_id,
+                "client_secret": app_secret,
+                "redirect_uri": facebook_callback_url(),
+                "code": code,
+            },
+            timeout=15.0,
+        )
+        token_response.raise_for_status()
+        access_token = token_response.json().get("access_token")
+        if not access_token:
+            raise ValueError("Facebook did not return an access token")
+
+        profile_response = httpx.get(
+            f"{graph_base}/me",
+            params={
+                "fields": "id,name,email",
+                "access_token": access_token,
+            },
+            timeout=15.0,
+        )
+        profile_response.raise_for_status()
+        profile = profile_response.json()
+    except (httpx.HTTPError, ValueError):
+        logger.exception("Facebook OAuth token/profile verification failed")
+        return RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
+        )
+
+    email = profile.get("email")
+    if not isinstance(email, str) or not email.strip():
+        return RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
+        )
+
+    user = _oauth_user(
+        db,
+        email.strip().lower(),
+        str(profile.get("name") or email.split("@")[0]).strip(),
+        "facebook",
+    )
+    response = _oauth_session_response(user, "facebook")
+    response.delete_cookie(FACEBOOK_STATE_COOKIE, path="/")
+    return response
 
 
 # ==============================================

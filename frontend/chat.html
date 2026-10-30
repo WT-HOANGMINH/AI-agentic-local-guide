@@ -372,6 +372,80 @@
       }
     }
 
+
+    /* ===== HIEN THI BUOC SUY NGHI + CHU HIEN DAN ===== */
+
+    .dg-chat-messages .bubble .dg-step {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #7a8b86;
+    }
+
+    .dg-chat-messages .bubble .dg-step:last-child {
+      margin-bottom: 8px;
+    }
+
+    .dg-chat-messages .bubble.streaming > span::after {
+      content: "\258D";
+      margin-left: 2px;
+      animation: dgblink 1s steps(2) infinite;
+    }
+
+    .dg-chat-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .dg-chat-suggestion {
+      border: 1px solid #cbded5;
+      border-radius: 999px;
+      background: #fff;
+      color: #176b60;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .dg-chat-suggestion:hover,
+    .dg-chat-suggestion:focus-visible {
+      border-color: #176b60;
+      background: #e9f4ef;
+    }
+
+    .dg-chat-suggestion[role="checkbox"][aria-checked="true"] {
+      border-color: #176b60;
+      background: #e1f1e9;
+    }
+
+    .dg-chat-suggestion[role="checkbox"]::before {
+      content: "□";
+      margin-right: 5px;
+    }
+
+    .dg-chat-suggestion[role="checkbox"][aria-checked="true"]::before {
+      content: "✓";
+    }
+
+    .dg-chat-link {
+      display: block;
+      margin-top: 8px;
+      color: #176b60;
+      font-size: 12px;
+    }
+
+    .dg-chat-notice {
+      margin-top: 8px;
+      color: #788782;
+      font-size: 12px;
+    }
+
+    @keyframes dgblink {
+      50% { opacity: 0; }
+    }
+
   </style>
 </head>
 

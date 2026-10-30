@@ -416,22 +416,67 @@ dismiss.addEventListener("click", () => {
 
     const typing = addMessage(
       "assistant",
-      "Đang tìm câu trả lời cho bạn... ✨"
+      ""
     );
+    const progress = document.createElement("div");
+    progress.className = "dgfw-progress";
+    progress.textContent = "Đang tìm câu trả lời cho bạn... ✨";
+    const answer = document.createElement("span");
+    const responseSuggestions = document.createElement("div");
+    responseSuggestions.className = "dgfw-response-suggestions";
+    typing.append(progress, answer, responseSuggestions);
 
     try {
       if (typeof API === "undefined" ||
-          typeof API.chat !== "function") {
+          typeof API.chatStream !== "function") {
         throw new Error("Chưa tải được API Chat.");
       }
 
-      // API.chat da duoc dinh nghia trong js/api.js
-      const answer = await API.chat(text);
+      await API.chatStream(text, {
+        onStep: step => {
+          progress.textContent = step;
+          messages.scrollTop = messages.scrollHeight;
+        },
+        onToken: token => {
+          progress.textContent = "";
+          answer.textContent += token;
+          messages.scrollTop = messages.scrollHeight;
+        },
+        onResult: result => {
+          progress.textContent = "";
+          if (result.text && !answer.textContent) {
+            answer.textContent = result.text;
+          }
+          if (result.notice) {
+            const notice = document.createElement("div");
+            notice.className = "dgfw-notice";
+            notice.textContent = result.notice;
+            typing.insertBefore(notice, responseSuggestions);
+          }
+          (result.suggestions || []).forEach(suggestion => {
+            if (!suggestion.label || !suggestion.message) return;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = suggestion.label;
+            button.addEventListener("click", () => {
+              responseSuggestions.remove();
+              ask(suggestion.message);
+            });
+            responseSuggestions.appendChild(button);
+          });
+        },
+        onError: message => {
+          progress.textContent = "";
+          answer.textContent += answer.textContent ? `\n\n${message}` : message;
+        }
+      });
 
-      typing.textContent =
-        answer || "AI chưa có câu trả lời.";
+      if (!answer.textContent && !progress.textContent) {
+        answer.textContent = "AI chưa có câu trả lời.";
+      }
     } catch (error) {
-      typing.textContent =
+      progress.textContent = "";
+      answer.textContent =
         "Không thể kết nối Chat AI. " +
         (error.message || "Vui lòng thử lại.");
     } finally {

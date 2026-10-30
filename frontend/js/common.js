@@ -577,8 +577,31 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNav();
   renderFooter();
 
-  // Nap chatbot AI noi tren cac trang
-  const chatScript = document.createElement('script');
-  chatScript.src = 'js/chat-widget.js';
-  document.body.appendChild(chatScript);
+  if (!location.pathname.endsWith('/chat.html')) {
+    const streamScript = document.createElement('script');
+    streamScript.src = 'js/chat-stream.js';
+    streamScript.onload = () => {
+      const chatScript = document.createElement('script');
+      chatScript.src = 'js/chat-widget.js';
+      chatScript.onload = () => {
+        if (!window.DGChat) {
+          console.error('Không khởi tạo được chat streaming.');
+          return;
+        }
+        window.DGChat.init({
+          messages: '#dgfw-messages',
+          input: '#dgfw-input',
+          send: '#dgfw-send',
+          chips: '#dgfw-suggestions',
+          userClass: 'dgfw-message dgfw-user',
+          botClass: 'dgfw-message dgfw-assistant',
+        });
+      };
+      document.body.appendChild(chatScript);
+    };
+    streamScript.onerror = () => {
+      console.error('Không tải được bộ điều khiển chat streaming.');
+    };
+    document.body.appendChild(streamScript);
+  }
 });
