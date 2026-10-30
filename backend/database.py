@@ -47,13 +47,22 @@ def connect_database(url):
             "check_same_thread": False
         }
 
+    elif url.startswith("postgresql+psycopg://"):
+        options["connect_args"] = {
+            "connect_timeout": 10
+        }
+
     db_engine = create_engine(
         url,
         **options
     )
 
+    print("[Database] Checking connection...", flush=True)
+
     with db_engine.connect() as conn:
         conn.execute(text("SELECT 1"))
+
+    print("[Database] Connection verified.", flush=True)
 
     return db_engine
 
