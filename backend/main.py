@@ -1,4 +1,3 @@
-
 import mimetypes
 import os
 from urllib.parse import urlsplit
@@ -48,6 +47,37 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+
+def _configured_https_origins():
+    origins = set()
+    for variable in ("FRONTEND_URL", "PUBLIC_ORIGIN"):
+        configured_url = os.getenv(variable, "").strip()
+        if not configured_url:
+            continue
+
+        parsed = urlsplit(configured_url)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            continue
+
+        hostname = parsed.hostname.lower()
+        if ":" in hostname:
+            hostname = f"[{hostname}]"
+        port = parsed.port
+        origins.add(
+            f"https://{hostname}"
+            + (f":{port}" if port and port != 443 else "")
+        )
+    return origins
+
+
 # ============================================
 # CSRF PROTECTION - DANANG GUIDE
 # ============================================
@@ -62,16 +92,17 @@ async def csrf_origin_guard(request: Request, call_next):
     if request.method in unsafe_methods and session_cookie:
 
         app_env = os.getenv("APP_ENV", "development").lower()
-        public_origin = os.getenv("PUBLIC_ORIGIN", "").rstrip("/")
 
         if app_env == "production":
-            allowed_origins = (
-                {public_origin}
-                if public_origin.startswith("https://")
-                else set()
-            )
+            allowed_origins = _configured_https_origins()
         else:
             allowed_origins = {
+                "http://127.0.0.1:5500",
+                "http://localhost:5500",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
                 "http://127.0.0.1:8000",
                 "http://localhost:8000"
             }
@@ -185,20 +216,23 @@ async def global_unhandled_exception_handler(
 # CORS Configuration
 # ==============================================================
 
+cors_origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+]
+cors_origins.extend(sorted(_configured_https_origins() - set(cors_origins)))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:8080",
-        "http://localhost:8080",
-    ],
+    allow_origins=cors_origins,
     allow_origin_regex=(
         r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$"
     ),
@@ -257,7 +291,6 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("Database tables initialized successfully.")
 
-
         from backend.seed_places import (
             ensure_rating_column,
             ensure_place_detail_columns,
@@ -297,6 +330,7 @@ def startup_event():
                 )
 
             # Nap dia diem mau neu bang Place dang rong
+            # (de nap day du hon, chay: python -X utf8 -m backend.seed_places)
             if db.query(Place).count() == 0:
                 from backend.seed_places import main as seed_places_main
                 seed_places_main()

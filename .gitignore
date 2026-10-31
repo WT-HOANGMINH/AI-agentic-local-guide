@@ -6,3 +6,6 @@ __pycache__/
 *.sqlite3
 node_modules/
 pip-temp/
+training/data/place_names.txt
+training/data/slots_train.jsonl
+training/models/slot_tagger.joblib

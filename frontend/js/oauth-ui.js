@@ -175,14 +175,16 @@
       message.className = "alert alert-success mt-3";
       message.setAttribute("role", "status");
 
+      const provider = params.get("provider") || "mạng xã hội";
       message.textContent =
-        `Đăng nhập Google thành công! Xin chào ${user.name}.`;
+        `Đăng nhập ${provider} thành công! Xin chào ${user.name}.`;
 
       main.prepend(message);
     }
 
     // Xoa tham so auth=success
     params.delete("auth");
+    params.delete("provider");
 
     const query = params.toString();
 

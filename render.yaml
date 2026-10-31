@@ -4,12 +4,15 @@ services:
     name: danang-guide
     runtime: python
     plan: free
-    branch: hiep
+    branch: main
 
     buildCommand: |
       pip install -r requirements.txt
       python training/src/train_intent_v2.py --final
+      python training/src/generate_slots.py
+      python training/src/train_slots.py
       test -f training/models/intent_classifier.joblib
+      test -f training/models/slot_tagger.joblib
 
     startCommand: >-
       uvicorn backend.main:app
@@ -42,6 +45,27 @@ services:
 
       - key: GOOGLE_REDIRECT_URI
         sync: false
+
+      - key: FRONTEND_URL
+        sync: false
+
+      - key: FACEBOOK_APP_ID
+        sync: false
+
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+
+      - key: FACEBOOK_REDIRECT_URI
+        sync: false
+
+      - key: FACEBOOK_GRAPH_VERSION
+        value: v24.0
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
 
       - key: PUBLIC_ORIGIN
         sync: false

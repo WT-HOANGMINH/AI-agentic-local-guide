@@ -1,4 +1,4 @@
-﻿text,label
+text,label
 Tôi muốn ăn món đặc sản Đà Nẵng,food
 Tìm giúp tôi quán mì Quảng ngon,food
 Ở Đà Nẵng có quán bún chả cá nào không,food
@@ -10,6 +10,13 @@ Có quán ăn nào mở cửa buổi tối không,food
 Gợi ý món ăn đặc trưng của Đà Nẵng,food
 Tìm nơi ăn sáng gần trung tâm,food
 Tôi muốn đi tham quan ở Đà Nẵng,attraction
+"Tôi du lịch Đà Nẵng muốn đi Bà Nà và Sơn Trà, ăn mì Quảng sáng, uống cà phê, nghỉ trưa cùng bạn gái",itinerary
+"Lên lịch trình đi chơi cùng người yêu, có bữa sáng và quán cà phê",itinerary
+"Tôi có một ngày ở Đà Nẵng, muốn ghé Bà Nà và nghỉ trưa",itinerary
+Lập lịch trình hai ngày cho cặp đôi thích biển và ẩm thực,itinerary
+"Tôi muốn đi Bà Nà, Sơn Trà và uống cà phê trong chuyến du lịch",itinerary
+"Sắp xếp lịch đi chơi, ăn mì Quảng buổi sáng rồi nghỉ trưa",itinerary
+"Mình đi Đà Nẵng với bạn gái, giúp chọn lịch trình nhẹ nhàng",itinerary
 Địa điểm du lịch nổi tiếng nào nên ghé,attraction
 Gợi ý nơi ngắm cảnh đẹp ở Đà Nẵng,attraction
 Tôi muốn tham quan Ngũ Hành Sơn,attraction
@@ -824,3 +831,848 @@ Tôi muốn học cách giải phương trình bậc hai,out_of_scope
 Cho tôi công thức nấu bánh kem,out_of_scope
 Hãy phân tích thị trường chứng khoán,out_of_scope
 Giải thích cơ chế hoạt động của động cơ phản lực,out_of_scope
+di Ngu Hanh Son tu som,modify_itinerary
+đi Ngũ Hành Sơn từ sớm,modify_itinerary
+Đi ngũ hành sơn từ sớm,modify_itinerary
+Đi bà nà hills từ sớm,modify_itinerary
+đi Bà Nà Hills từ sớm,modify_itinerary
+di Ba Na Hills tu som,modify_itinerary
+Đi bãi bụt từ sớm,modify_itinerary
+di Bai But tu som,modify_itinerary
+đi Bãi Bụt từ sớm,modify_itinerary
+đi Mỹ Khê từ sớm,modify_itinerary
+Đi mỹ khê từ sớm,modify_itinerary
+di My Khe tu som,modify_itinerary
+đi Cù Lao Chàm từ sớm,modify_itinerary
+Đi cù lao chàm từ sớm,modify_itinerary
+di Cu Lao Cham tu som,modify_itinerary
+di ba na tu som,modify_itinerary
+Đi ba na từ sớm,modify_itinerary
+đi ba na từ sớm,modify_itinerary
+đi Bà Nà từ sớm,modify_itinerary
+di Ba Na tu som,modify_itinerary
+Đi bà nà từ sớm,modify_itinerary
+Mình muốn đi sơn trà sớm hơn,modify_itinerary
+mình muốn đi Sơn Trà sớm hơn,modify_itinerary
+minh muon di Son Tra som hon,modify_itinerary
+Mình muốn đi bãi bụt sớm hơn,modify_itinerary
+mình muốn đi Bãi Bụt sớm hơn,modify_itinerary
+minh muon di Bai But som hon,modify_itinerary
+Mình muốn đi bà nà hills sớm hơn,modify_itinerary
+minh muon di Ba Na Hills som hon,modify_itinerary
+mình muốn đi Bà Nà Hills sớm hơn,modify_itinerary
+Mình muốn đi my khe sớm hơn,modify_itinerary
+mình muốn đi my khe sớm hơn,modify_itinerary
+minh muon di my khe som hon,modify_itinerary
+minh muon di Ngu Hanh Son som hon,modify_itinerary
+Mình muốn đi ngũ hành sơn sớm hơn,modify_itinerary
+mình muốn đi Ngũ Hành Sơn sớm hơn,modify_itinerary
+mình muốn đi cau rong sớm hơn,modify_itinerary
+minh muon di cau rong som hon,modify_itinerary
+Mình muốn đi cau rong sớm hơn,modify_itinerary
+doi Hoi An sang buoi sang,modify_itinerary
+Đổi hội an sang buổi sáng,modify_itinerary
+đổi Hội An sang buổi sáng,modify_itinerary
+đổi Sơn Trà sang buổi sáng,modify_itinerary
+doi Son Tra sang buoi sang,modify_itinerary
+Đổi sơn trà sang buổi sáng,modify_itinerary
+doi Cau Rong sang buoi sang,modify_itinerary
+Đổi cầu rồng sang buổi sáng,modify_itinerary
+đổi Cầu Rồng sang buổi sáng,modify_itinerary
+đổi ba na sang buổi sáng,modify_itinerary
+doi ba na sang buoi sang,modify_itinerary
+Đổi ba na sang buổi sáng,modify_itinerary
+Đổi cau rong sang buổi sáng,modify_itinerary
+đổi cau rong sang buổi sáng,modify_itinerary
+doi cau rong sang buoi sang,modify_itinerary
+doi Ba Na Hills sang buoi sang,modify_itinerary
+Đổi bà nà hills sang buổi sáng,modify_itinerary
+đổi Bà Nà Hills sang buổi sáng,modify_itinerary
+bỏ ba na ra khỏi lịch trình,modify_itinerary
+bo ba na ra khoi lich trinh,modify_itinerary
+Bỏ ba na ra khỏi lịch trình,modify_itinerary
+bỏ cau rong ra khỏi lịch trình,modify_itinerary
+Bỏ cau rong ra khỏi lịch trình,modify_itinerary
+bo cau rong ra khoi lich trinh,modify_itinerary
+Bỏ chợ hàn ra khỏi lịch trình,modify_itinerary
+bỏ chợ Hàn ra khỏi lịch trình,modify_itinerary
+bo cho Han ra khoi lich trinh,modify_itinerary
+Bỏ cầu rồng ra khỏi lịch trình,modify_itinerary
+bo Cau Rong ra khoi lich trinh,modify_itinerary
+bỏ Cầu Rồng ra khỏi lịch trình,modify_itinerary
+bỏ Mỹ Sơn ra khỏi lịch trình,modify_itinerary
+bo My Son ra khoi lich trinh,modify_itinerary
+Bỏ mỹ sơn ra khỏi lịch trình,modify_itinerary
+bỏ Cù Lao Chàm ra khỏi lịch trình,modify_itinerary
+bo Cu Lao Cham ra khoi lich trinh,modify_itinerary
+Bỏ cù lao chàm ra khỏi lịch trình,modify_itinerary
+bớt Ngũ Hành Sơn đi,modify_itinerary
+bot Ngu Hanh Son di,modify_itinerary
+Bớt ngũ hành sơn đi,modify_itinerary
+Bớt bà nà hills đi,modify_itinerary
+bớt Bà Nà Hills đi,modify_itinerary
+bot Ba Na Hills di,modify_itinerary
+Bớt ba na đi,modify_itinerary
+bot ba na di,modify_itinerary
+bớt ba na đi,modify_itinerary
+bot Cu Lao Cham di,modify_itinerary
+Bớt cù lao chàm đi,modify_itinerary
+bớt Cù Lao Chàm đi,modify_itinerary
+Bớt sơn trà đi,modify_itinerary
+bot Son Tra di,modify_itinerary
+bớt Sơn Trà đi,modify_itinerary
+bot Hoi An di,modify_itinerary
+Bớt hội an đi,modify_itinerary
+bớt Hội An đi,modify_itinerary
+bớt cau rong đi,modify_itinerary
+Bớt cau rong đi,modify_itinerary
+bot cau rong di,modify_itinerary
+Bớt mỹ sơn đi,modify_itinerary
+bot My Son di,modify_itinerary
+bớt Mỹ Sơn đi,modify_itinerary
+Thêm chùa linh ứng vào lịch trình,modify_itinerary
+them chua Linh Ung vao lich trinh,modify_itinerary
+thêm chùa Linh Ứng vào lịch trình,modify_itinerary
+Thêm ba na vào lịch trình,modify_itinerary
+them ba na vao lich trinh,modify_itinerary
+thêm ba na vào lịch trình,modify_itinerary
+them Ba Na Hills vao lich trinh,modify_itinerary
+Thêm bà nà hills vào lịch trình,modify_itinerary
+thêm Bà Nà Hills vào lịch trình,modify_itinerary
+thêm Bà Nà vào lịch trình,modify_itinerary
+Thêm bà nà vào lịch trình,modify_itinerary
+them Ba Na vao lich trinh,modify_itinerary
+Thêm ngũ hành sơn vào lịch trình,modify_itinerary
+them Ngu Hanh Son vao lich trinh,modify_itinerary
+thêm Ngũ Hành Sơn vào lịch trình,modify_itinerary
+thêm Cù Lao Chàm vào lịch trình,modify_itinerary
+them Cu Lao Cham vao lich trinh,modify_itinerary
+Thêm cù lao chàm vào lịch trình,modify_itinerary
+thêm chợ Hàn vào ngày 2,modify_itinerary
+Thêm chợ hàn vào ngày 2,modify_itinerary
+them cho Han vao ngay 2,modify_itinerary
+Thêm bà nà hills vào ngày 2,modify_itinerary
+thêm Bà Nà Hills vào ngày 2,modify_itinerary
+them Ba Na Hills vao ngay 2,modify_itinerary
+thêm cau rong vào ngày 2,modify_itinerary
+them cau rong vao ngay 2,modify_itinerary
+Thêm cau rong vào ngày 2,modify_itinerary
+them Hoi An vao ngay 2,modify_itinerary
+thêm Hội An vào ngày 2,modify_itinerary
+Thêm hội an vào ngày 2,modify_itinerary
+thêm Cầu Rồng vào ngày 2,modify_itinerary
+Thêm cầu rồng vào ngày 2,modify_itinerary
+them Cau Rong vao ngay 2,modify_itinerary
+Thêm ba na vào ngày 2,modify_itinerary
+them ba na vao ngay 2,modify_itinerary
+thêm ba na vào ngày 2,modify_itinerary
+thêm Mỹ Sơn vào ngày 2,modify_itinerary
+them My Son vao ngay 2,modify_itinerary
+Thêm mỹ sơn vào ngày 2,modify_itinerary
+xuất phát lúc 6h,modify_itinerary
+Xuất phát lúc 6h,modify_itinerary
+xuat phat luc 6h,modify_itinerary
+Dời lịch trình lên sớm hơn,modify_itinerary
+doi lich trinh len som hon,modify_itinerary
+dời lịch trình lên sớm hơn,modify_itinerary
+Ngày 2 đi muộn hơn một chút,modify_itinerary
+ngay 2 di muon hon mot chut,modify_itinerary
+ngày 2 đi muộn hơn một chút,modify_itinerary
+sắp xếp lại cho các điểm gần nhau hơn,modify_itinerary
+sap xep lai cho cac diem gan nhau hon,modify_itinerary
+Sắp xếp lại cho các điểm gần nhau hơn,modify_itinerary
+them mot quan ca phe vao ngay 1,modify_itinerary
+Thêm một quán cà phê vào ngày 1,modify_itinerary
+thêm một quán cà phê vào ngày 1,modify_itinerary
+thêm bữa sáng vào ngày 1,modify_itinerary
+them bua sang vao ngay 1,modify_itinerary
+Thêm bữa sáng vào ngày 1,modify_itinerary
+doi sang di My Khe truoc,modify_itinerary
+Đổi sang đi mỹ khê trước,modify_itinerary
+đổi sang đi Mỹ Khê trước,modify_itinerary
+đổi sang đi Bãi Bụt trước,modify_itinerary
+Đổi sang đi bãi bụt trước,modify_itinerary
+doi sang di Bai But truoc,modify_itinerary
+đổi sang đi Mỹ Sơn trước,modify_itinerary
+Đổi sang đi mỹ sơn trước,modify_itinerary
+doi sang di My Son truoc,modify_itinerary
+đổi sang đi Bà Nà Hills trước,modify_itinerary
+doi sang di Ba Na Hills truoc,modify_itinerary
+Đổi sang đi bà nà hills trước,modify_itinerary
+đổi sang đi cau rong trước,modify_itinerary
+doi sang di cau rong truoc,modify_itinerary
+Đổi sang đi cau rong trước,modify_itinerary
+cho Cau Rong di dau tien,modify_itinerary
+Cho cầu rồng đi đầu tiên,modify_itinerary
+cho Cầu Rồng đi đầu tiên,modify_itinerary
+Cho my khe đi đầu tiên,modify_itinerary
+cho my khe di dau tien,modify_itinerary
+cho my khe đi đầu tiên,modify_itinerary
+Cho bà nà đi đầu tiên,modify_itinerary
+cho Ba Na di dau tien,modify_itinerary
+cho Bà Nà đi đầu tiên,modify_itinerary
+cho Cu Lao Cham di dau tien,modify_itinerary
+cho Cù Lao Chàm đi đầu tiên,modify_itinerary
+Cho cù lao chàm đi đầu tiên,modify_itinerary
+cho Son Tra di dau tien,modify_itinerary
+cho Sơn Trà đi đầu tiên,modify_itinerary
+Cho sơn trà đi đầu tiên,modify_itinerary
+Cho hội an đi đầu tiên,modify_itinerary
+cho Hội An đi đầu tiên,modify_itinerary
+cho Hoi An di dau tien,modify_itinerary
+Bỏ bớt một điểm đi,modify_itinerary
+bo bot mot diem di,modify_itinerary
+bỏ bớt một điểm đi,modify_itinerary
+go to Cu Lao Cham earlier,modify_itinerary
+go to Cù Lao Chàm earlier,modify_itinerary
+Go to cù lao chàm earlier,modify_itinerary
+Go to hội an earlier,modify_itinerary
+go to Hoi An earlier,modify_itinerary
+go to Hội An earlier,modify_itinerary
+Go to my khe earlier,modify_itinerary
+go to my khe earlier,modify_itinerary
+go to Cầu Rồng earlier,modify_itinerary
+go to Cau Rong earlier,modify_itinerary
+Go to cầu rồng earlier,modify_itinerary
+go to Mỹ Khê earlier,modify_itinerary
+Go to mỹ khê earlier,modify_itinerary
+go to My Khe earlier,modify_itinerary
+start the day at 6am,modify_itinerary
+Start the day at 6am,modify_itinerary
+remove cho Han from the plan,modify_itinerary
+Remove chợ hàn from the plan,modify_itinerary
+remove chợ Hàn from the plan,modify_itinerary
+Remove cau rong from the plan,modify_itinerary
+remove cau rong from the plan,modify_itinerary
+Remove cù lao chàm from the plan,modify_itinerary
+remove Cu Lao Cham from the plan,modify_itinerary
+remove Cù Lao Chàm from the plan,modify_itinerary
+remove Bà Nà Hills from the plan,modify_itinerary
+remove Ba Na Hills from the plan,modify_itinerary
+Remove bà nà hills from the plan,modify_itinerary
+remove Mỹ Khê from the plan,modify_itinerary
+remove My Khe from the plan,modify_itinerary
+Remove mỹ khê from the plan,modify_itinerary
+Remove mỹ sơn from the plan,modify_itinerary
+remove My Son from the plan,modify_itinerary
+remove Mỹ Sơn from the plan,modify_itinerary
+add cau rong to day 2,modify_itinerary
+Add cau rong to day 2,modify_itinerary
+add Cau Rong to day 2,modify_itinerary
+add Cầu Rồng to day 2,modify_itinerary
+Add cầu rồng to day 2,modify_itinerary
+add Hoi An to day 2,modify_itinerary
+add Hội An to day 2,modify_itinerary
+Add hội an to day 2,modify_itinerary
+add My Khe to day 2,modify_itinerary
+add Mỹ Khê to day 2,modify_itinerary
+Add mỹ khê to day 2,modify_itinerary
+add chùa Linh Ứng to day 2,modify_itinerary
+Add chùa linh ứng to day 2,modify_itinerary
+add chua Linh Ung to day 2,modify_itinerary
+add Ba Na Hills to day 2,modify_itinerary
+Add bà nà hills to day 2,modify_itinerary
+add Bà Nà Hills to day 2,modify_itinerary
+make day 1 shorter,modify_itinerary
+Make day 1 shorter,modify_itinerary
+i want to leave earlier,modify_itinerary
+I want to leave earlier,modify_itinerary
+Add breakfast on day 1,modify_itinerary
+add breakfast on day 1,modify_itinerary
+Swap the order of the places,modify_itinerary
+swap the order of the places,modify_itinerary
+move chua Linh Ung to the morning,modify_itinerary
+Move chùa linh ứng to the morning,modify_itinerary
+move chùa Linh Ứng to the morning,modify_itinerary
+move ba na to the morning,modify_itinerary
+Move ba na to the morning,modify_itinerary
+move Bai But to the morning,modify_itinerary
+Move bãi bụt to the morning,modify_itinerary
+move Bãi Bụt to the morning,modify_itinerary
+Move cù lao chàm to the morning,modify_itinerary
+move Cù Lao Chàm to the morning,modify_itinerary
+move Cu Lao Cham to the morning,modify_itinerary
+move Ngu Hanh Son to the morning,modify_itinerary
+move Ngũ Hành Sơn to the morning,modify_itinerary
+Move ngũ hành sơn to the morning,modify_itinerary
+move Ba Na Hills to the morning,modify_itinerary
+move Bà Nà Hills to the morning,modify_itinerary
+Move bà nà hills to the morning,modify_itinerary
+move Cau Rong to the morning,modify_itinerary
+Move cầu rồng to the morning,modify_itinerary
+move Cầu Rồng to the morning,modify_itinerary
+put Hội An first,modify_itinerary
+put Hoi An first,modify_itinerary
+Put hội an first,modify_itinerary
+put my khe first,modify_itinerary
+Put my khe first,modify_itinerary
+Put bà nà first,modify_itinerary
+put Ba Na first,modify_itinerary
+put Bà Nà first,modify_itinerary
+put My Khe first,modify_itinerary
+put Mỹ Khê first,modify_itinerary
+Put mỹ khê first,modify_itinerary
+Put ba na first,modify_itinerary
+put ba na first,modify_itinerary
+Put cau rong first,modify_itinerary
+put cau rong first,modify_itinerary
+2 ngày,clarify_reply
+2 ngay,clarify_reply
+3 ngày,clarify_reply
+3 ngay,clarify_reply
+1 ngay,clarify_reply
+1 ngày,clarify_reply
+5 ngày,clarify_reply
+5 ngay,clarify_reply
+1 ngay 3 dem,clarify_reply
+1 ngày 3 đêm,clarify_reply
+4 ngay 3 dem,clarify_reply
+4 ngày 3 đêm,clarify_reply
+5 ngày 1 đêm,clarify_reply
+5 ngay 1 dem,clarify_reply
+1 ngay 2 dem,clarify_reply
+1 ngày 2 đêm,clarify_reply
+1 ngày 4 đêm,clarify_reply
+1 ngay 4 dem,clarify_reply
+3 ngay 2 dem,clarify_reply
+3 ngày 2 đêm,clarify_reply
+5 ngày 2 đêm,clarify_reply
+5 ngay 2 dem,clarify_reply
+3 ngày 4 đêm,clarify_reply
+3 ngay 4 dem,clarify_reply
+minh di 5 ngay,clarify_reply
+Mình đi 5 ngày,clarify_reply
+mình đi 5 ngày,clarify_reply
+Mình đi 1 ngày,clarify_reply
+minh di 1 ngay,clarify_reply
+mình đi 1 ngày,clarify_reply
+Mình đi 3 ngày,clarify_reply
+mình đi 3 ngày,clarify_reply
+minh di 3 ngay,clarify_reply
+mình đi 4 ngày,clarify_reply
+minh di 4 ngay,clarify_reply
+Mình đi 4 ngày,clarify_reply
+thích biển,clarify_reply
+Thích biển,clarify_reply
+thich bien,clarify_reply
+minh thich thien nhien va am thuc,clarify_reply
+Mình thích thiên nhiên và ẩm thực,clarify_reply
+mình thích thiên nhiên và ẩm thực,clarify_reply
+van hoa va chup anh,clarify_reply
+văn hóa và chụp ảnh,clarify_reply
+Văn hóa và chụp ảnh,clarify_reply
+Đi 4 người,clarify_reply
+đi 4 người,clarify_reply
+di 4 nguoi,clarify_reply
+Đi 2 người,clarify_reply
+đi 2 người,clarify_reply
+di 2 nguoi,clarify_reply
+đi 3 người,clarify_reply
+di 3 nguoi,clarify_reply
+Đi 3 người,clarify_reply
+di 1 nguoi,clarify_reply
+Đi 1 người,clarify_reply
+đi 1 người,clarify_reply
+đi 5 người,clarify_reply
+di 5 nguoi,clarify_reply
+Đi 5 người,clarify_reply
+ngân sách 200k,clarify_reply
+ngan sach 200k,clarify_reply
+Ngân sách 200k,clarify_reply
+ngân sách 1000k,clarify_reply
+ngan sach 1000k,clarify_reply
+Ngân sách 1000k,clarify_reply
+Ngân sách 300k,clarify_reply
+ngân sách 300k,clarify_reply
+ngan sach 300k,clarify_reply
+ngan sach 500k,clarify_reply
+ngân sách 500k,clarify_reply
+Ngân sách 500k,clarify_reply
+ăn sáng,clarify_reply
+Ăn sáng,clarify_reply
+an sang,clarify_reply
+ăn tối,clarify_reply
+Ăn tối,clarify_reply
+an toi,clarify_reply
+bữa trưa,clarify_reply
+Bữa trưa,clarify_reply
+bua trua,clarify_reply
+khu Cù Lao Chàm,clarify_reply
+khu Cu Lao Cham,clarify_reply
+Khu cù lao chàm,clarify_reply
+Khu my khe,clarify_reply
+khu my khe,clarify_reply
+khu Mỹ Sơn,clarify_reply
+Khu mỹ sơn,clarify_reply
+khu My Son,clarify_reply
+khu Son Tra,clarify_reply
+Khu sơn trà,clarify_reply
+khu Sơn Trà,clarify_reply
+Khu chùa linh ứng,clarify_reply
+khu chua Linh Ung,clarify_reply
+khu chùa Linh Ứng,clarify_reply
+Khu ba na,clarify_reply
+khu ba na,clarify_reply
+Gần chùa linh ứng,clarify_reply
+gần chùa Linh Ứng,clarify_reply
+gan chua Linh Ung,clarify_reply
+gan my khe,clarify_reply
+gần my khe,clarify_reply
+Gần my khe,clarify_reply
+gần Bà Nà,clarify_reply
+Gần bà nà,clarify_reply
+gan Ba Na,clarify_reply
+gan ba na,clarify_reply
+gần ba na,clarify_reply
+Gần ba na,clarify_reply
+Gần mỹ sơn,clarify_reply
+gan My Son,clarify_reply
+gần Mỹ Sơn,clarify_reply
+Gần chợ hàn,clarify_reply
+gần chợ Hàn,clarify_reply
+gan cho Han,clarify_reply
+Gần sơn trà,clarify_reply
+gần Sơn Trà,clarify_reply
+gan Son Tra,clarify_reply
+Tùy bạn,clarify_reply
+tùy bạn,clarify_reply
+tuy ban,clarify_reply
+goi y giup minh,clarify_reply
+Gợi ý giúp mình,clarify_reply
+gợi ý giúp mình,clarify_reply
+Gì cũng được,clarify_reply
+gì cũng được,clarify_reply
+gi cung duoc,clarify_reply
+4 days,clarify_reply
+3 days,clarify_reply
+5 days,clarify_reply
+2 days,clarify_reply
+i like beaches,clarify_reply
+I like beaches,clarify_reply
+for 5 people,clarify_reply
+For 5 people,clarify_reply
+for 2 people,clarify_reply
+For 2 people,clarify_reply
+For 4 people,clarify_reply
+for 4 people,clarify_reply
+For 1 people,clarify_reply
+for 1 people,clarify_reply
+Breakfast please,clarify_reply
+breakfast please,clarify_reply
+Near bà nà hills,clarify_reply
+near Bà Nà Hills,clarify_reply
+near Ba Na Hills,clarify_reply
+Near my khe,clarify_reply
+near my khe,clarify_reply
+Near ba na,clarify_reply
+near ba na,clarify_reply
+Near hội an,clarify_reply
+near Hoi An,clarify_reply
+near Hội An,clarify_reply
+near Son Tra,clarify_reply
+Near sơn trà,clarify_reply
+near Sơn Trà,clarify_reply
+near Ngu Hanh Son,clarify_reply
+Near ngũ hành sơn,clarify_reply
+near Ngũ Hành Sơn,clarify_reply
+You decide,clarify_reply
+you decide,clarify_reply
+Anything is fine,clarify_reply
+anything is fine,clarify_reply
+Budget 200k,clarify_reply
+budget 200k,clarify_reply
+budget 500k,clarify_reply
+Budget 500k,clarify_reply
+budget 1000k,clarify_reply
+Budget 1000k,clarify_reply
+4 days and 2 nights,clarify_reply
+4 days and 1 nights,clarify_reply
+5 days and 2 nights,clarify_reply
+1 days and 2 nights,clarify_reply
+3 days and 1 nights,clarify_reply
+2 days and 3 nights,clarify_reply
+5 days and 4 nights,clarify_reply
+minh o gan Son Tra,clarify_reply
+mình ở gần Sơn Trà,clarify_reply
+Mình ở gần sơn trà,clarify_reply
+Mình ở gần chợ hàn,clarify_reply
+minh o gan cho Han,clarify_reply
+mình ở gần chợ Hàn,clarify_reply
+Mình ở gần bà nà hills,clarify_reply
+minh o gan Ba Na Hills,clarify_reply
+mình ở gần Bà Nà Hills,clarify_reply
+minh o gan chua Linh Ung,clarify_reply
+mình ở gần chùa Linh Ứng,clarify_reply
+Mình ở gần chùa linh ứng,clarify_reply
+minh o gan Ngu Hanh Son,clarify_reply
+mình ở gần Ngũ Hành Sơn,clarify_reply
+Mình ở gần ngũ hành sơn,clarify_reply
+Mình ở gần bà nà,clarify_reply
+mình ở gần Bà Nà,clarify_reply
+minh o gan Ba Na,clarify_reply
+Mình ở gần hội an,clarify_reply
+minh o gan Hoi An,clarify_reply
+mình ở gần Hội An,clarify_reply
+Dinner,clarify_reply
+dinner,clarify_reply
+lunch,clarify_reply
+Lunch,clarify_reply
+Xin chào,greeting
+xin chao,greeting
+xin chào,greeting
+chào bạn,greeting
+chao ban,greeting
+Chào bạn,greeting
+chao,greeting
+chào,greeting
+Chào,greeting
+hello,greeting
+Hello,greeting
+Hi,greeting
+hi,greeting
+Hey,greeting
+hey,greeting
+alo,greeting
+Alo,greeting
+chào buổi sáng,greeting
+Chào buổi sáng,greeting
+chao buoi sang,greeting
+Good morning,greeting
+good morning,greeting
+hello ban,greeting
+Hello bạn,greeting
+hello bạn,greeting
+hi guide,greeting
+Hi guide,greeting
+chao guide oi,greeting
+Chào guide ơi,greeting
+chào guide ơi,greeting
+hey there,greeting
+Hey there,greeting
+good evening,greeting
+Good evening,greeting
+"Xin chào, bạn khỏe không",greeting
+"xin chào, bạn khỏe không",greeting
+"xin chao, ban khoe khong",greeting
+Chào buổi tối,greeting
+chao buoi toi,greeting
+chào buổi tối,greeting
+Chào bạn nhé,greeting
+chào bạn nhé,greeting
+chao ban nhe,greeting
+hi ban,greeting
+Hi bạn,greeting
+hi bạn,greeting
+hello guide,greeting
+Hello guide,greeting
+Good afternoon,greeting
+good afternoon,greeting
+yo,greeting
+Yo,greeting
+chao ad,greeting
+chào ad,greeting
+Chào ad,greeting
+he lo,greeting
+Hế lô,greeting
+hế lô,greeting
+xin chào guide,greeting
+xin chao guide,greeting
+Xin chào guide,greeting
+chao buoi chieu,greeting
+chào buổi chiều,greeting
+Chào buổi chiều,greeting
+hello there,greeting
+Hello there,greeting
+Hi there,greeting
+hi there,greeting
+Chao ban,greeting
+Xin chao,greeting
+Bai But mo cua may gio,ask_detail
+Bãi Bụt mở cửa mấy giờ,ask_detail
+Bãi bụt mở cửa mấy giờ,ask_detail
+Ngũ hành sơn mở cửa mấy giờ,ask_detail
+Ngũ Hành Sơn mở cửa mấy giờ,ask_detail
+Ngu Hanh Son mo cua may gio,ask_detail
+ba na mo cua may gio,ask_detail
+ba na mở cửa mấy giờ,ask_detail
+Ba na mở cửa mấy giờ,ask_detail
+Bà Nà mở cửa mấy giờ,ask_detail
+Bà nà mở cửa mấy giờ,ask_detail
+Ba Na mo cua may gio,ask_detail
+Chùa linh ứng mở cửa mấy giờ,ask_detail
+chua Linh Ung mo cua may gio,ask_detail
+chùa Linh Ứng mở cửa mấy giờ,ask_detail
+ve vao Ba Na Hills bao nhieu tien,ask_detail
+vé vào Bà Nà Hills bao nhiêu tiền,ask_detail
+Vé vào bà nà hills bao nhiêu tiền,ask_detail
+vé vào Hội An bao nhiêu tiền,ask_detail
+Vé vào hội an bao nhiêu tiền,ask_detail
+ve vao Hoi An bao nhieu tien,ask_detail
+ve vao ba na bao nhieu tien,ask_detail
+vé vào ba na bao nhiêu tiền,ask_detail
+Vé vào ba na bao nhiêu tiền,ask_detail
+ve vao chua Linh Ung bao nhieu tien,ask_detail
+vé vào chùa Linh Ứng bao nhiêu tiền,ask_detail
+Vé vào chùa linh ứng bao nhiêu tiền,ask_detail
+ve vao Ba Na bao nhieu tien,ask_detail
+vé vào Bà Nà bao nhiêu tiền,ask_detail
+Vé vào bà nà bao nhiêu tiền,ask_detail
+chùa Linh Ứng có gì hay,ask_detail
+Chùa linh ứng có gì hay,ask_detail
+chua Linh Ung co gi hay,ask_detail
+Cu Lao Cham co gi hay,ask_detail
+Cù Lao Chàm có gì hay,ask_detail
+Cù lao chàm có gì hay,ask_detail
+cho Han co gi hay,ask_detail
+Chợ hàn có gì hay,ask_detail
+chợ Hàn có gì hay,ask_detail
+Ba Na co gi hay,ask_detail
+Bà nà có gì hay,ask_detail
+Bà Nà có gì hay,ask_detail
+Bà Nà Hills có gì hay,ask_detail
+Ba Na Hills co gi hay,ask_detail
+Bà nà hills có gì hay,ask_detail
+Cau Rong co gi hay,ask_detail
+Cầu Rồng có gì hay,ask_detail
+Cầu rồng có gì hay,ask_detail
+Hội An có gì hay,ask_detail
+Hoi An co gi hay,ask_detail
+Hội an có gì hay,ask_detail
+Cau Rong nam o dau,ask_detail
+Cầu Rồng nằm ở đâu,ask_detail
+Cầu rồng nằm ở đâu,ask_detail
+Ba Na nam o dau,ask_detail
+Bà Nà nằm ở đâu,ask_detail
+Bà nà nằm ở đâu,ask_detail
+My Son nam o dau,ask_detail
+Mỹ sơn nằm ở đâu,ask_detail
+Mỹ Sơn nằm ở đâu,ask_detail
+Bai But nam o dau,ask_detail
+Bãi Bụt nằm ở đâu,ask_detail
+Bãi bụt nằm ở đâu,ask_detail
+Chùa linh ứng nằm ở đâu,ask_detail
+chua Linh Ung nam o dau,ask_detail
+chùa Linh Ứng nằm ở đâu,ask_detail
+Ngũ Hành Sơn nằm ở đâu,ask_detail
+Ngũ hành sơn nằm ở đâu,ask_detail
+Ngu Hanh Son nam o dau,ask_detail
+Cau rong nằm ở đâu,ask_detail
+cau rong nam o dau,ask_detail
+cau rong nằm ở đâu,ask_detail
+gio mo cua cua ba na,ask_detail
+Giờ mở cửa của ba na,ask_detail
+giờ mở cửa của ba na,ask_detail
+giờ mở cửa của Bãi Bụt,ask_detail
+Giờ mở cửa của bãi bụt,ask_detail
+gio mo cua cua Bai But,ask_detail
+giờ mở cửa của Sơn Trà,ask_detail
+Giờ mở cửa của sơn trà,ask_detail
+gio mo cua cua Son Tra,ask_detail
+Giờ mở cửa của chùa linh ứng,ask_detail
+giờ mở cửa của chùa Linh Ứng,ask_detail
+gio mo cua cua chua Linh Ung,ask_detail
+gio mo cua cua Cau Rong,ask_detail
+giờ mở cửa của Cầu Rồng,ask_detail
+Giờ mở cửa của cầu rồng,ask_detail
+Giờ mở cửa của chợ hàn,ask_detail
+gio mo cua cua cho Han,ask_detail
+giờ mở cửa của chợ Hàn,ask_detail
+gio mo cua cua Cu Lao Cham,ask_detail
+Giờ mở cửa của cù lao chàm,ask_detail
+giờ mở cửa của Cù Lao Chàm,ask_detail
+giờ mở cửa của Bà Nà Hills,ask_detail
+Giờ mở cửa của bà nà hills,ask_detail
+gio mo cua cua Ba Na Hills,ask_detail
+Giá vé chùa linh ứng,ask_detail
+giá vé chùa Linh Ứng,ask_detail
+gia ve chua Linh Ung,ask_detail
+giá vé Hội An,ask_detail
+gia ve Hoi An,ask_detail
+Giá vé hội an,ask_detail
+Giá vé ba na,ask_detail
+gia ve ba na,ask_detail
+giá vé ba na,ask_detail
+Giá vé my khe,ask_detail
+gia ve my khe,ask_detail
+giá vé my khe,ask_detail
+giá vé Bà Nà,ask_detail
+gia ve Ba Na,ask_detail
+Giá vé bà nà,ask_detail
+Giá vé cầu rồng,ask_detail
+gia ve Cau Rong,ask_detail
+giá vé Cầu Rồng,ask_detail
+Kể mình nghe về bãi bụt,ask_detail
+ke minh nghe ve Bai But,ask_detail
+kể mình nghe về Bãi Bụt,ask_detail
+ke minh nghe ve My Son,ask_detail
+kể mình nghe về Mỹ Sơn,ask_detail
+Kể mình nghe về mỹ sơn,ask_detail
+kể mình nghe về Cầu Rồng,ask_detail
+Kể mình nghe về cầu rồng,ask_detail
+ke minh nghe ve Cau Rong,ask_detail
+kể mình nghe về Ngũ Hành Sơn,ask_detail
+ke minh nghe ve Ngu Hanh Son,ask_detail
+Kể mình nghe về ngũ hành sơn,ask_detail
+Kể mình nghe về chùa linh ứng,ask_detail
+kể mình nghe về chùa Linh Ứng,ask_detail
+ke minh nghe ve chua Linh Ung,ask_detail
+kể mình nghe về Bà Nà Hills,ask_detail
+Kể mình nghe về bà nà hills,ask_detail
+ke minh nghe ve Ba Na Hills,ask_detail
+Cù lao chàm có đáng đi không,ask_detail
+Cù Lao Chàm có đáng đi không,ask_detail
+Cu Lao Cham co dang di khong,ask_detail
+Hoi An co dang di khong,ask_detail
+Hội An có đáng đi không,ask_detail
+Hội an có đáng đi không,ask_detail
+Chùa linh ứng có đáng đi không,ask_detail
+chùa Linh Ứng có đáng đi không,ask_detail
+chua Linh Ung co dang di khong,ask_detail
+Ngũ hành sơn có đáng đi không,ask_detail
+Ngũ Hành Sơn có đáng đi không,ask_detail
+Ngu Hanh Son co dang di khong,ask_detail
+Cầu Rồng có đáng đi không,ask_detail
+Cầu rồng có đáng đi không,ask_detail
+Cau Rong co dang di khong,ask_detail
+Ba na có đáng đi không,ask_detail
+ba na co dang di khong,ask_detail
+ba na có đáng đi không,ask_detail
+Cau rong có đáng đi không,ask_detail
+cau rong có đáng đi không,ask_detail
+cau rong co dang di khong,ask_detail
+Sơn Trà mấy giờ đóng cửa,ask_detail
+Sơn trà mấy giờ đóng cửa,ask_detail
+Son Tra may gio dong cua,ask_detail
+Hoi An may gio dong cua,ask_detail
+Hội an mấy giờ đóng cửa,ask_detail
+Hội An mấy giờ đóng cửa,ask_detail
+Chợ hàn mấy giờ đóng cửa,ask_detail
+cho Han may gio dong cua,ask_detail
+chợ Hàn mấy giờ đóng cửa,ask_detail
+Bà nà mấy giờ đóng cửa,ask_detail
+Bà Nà mấy giờ đóng cửa,ask_detail
+Ba Na may gio dong cua,ask_detail
+Ba Na Hills may gio dong cua,ask_detail
+Bà Nà Hills mấy giờ đóng cửa,ask_detail
+Bà nà hills mấy giờ đóng cửa,ask_detail
+chùa Linh Ứng mấy giờ đóng cửa,ask_detail
+chua Linh Ung may gio dong cua,ask_detail
+Chùa linh ứng mấy giờ đóng cửa,ask_detail
+My Khe may gio dong cua,ask_detail
+Mỹ khê mấy giờ đóng cửa,ask_detail
+Mỹ Khê mấy giờ đóng cửa,ask_detail
+Cau Rong may gio dong cua,ask_detail
+Cầu Rồng mấy giờ đóng cửa,ask_detail
+Cầu rồng mấy giờ đóng cửa,ask_detail
+Cho mình biết thêm về chợ hàn,ask_detail
+cho mình biết thêm về chợ Hàn,ask_detail
+cho minh biet them ve cho Han,ask_detail
+cho mình biết thêm về Cù Lao Chàm,ask_detail
+cho minh biet them ve Cu Lao Cham,ask_detail
+Cho mình biết thêm về cù lao chàm,ask_detail
+cho mình biết thêm về Bà Nà,ask_detail
+Cho mình biết thêm về bà nà,ask_detail
+cho minh biet them ve Ba Na,ask_detail
+Cho mình biết thêm về bãi bụt,ask_detail
+cho minh biet them ve Bai But,ask_detail
+cho mình biết thêm về Bãi Bụt,ask_detail
+Cho mình biết thêm về cầu rồng,ask_detail
+cho mình biết thêm về Cầu Rồng,ask_detail
+cho minh biet them ve Cau Rong,ask_detail
+Cho mình biết thêm về hội an,ask_detail
+cho mình biết thêm về Hội An,ask_detail
+cho minh biet them ve Hoi An,ask_detail
+cho mình biết thêm về Mỹ Khê,ask_detail
+Cho mình biết thêm về mỹ khê,ask_detail
+cho minh biet them ve My Khe,ask_detail
+what time does chùa Linh Ứng open,ask_detail
+what time does chua Linh Ung open,ask_detail
+What time does chùa linh ứng open,ask_detail
+what time does Hoi An open,ask_detail
+What time does hội an open,ask_detail
+what time does Hội An open,ask_detail
+What time does ba na open,ask_detail
+what time does ba na open,ask_detail
+what time does cau rong open,ask_detail
+What time does cau rong open,ask_detail
+what time does Ba Na Hills open,ask_detail
+What time does bà nà hills open,ask_detail
+what time does Bà Nà Hills open,ask_detail
+What time does sơn trà open,ask_detail
+what time does Sơn Trà open,ask_detail
+what time does Son Tra open,ask_detail
+how much is the ticket for Son Tra,ask_detail
+How much is the ticket for sơn trà,ask_detail
+how much is the ticket for Sơn Trà,ask_detail
+how much is the ticket for Cầu Rồng,ask_detail
+How much is the ticket for cầu rồng,ask_detail
+how much is the ticket for Cau Rong,ask_detail
+how much is the ticket for Ngu Hanh Son,ask_detail
+how much is the ticket for Ngũ Hành Sơn,ask_detail
+How much is the ticket for ngũ hành sơn,ask_detail
+how much is the ticket for Mỹ Sơn,ask_detail
+How much is the ticket for mỹ sơn,ask_detail
+how much is the ticket for My Son,ask_detail
+how much is the ticket for Cu Lao Cham,ask_detail
+how much is the ticket for Cù Lao Chàm,ask_detail
+How much is the ticket for cù lao chàm,ask_detail
+how much is the ticket for chua Linh Ung,ask_detail
+how much is the ticket for chùa Linh Ứng,ask_detail
+How much is the ticket for chùa linh ứng,ask_detail
+tell me more about Cau Rong,ask_detail
+Tell me more about cầu rồng,ask_detail
+tell me more about Cầu Rồng,ask_detail
+tell me more about Ba Na Hills,ask_detail
+tell me more about Bà Nà Hills,ask_detail
+Tell me more about bà nà hills,ask_detail
+tell me more about Cu Lao Cham,ask_detail
+Tell me more about cù lao chàm,ask_detail
+tell me more about Cù Lao Chàm,ask_detail
+Is cù lao chàm worth visiting,ask_detail
+is Cù Lao Chàm worth visiting,ask_detail
+is Cu Lao Cham worth visiting,ask_detail
+is Cầu Rồng worth visiting,ask_detail
+Is cầu rồng worth visiting,ask_detail
+is Cau Rong worth visiting,ask_detail
+is Ngu Hanh Son worth visiting,ask_detail
+Is ngũ hành sơn worth visiting,ask_detail
+is Ngũ Hành Sơn worth visiting,ask_detail
+Is bà nà worth visiting,ask_detail
+is Ba Na worth visiting,ask_detail
+is Bà Nà worth visiting,ask_detail
+Is chợ hàn worth visiting,ask_detail
+is cho Han worth visiting,ask_detail
+is chợ Hàn worth visiting,ask_detail
+where is Bãi Bụt,ask_detail
+Where is bãi bụt,ask_detail
+where is Bai But,ask_detail
+where is Ba Na,ask_detail
+Where is bà nà,ask_detail
+where is Bà Nà,ask_detail
+where is my khe,ask_detail
+Where is my khe,ask_detail
+Where is chợ hàn,ask_detail
+where is cho Han,ask_detail
+where is chợ Hàn,ask_detail
+Where is cau rong,ask_detail
+where is cau rong,ask_detail
+Where is bà nà hills,ask_detail
+where is Bà Nà Hills,ask_detail
+where is Ba Na Hills,ask_detail
+When does ba na close,ask_detail
+when does ba na close,ask_detail
+when does chùa Linh Ứng close,ask_detail
+When does chùa linh ứng close,ask_detail
+when does chua Linh Ung close,ask_detail
+When does mỹ sơn close,ask_detail
+when does Mỹ Sơn close,ask_detail
+when does My Son close,ask_detail
+When does sơn trà close,ask_detail
+when does Sơn Trà close,ask_detail
+when does Son Tra close,ask_detail
+when does Hoi An close,ask_detail
+when does Hội An close,ask_detail
+When does hội an close,ask_detail
+when does Bãi Bụt close,ask_detail
+When does bãi bụt close,ask_detail
+when does Bai But close,ask_detail

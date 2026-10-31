@@ -29,6 +29,11 @@ def ensure_place_detail_columns():
         "activities": "JSON",
         "ticket_info": "VARCHAR(255)",
         "ticket_source_url": "VARCHAR(500)",
+        "duration_min": "INTEGER",
+        "open_time": "VARCHAR(5)",
+        "close_time": "VARCHAR(5)",
+        "best_time": "VARCHAR(20)",
+        "zone": "VARCHAR(30)",
     }
 
     with engine.begin() as conn:
@@ -452,6 +457,8 @@ def main():
             row = db.query(Place).filter(Place.name == data["name"]).first()
             if row:
                 for key, value in data.items():
+                    if key == "rating" and value is None:
+                        continue
                     setattr(row, key, value)
                 updated += 1
             else:

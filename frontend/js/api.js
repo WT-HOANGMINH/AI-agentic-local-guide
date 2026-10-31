@@ -565,14 +565,32 @@ async getProfile() {
         );
       }
 
-      query.set('limit', '100');
+      const limit = 100;
+      const places = [];
+      let skip = 0;
+      let total = Infinity;
 
-      const data = await this.request(
-        '/places/?' + query.toString()
-      );
+      do {
+        query.set('limit', String(limit));
+        query.set('skip', String(skip));
 
-      let places = normalizePlaces(data)
-        .map(mapPlace);
+        const data = await this.request(
+          '/places/?' + query.toString()
+        );
+        const page = normalizePlaces(data).map(mapPlace);
+        places.push(...page);
+        skip += page.length;
+        total = Number(data.total);
+
+        if (
+          !params.allPages ||
+          page.length < limit ||
+          !Number.isFinite(total) ||
+          skip >= total
+        ) {
+          break;
+        }
+      } while (skip < total);
 
       if (TOPIC_WORDS[category]) {
 
@@ -652,6 +670,70 @@ async getProfile() {
     ).find(place =>
       String(place.id) === String(id)
     ) || null;
+  },
+
+  async nearby(latitude, longitude, radiusKm = 5, category = '') {
+    const latitudeValue = Number(latitude);
+    const longitudeValue = Number(longitude);
+    const radiusValue = Number(radiusKm);
+
+    if (
+      !Number.isFinite(latitudeValue) ||
+      latitudeValue < -90 ||
+      latitudeValue > 90 ||
+      !Number.isFinite(longitudeValue) ||
+      longitudeValue < -180 ||
+      longitudeValue > 180
+    ) {
+      throw new Error('Vui lòng cung cấp vị trí hợp lệ để tìm địa điểm gần đây.');
+    }
+    if (!Number.isFinite(radiusValue) || radiusValue <= 0 || radiusValue > 50) {
+      throw new Error('Bán kính tìm kiếm phải lớn hơn 0 và không quá 50 km.');
+    }
+
+    if (!CFG.USE_MOCK) {
+      const query = new URLSearchParams({
+        latitude: String(latitudeValue),
+        longitude: String(longitudeValue),
+        radius_km: String(radiusValue)
+      });
+
+      if (category && category !== 'all') {
+        query.set('category', CATEGORY_TO_DB[category] || category);
+      }
+
+      const data = await this.request(
+        '/places/nearby?' + query.toString()
+      );
+
+      return normalizePlaces(data).map(mapPlace);
+    }
+
+    const radians = degrees => (degrees * Math.PI) / 180;
+    const places = await this.places({ category });
+
+    return places
+      .filter(place =>
+        Number.isFinite(Number(place.latitude)) &&
+        Number.isFinite(Number(place.longitude))
+      )
+      .map(place => {
+        const latitudeDelta = radians(Number(place.latitude) - latitudeValue);
+        const longitudeDelta = radians(Number(place.longitude) - longitudeValue);
+        const value =
+          Math.sin(latitudeDelta / 2) ** 2 +
+          Math.cos(radians(latitudeValue)) *
+            Math.cos(radians(Number(place.latitude))) *
+            Math.sin(longitudeDelta / 2) ** 2;
+        const distance = 6371 * 2 * Math.atan2(
+          Math.sqrt(value),
+          Math.sqrt(1 - Math.min(1, value))
+        );
+
+        return { ...place, distance_km: Number(distance.toFixed(2)) };
+      })
+      .filter(place => place.distance_km <= radiusValue)
+      .sort((a, b) => a.distance_km - b.distance_km);
   },
 
   // ==============================
