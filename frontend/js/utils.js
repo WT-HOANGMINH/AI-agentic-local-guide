@@ -2,7 +2,7 @@
 // UTILITIES & HELPERS
 // ============================================
 
-const CATEGORIES = (typeof window !== "undefined" && window.CATEGORIES) || {};
+import { CATEGORIES } from "./config.js";
 
 /**
  * Thoát các ký tự đặc biệt để phòng chống tấn công XSS

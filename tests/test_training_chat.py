@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -127,20 +128,36 @@ class TrainedIntentTests(unittest.TestCase):
         predict_intent.assert_called_once()
         fetch_weather.assert_called_once()
 
-    @patch("backend.routes.agent.answer", return_value={"reply": "ok"})
-    def test_chat_route_forwards_both_gps_coordinates(self, answer):
+    @patch(
+        "backend.routes.agent._get_state",
+        return_value=("test-session", object()),
+    )
+    @patch("backend.routes.agent._compute")
+    def test_chat_route_forwards_both_gps_coordinates(
+        self,
+        compute,
+        get_state,
+    ):
+        compute.return_value = {
+            "text": "ok",
+            "closing": None,
+            "intent": "attraction",
+            "confidence": 0.9,
+            "steps": [],
+            "status": "ok",
+            "suggestions": [],
+        }
         payload = ChatIn(
             message="Find places near me",
             latitude=16.05,
             longitude=108.20,
         )
-        db = object()
 
-        agent_chat(payload, db)
+        asyncio.run(agent_chat(payload))
 
-        answer.assert_called_once_with(
+        compute.assert_called_once_with(
             "Find places near me",
-            db,
+            get_state.return_value[1],
             16.05,
             108.20,
         )

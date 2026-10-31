@@ -1,20 +1,25 @@
 /* =====================================
    DA NANG GUIDE - CHAT AI
-   - Nut "Xoa hoi thoai" (tu tao, khong can sua chat.html)
-   - Tieu de ngay va gio trong lich trinh duoc in dam
+   Hien thi tung buoc "suy nghi" that cua AI, roi hien cau tra loi tung chu.
 ===================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
-  // Kiem tra dang nhap (xoa dong nay neu muon khach chat khong can tai khoan)
-  if (!protect()) return;
+  // KIEM TRA DANG NHAP
+  // Ho tro Google OAuth va tai khoan Demo
+  if (!(await protect())) {
+    return;
+  }
 
+  // LAY CAC THANH PHAN GIAO DIEN
   const messages = $('#chat-messages');
   const form = $('#chat-form');
   const input = $('#chat-input');
   const send = $('#send-chat');
 
-  if (!messages || !form || !input || !send) return;
+  if (!messages || !form || !input || !send) {
+    return;
+  }
 
   let isSending = false;
 
@@ -23,49 +28,42 @@ document.addEventListener('DOMContentLoaded', () => {
     'Bạn muốn khám phá địa điểm, tìm món ăn ngon ' +
     'hay lên lịch trình du lịch Đà Nẵng?';
 
-  // ---------- Hien thi noi dung bot: in dam ngay va gio ----------
-  // Dung DOM + textContent (khong dung innerHTML) nen an toan voi du lieu tu server.
-  function renderBotText(el, text) {
-    el.textContent = '';
+  function renderBotText(element, text) {
+    element.replaceChildren();
 
     const lines = String(text).split('\n');
-
     lines.forEach((line, index) => {
-
-      // "=== Ngay 1 (24/10) ===" -> tieu de dam
       const header = line.match(/^=+\s*(.+?)\s*=+$/);
-
-      // "07:00–08:00  An sang: ..." -> gio dam
       const timed = line.match(/^(\d{2}:\d{2}\s*[–-]\s*\d{2}:\d{2})(\s+)(.*)$/);
 
       if (header) {
         const strong = document.createElement('strong');
         strong.textContent = header[1];
-        strong.style.fontSize = '15px';
-        el.appendChild(strong);
-
+        element.appendChild(strong);
       } else if (timed) {
         const strong = document.createElement('strong');
         strong.textContent = timed[1];
-        el.appendChild(strong);
-        el.appendChild(document.createTextNode(timed[2] + timed[3]));
-
+        element.append(strong, document.createTextNode(timed[2] + timed[3]));
       } else {
-        el.appendChild(document.createTextNode(line));
+        element.appendChild(document.createTextNode(line));
       }
 
       if (index < lines.length - 1) {
-        el.appendChild(document.createTextNode('\n'));
+        element.appendChild(document.createTextNode('\n'));
       }
     });
   }
 
-  // ---------- Hien thi tin nhan ----------
+  // =====================================
+  // HIEN THI TIN NHAN
+  // =====================================
+
   function appendMessage(who, text) {
 
     const div = document.createElement('div');
 
-    div.className = 'bubble ' + (who === 'user' ? 'user' : 'bot');
+    div.className =
+      'bubble ' + (who === 'user' ? 'user' : 'bot');
 
     if (who === 'user') {
       div.textContent = text;
@@ -74,64 +72,198 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     messages.appendChild(div);
+
     messages.scrollTop = messages.scrollHeight;
 
     return div;
   }
 
-  // ---------- Nut xoa hoi thoai ----------
+  // =====================================
+  // LOI CHAO BAN DAU
+  // =====================================
+
+  appendMessage('bot', WELCOME);
+
   function resetChat() {
     if (isSending) return;
-    messages.innerHTML = '';
+    messages.replaceChildren();
+    try {
+      sessionStorage.removeItem('dg_sid');
+    } catch (error) {
+      console.warn('Không thể đặt lại phiên chat trong trình duyệt.', error);
+    }
     appendMessage('bot', WELCOME);
   }
 
   const topbar = document.querySelector('.dg-chat-topbar');
-
   if (topbar) {
-    const clearBtn = document.createElement('button');
-    clearBtn.type = 'button';
-    clearBtn.textContent = 'Xóa hội thoại';
-    clearBtn.className = 'btn btn-sm btn-outline-secondary';
-    clearBtn.style.marginLeft = 'auto';
-    clearBtn.addEventListener('click', resetChat);
-    topbar.appendChild(clearBtn);
+    const clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.textContent = 'Xóa hội thoại';
+    clearButton.className = 'btn btn-sm btn-outline-secondary';
+    clearButton.style.marginLeft = 'auto';
+    clearButton.addEventListener('click', resetChat);
+    topbar.appendChild(clearButton);
   }
 
-  // Loi chao
-  appendMessage('bot', WELCOME);
+  // =====================================
+  // GUI CAU HOI DEN CHAT AI
+  // =====================================
 
-  // ---------- Gui cau hoi den AI ----------
   async function ask(question) {
 
     const text = String(question || '').trim();
 
-    if (!text || isSending) return;
+    if (!text || isSending) {
+      return;
+    }
 
     isSending = true;
 
+    // Hien thi cau hoi nguoi dung
     appendMessage('user', text);
 
     input.value = '';
     input.disabled = true;
     send.disabled = true;
 
-    const typing = appendMessage('bot', 'Đang tìm câu trả lời cho bạn...');
+    // Bong bong tra loi: phan "cac buoc suy nghi" + phan van ban
+    const bubble = appendMessage('bot', '');
+    const stepsEl = document.createElement('div');
+    const textEl = document.createElement('span');
+    const suggestionsEl = document.createElement('div');
+    suggestionsEl.className = 'dg-chat-suggestions';
+
+    const waiting = document.createElement('div');
+    waiting.className = 'dg-step';
+    waiting.textContent = 'Đang suy nghĩ…';
+    stepsEl.appendChild(waiting);
+
+    bubble.append(stepsEl, textEl, suggestionsEl);
+    bubble.classList.add('streaming');
 
     try {
 
-      const reply = await API.chat(text);
+      if (typeof API.chatStream === 'function') {
 
-      renderBotText(typing, reply || 'AI chưa trả về nội dung.');
+        await API.chatStream(text, {
+
+          onStep: step => {
+            if (waiting.parentNode) waiting.remove();
+            const line = document.createElement('div');
+            line.className = 'dg-step';
+            line.textContent = '• ' + step;
+            stepsEl.appendChild(line);
+            messages.scrollTop = messages.scrollHeight;
+          },
+
+          onToken: token => {
+            if (waiting.parentNode) waiting.remove();
+            textEl.textContent += token;
+            messages.scrollTop = messages.scrollHeight;
+          },
+
+          onResult: result => {
+            if (waiting.parentNode) waiting.remove();
+            if (result.text && !textEl.textContent) {
+              textEl.textContent = result.text;
+            }
+            (result.links || []).forEach(link => {
+              const anchor = document.createElement('a');
+              anchor.className = 'dg-chat-link';
+              anchor.href = link.url;
+              anchor.target = '_blank';
+              anchor.rel = 'noopener noreferrer';
+              anchor.textContent = `🗺️ ${link.label}`;
+              bubble.insertBefore(anchor, suggestionsEl);
+            });
+            const multi = result.suggestion_mode === 'multi';
+            const picked = new Map();
+            const choices = result.suggestions || [];
+            let submit;
+            choices.forEach(suggestion => {
+              if (!suggestion.label || !suggestion.message) return;
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'dg-chat-suggestion';
+              button.textContent = suggestion.label;
+              if (multi && !suggestion.exclusive) {
+                button.setAttribute('role', 'checkbox');
+                button.setAttribute('aria-checked', 'false');
+                button.addEventListener('click', () => {
+                  if (picked.has(suggestion.id)) {
+                    picked.delete(suggestion.id);
+                  } else {
+                    picked.set(suggestion.id, suggestion.message);
+                  }
+                  button.setAttribute(
+                    'aria-checked',
+                    String(picked.has(suggestion.id))
+                  );
+                  submit.disabled = picked.size === 0;
+                });
+              } else {
+                button.addEventListener('click', () => {
+                  suggestionsEl.remove();
+                  ask(suggestion.message);
+                });
+              }
+              suggestionsEl.appendChild(button);
+            });
+            if (multi && choices.some(choice => !choice.exclusive)) {
+              submit = document.createElement('button');
+              submit.type = 'button';
+              submit.className = 'dg-chat-suggestion';
+              submit.textContent = 'Gửi lựa chọn';
+              submit.disabled = true;
+              submit.addEventListener('click', () => {
+                const items = [...picked.values()].join(', ');
+                const message = (result.multi_template || '{items}')
+                  .replace('{items}', items);
+                suggestionsEl.remove();
+                ask(message);
+              });
+              suggestionsEl.appendChild(submit);
+            }
+            messages.scrollTop = messages.scrollHeight;
+          },
+
+          onError: message => {
+            if (waiting.parentNode) waiting.remove();
+            if (textEl.textContent) {
+              textEl.textContent += `\n\n${message}`;
+            } else {
+              textEl.textContent = message;
+            }
+          }
+        });
+
+      } else {
+
+        // Du phong: khong streaming
+        const reply = await API.chat(text);
+        if (waiting.parentNode) waiting.remove();
+        textEl.textContent = reply || 'AI chưa trả về nội dung.';
+      }
+
+      if (!textEl.textContent) {
+        textEl.textContent = 'AI chưa trả về nội dung.';
+      }
 
     } catch (error) {
 
-      renderBotText(
-        typing,
-        'Không thể kết nối Chat AI: ' + (error.message || 'Có lỗi xảy ra.')
-      );
+      if (waiting.parentNode) waiting.remove();
+      textEl.textContent =
+        'Không thể kết nối Chat AI: ' +
+        (error.message || 'Có lỗi xảy ra.');
 
     } finally {
+
+      if (textEl.textContent) {
+        renderBotText(textEl, textEl.textContent);
+      }
+
+      bubble.classList.remove('streaming');
 
       isSending = false;
 
@@ -144,17 +276,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Gui bang nut Gui hoac Enter
+  // =====================================
+  // GUI TIN NHAN BANG NUT HOAC ENTER
+  // =====================================
+
   form.addEventListener('submit', event => {
+
     event.preventDefault();
+
     ask(input.value);
   });
 
-  // Cac cau hoi goi y
+  // =====================================
+  // XU LY CAC CAU HOI GOI Y
+  // =====================================
+
   $$('[data-prompt]').forEach(button => {
+
     button.addEventListener('click', () => {
+
       ask(button.dataset.prompt);
     });
+
   });
 
 });

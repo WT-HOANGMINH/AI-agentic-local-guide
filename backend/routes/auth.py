@@ -1,17 +1,32 @@
+
 import os
+import hmac
+import logging
+import secrets
+import urllib.parse
+import uuid
+
+import httpx
+
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 
 from backend.auth_utils import get_current_user
 from backend.database import get_db
 from backend.models.user import User
-from backend.schemas.auth import (
-    FacebookLoginRequest,
-    GoogleLoginRequest,
-    LoginRequest,
-    LoginResponse,
-)
+from backend.schemas.auth import LoginRequest, LoginResponse
 from backend.schemas.user import UserRegister, UserResponse
 from backend.services.auth_service import (
     create_access_token,
@@ -19,18 +34,35 @@ from backend.services.auth_service import (
     verify_password,
 )
 
+logger = logging.getLogger(__name__)
+
+# ==============================================
+# CONFIGURATION
+# ==============================================
+
 load_dotenv()
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "1092777120272337")
-FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET", "29d2dc66675c2792db4f55f17e593e4f")
 
+SESSION_COOKIE = "danang_session"
+STATE_COOKIE = "google_oauth_state"
+FACEBOOK_STATE_COOKIE = "facebook_oauth_state"
+
+IS_PRODUCTION = (
+    os.getenv("APP_ENV", "development").lower()
+    == "production"
+)
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
 
+
+# ==============================================
+# REGISTER
+# ==============================================
 
 @router.post(
     "/register",
@@ -42,18 +74,14 @@ def register(
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ):
-    """
-    Đăng ký tài khoản người dùng mới với username, email và password.
-    Mật khẩu sẽ được băm bằng thuật toán bcrypt an toàn.
-    """
     existing_username = db.query(User).filter(
         User.username == user_data.username.strip()
     ).first()
 
     if existing_username:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tên người dùng (username) đã được sử dụng"
+            status_code=400,
+            detail="Tên người dùng đã được sử dụng"
         )
 
     existing_email = db.query(User).filter(
@@ -62,16 +90,16 @@ def register(
 
     if existing_email:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Địa chỉ email đã được đăng ký"
+            status_code=400,
+            detail="Email đã được đăng ký"
         )
-
-    hashed_password = get_password_hash(user_data.password)
 
     new_user = User(
         username=user_data.username.strip(),
         email=user_data.email.strip().lower(),
-        password=hashed_password,
+        password=get_password_hash(
+            user_data.password
+        ),
         role="user",
         is_active=True,
     )
@@ -83,33 +111,36 @@ def register(
     return new_user
 
 
+# ==============================================
+# EMAIL LOGIN
+# ==============================================
+
 @router.post(
     "/login",
     response_model=LoginResponse,
-    summary="Đăng nhập nhận JWT Token"
+    summary="Đăng nhập bằng email"
 )
 def login(
     login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Đăng nhập bằng email và mật khẩu. Trả về access token JWT (Bearer).
-    """
     user = db.query(User).filter(
         User.email == login_data.email.strip().lower()
     ).first()
 
-    if not user or not verify_password(login_data.password, user.password):
+    if not user or not verify_password(
+        login_data.password,
+        user.password
+    ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email hoặc mật khẩu không chính xác",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=401,
+            detail="Email hoặc mật khẩu không chính xác"
         )
 
-    if hasattr(user, "is_active") and not user.is_active:
+    if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tài khoản của bạn đã bị vô hiệu hóa"
+            status_code=403,
+            detail="Tài khoản đã bị vô hiệu hóa"
         )
 
     access_token = create_access_token({
@@ -127,532 +158,478 @@ def login(
         "role": user.role
     }
 
+
+# ==============================================
+# CURRENT USER
+# ==============================================
 
 @router.get(
     "/me",
     response_model=UserResponse,
-    summary="Lấy thông tin tài khoản đang đăng nhập"
+    summary="Lấy thông tin người dùng"
 )
 def read_current_user(
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Endpoint bảo vệ bằng JWT Token: Trả về thông tin của tài khoản đang xác thực.
-    """
     return current_user
 
 
-@router.post(
-    "/google",
-    response_model=LoginResponse,
-    summary="Đăng nhập hoặc đăng ký nhanh bằng tài khoản Google"
-)
-def google_login(
-    payload: GoogleLoginRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Xác thực và đăng nhập người dùng bằng tài khoản Google.
-    - Hỗ trợ Google ID Token (credential) từ Google Identity Services.
-    - Hỗ trợ Google Access Token từ Google OAuth2 popup.
-    - Hỗ trợ thông tin profile Google (email, name).
-    - Tự động tạo người dùng mới trong database nếu email chưa tồn tại.
-    - Phát hành access token JWT (Bearer).
-    """
-    email = payload.email
-    name = payload.name
+# ==============================================
+# GOOGLE OAUTH CONFIG
+# ==============================================
 
-    # 1. Nếu có Google credential (JWT ID token), tiến hành xác thực/giải mã
-    if payload.credential:
-        try:
-            from google.oauth2 import id_token
-            from google.auth.transport import requests as google_requests
-            idinfo = id_token.verify_oauth2_token(
-                payload.credential,
-                google_requests.Request(),
-                GOOGLE_CLIENT_ID
-            )
-            email = idinfo.get("email") or email
-            name = idinfo.get("name") or idinfo.get("given_name") or name
-        except Exception:
-            try:
-                import httpx
-                resp = httpx.get(
-                    "https://oauth2.googleapis.com/tokeninfo",
-                    params={"id_token": payload.credential},
-                    timeout=5.0
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    email = data.get("email") or email
-                    name = data.get("name") or data.get("given_name") or name
-                else:
-                    from jose import jwt
-                    claims = jwt.get_unverified_claims(payload.credential)
-                    email = claims.get("email") or email
-                    name = claims.get("name") or name
-            except Exception:
-                try:
-                    from jose import jwt
-                    claims = jwt.get_unverified_claims(payload.credential)
-                    email = claims.get("email") or email
-                    name = claims.get("name") or name
-                except Exception:
-                    pass
+def google_callback_url():
+    return os.getenv(
+        "GOOGLE_REDIRECT_URI",
+        "http://127.0.0.1:8000/auth/google/callback"
+    )
 
-    # 2. Nếu có access_token từ Google OAuth2 popup
-    if payload.access_token and not email:
-        try:
-            import httpx
-            resp = httpx.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={"Authorization": f"Bearer {payload.access_token}"},
-                timeout=5.0
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                email = data.get("email") or email
-                name = data.get("name") or data.get("given_name") or name
-        except Exception:
-            pass
 
-    if not email:
+def facebook_callback_url():
+    return os.getenv(
+        "FACEBOOK_REDIRECT_URI",
+        "http://127.0.0.1:8000/auth/facebook/callback"
+    )
+
+
+def _session_cookie_samesite():
+    return "none" if IS_PRODUCTION else "lax"
+
+
+def _oauth_redirect_url(provider, success):
+    frontend_url = (
+        os.getenv("FRONTEND_URL") or os.getenv("PUBLIC_ORIGIN", "")
+    ).strip().rstrip("/")
+    if not frontend_url:
+        page = "index.html" if success else "login.html"
+        query = "?auth=success" if success else f"?auth=error&provider={provider}"
+        return f"/app/{page}{query}"
+
+    parsed = urllib.parse.urlsplit(frontend_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise RuntimeError("FRONTEND_URL must be an absolute HTTP(S) URL.")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise RuntimeError("FRONTEND_URL must not contain credentials, query, or fragment.")
+    if parsed.path not in {"", "/"}:
+        raise RuntimeError("FRONTEND_URL must be an origin without a path.")
+
+    page = "index.html" if success else "login.html"
+    query = (
+        f"?auth=success&provider={provider}"
+        if success
+        else f"?auth=error&provider={provider}"
+    )
+    return f"{frontend_url}/{page}{query}"
+
+
+def _oauth_user(db, email, name, provider):
+    user = db.query(User).filter(User.email == email).first()
+    if user and not user.is_active:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị vô hiệu hóa")
+    if user and user.role == "admin":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không lấy được thông tin email từ tài khoản Google"
+            status_code=403,
+            detail="Admin cần dùng phương thức đăng nhập riêng",
         )
-
-    email_clean = str(email).strip().lower()
-    user_name = (name or email_clean.split("@")[0]).strip()
-
-    # 3. Tìm hoặc tạo người dùng trong DB
-    user = db.query(User).filter(User.email == email_clean).first()
-
-    if not user:
-        import secrets
-        import uuid
-        base_username = user_name.replace(" ", "_")
-        existing_user_by_name = db.query(User).filter(User.username == base_username).first()
-        if existing_user_by_name:
-            base_username = f"{base_username}_{uuid.uuid4().hex[:4]}"
-
-        hashed_password = get_password_hash(secrets.token_urlsafe(16))
+    if user is None:
+        username = (
+            (name.replace(" ", "_")[:35] or f"{provider}_user")
+            + "_"
+            + uuid.uuid4().hex[:8]
+        )
         user = User(
-            username=base_username,
-            email=email_clean,
-            password=hashed_password,
+            username=username,
+            email=email,
+            password=get_password_hash(secrets.token_urlsafe(32)),
             role="user",
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-    else:
-        if hasattr(user, "is_active") and not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tài khoản của bạn đã bị vô hiệu hóa"
-            )
+    return user
 
-    # 4. Tạo JWT access token
-    access_token = create_access_token({
+
+def _oauth_session_response(user, provider):
+    token = create_access_token({
         "sub": str(user.id),
         "username": user.username,
-        "role": user.role
+        "role": user.role,
     })
+    response = RedirectResponse(
+        url=_oauth_redirect_url(provider, success=True),
+        status_code=303,
+    )
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite=_session_cookie_samesite(),
+        max_age=3600,
+        path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "role": user.role
-    }
+
+# ==============================================
+# DISABLE OLD GOOGLE LOGIN
+# ==============================================
+
+@router.post("/google", status_code=410)
+def legacy_google_login_disabled():
+    raise HTTPException(
+        status_code=410,
+        detail="Hãy đăng nhập Google qua /auth/google/url"
+    )
 
 
-@router.get(
-    "/google/url",
-    summary="Lấy đường dẫn URL chuyển hướng Google OAuth 2.0"
-)
-def get_google_auth_url(redirect_uri: str | None = None):
-    """
-    Tạo URL đăng nhập Google OAuth 2.0 chuẩn với GOOGLE_CLIENT_ID.
-    """
-    import urllib.parse
-    cb = redirect_uri or "http://127.0.0.1:8000/auth/google/callback"
+# ==============================================
+# GOOGLE LOGIN URL
+# ==============================================
+
+@router.get("/google/url")
+def get_google_auth_url(response: Response):
+
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Google OAuth chưa được cấu hình. Hãy thiết lập "
+                "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI."
+            )
+        )
+
+    state = secrets.token_urlsafe(32)
+
+    response.set_cookie(
+        key=STATE_COOKIE,
+        value=state,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=600,
+        path="/"
+    )
+
+    response.headers["Cache-Control"] = "no-store"
+
     params = {
         "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": cb,
+        "redirect_uri": google_callback_url(),
         "response_type": "code",
         "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "select_account"
+        "prompt": "select_account",
+        "state": state
     }
-    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
+
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        + urllib.parse.urlencode(params)
+    )
+
     return {
-        "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": cb,
         "auth_url": auth_url
     }
 
 
-@router.get(
-    "/google/callback",
-    summary="Callback nhận mã authorization code từ Google OAuth 2.0"
-)
+@router.get("/facebook/url")
+def get_facebook_auth_url(response: Response):
+    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Facebook OAuth chưa được cấu hình. Hãy thiết lập "
+                "FACEBOOK_APP_ID, FACEBOOK_APP_SECRET và FACEBOOK_REDIRECT_URI."
+            ),
+        )
+
+    state = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=FACEBOOK_STATE_COOKIE,
+        value=state,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    version = os.getenv("FACEBOOK_GRAPH_VERSION", "v24.0")
+    params = {
+        "client_id": app_id,
+        "redirect_uri": facebook_callback_url(),
+        "response_type": "code",
+        "scope": "email,public_profile",
+        "state": state,
+    }
+    return {
+        "auth_url": (
+            f"https://www.facebook.com/{version}/dialog/oauth?"
+            + urllib.parse.urlencode(params)
+        )
+    }
+
+
+# ==============================================
+# GOOGLE CALLBACK
+# ==============================================
+
+@router.get("/google/callback")
 def google_callback(
+    request: Request,
     code: str,
-    redirect_to: str | None = None,
+    state: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Xử lý mã ủy quyền (code) từ Google OAuth, đổi token bằng Client Secret,
-    lấy thông tin người dùng và chuyển hướng về frontend kèm JWT token.
-    """
-    import httpx
-    from fastapi.responses import RedirectResponse
 
-    callback_url = "http://127.0.0.1:8000/auth/google/callback"
+    # 1. Kiểm tra OAuth state
+    saved_state = request.cookies.get(STATE_COOKIE)
 
-    # 1. Trao đổi authorization code lấy tokens
+    if not saved_state or not hmac.compare_digest(
+        saved_state,
+        state
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="OAuth state không hợp lệ"
+        )
+
+    # 2. Trao đổi code lấy ID Token
     try:
-        resp = httpx.post(
+        token_response = httpx.post(
             "https://oauth2.googleapis.com/token",
             data={
                 "client_id": GOOGLE_CLIENT_ID,
                 "client_secret": GOOGLE_CLIENT_SECRET,
                 "code": code,
                 "grant_type": "authorization_code",
-                "redirect_uri": callback_url,
+                "redirect_uri": google_callback_url()
             },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=10.0,
+            timeout=15.0
         )
-        if resp.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Lỗi trao đổi token với Google: {resp.text}"
+
+        token_response.raise_for_status()
+
+        google_id_token = (
+            token_response.json().get("id_token")
+        )
+
+        if not google_id_token:
+            raise ValueError(
+                "Google không trả về ID Token"
             )
-        token_data = resp.json()
-        id_token_str = token_data.get("id_token")
-        access_token_str = token_data.get("access_token")
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Không thể kết nối đến Google Token API: {str(e)}"
+
+        # 3. Xác minh Google ID Token
+        claims = id_token.verify_oauth2_token(
+            google_id_token,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID
         )
 
-    # 2. Lấy thông tin người dùng từ Google
-    email = None
-    name = None
-    if access_token_str:
-        try:
-            user_resp = httpx.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={"Authorization": f"Bearer {access_token_str}"},
-                timeout=6.0
-            )
-            if user_resp.status_code == 200:
-                user_info = user_resp.json()
-                email = user_info.get("email")
-                name = user_info.get("name") or user_info.get("given_name")
-        except Exception:
-            pass
-
-    if not email and id_token_str:
-        from jose import jwt
-        claims = jwt.get_unverified_claims(id_token_str)
-        email = claims.get("email")
-        name = claims.get("name")
-
-    if not email:
+    except Exception:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không lấy được email từ tài khoản Google"
+            status_code=400,
+            detail="Không xác minh được đăng nhập Google"
         )
 
-    email_clean = str(email).strip().lower()
-    user_name = (name or email_clean.split("@")[0]).strip()
+    # 4. Kiểm tra email
+    email = claims.get("email")
+    email_verified = claims.get("email_verified")
 
-    # 3. Tạo hoặc lấy người dùng
-    user = db.query(User).filter(User.email == email_clean).first()
-    if not user:
-        import secrets, uuid
-        base_username = user_name.replace(" ", "_")
-        existing_user_by_name = db.query(User).filter(User.username == base_username).first()
-        if existing_user_by_name:
-            base_username = f"{base_username}_{uuid.uuid4().hex[:4]}"
-        hashed_password = get_password_hash(secrets.token_urlsafe(16))
+    if not email or email_verified is not True:
+        raise HTTPException(
+            status_code=403,
+            detail="Email Google chưa được xác minh"
+        )
+
+    email = email.strip().lower()
+
+    name = (
+        claims.get("name")
+        or email.split("@")[0]
+    ).strip()
+
+    # 5. Tìm tài khoản
+    user = db.query(User).filter(
+        User.email == email
+    ).first()
+
+    if user and not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản đã bị vô hiệu hóa"
+        )
+
+    # Không tự liên kết Google vào admin
+    if user and user.role == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin cần dùng phương thức đăng nhập riêng"
+        )
+
+    # 6. Tạo user nếu chưa tồn tại
+    if user is None:
+        username = (
+            (name.replace(" ", "_")[:35] or "google_user")
+            + "_"
+            + uuid.uuid4().hex[:8]
+        )
+
         user = User(
-            username=base_username,
-            email=email_clean,
-            password=hashed_password,
+            username=username,
+            email=email,
+            password=get_password_hash(
+                secrets.token_urlsafe(32)
+            ),
             role="user",
             is_active=True
         )
+
         db.add(user)
         db.commit()
         db.refresh(user)
 
-    # 4. Tạo JWT token nội bộ của DaNang Guide
-    access_token = create_access_token({
+    # 7. Tạo JWT nội bộ
+    jwt_token = create_access_token({
         "sub": str(user.id),
         "username": user.username,
         "role": user.role
     })
 
-    # Chuyển hướng về frontend (ưu tiên redirect_to nếu có, hoặc port 5500 Live Server)
-    target = redirect_to or f"http://127.0.0.1:5500/frontend/login.html?token={access_token}&google_login=1"
-    if "?" in target:
-        final_url = f"{target}&token={access_token}&google_login=1"
-    else:
-        final_url = f"{target}?token={access_token}&google_login=1"
+    # 8. Redirect không chứa JWT
+    redirect = RedirectResponse(
+        url=_oauth_redirect_url("google", success=True),
+        status_code=303
+    )
 
-    return RedirectResponse(url=final_url)
+    # 9. Lưu JWT trong HttpOnly cookie
+    redirect.set_cookie(
+        key=SESSION_COOKIE,
+        value=jwt_token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite=_session_cookie_samesite(),
+        max_age=3600,
+        path="/"
+    )
 
+    # Xóa OAuth state
+    redirect.delete_cookie(
+        key=STATE_COOKIE,
+        path="/"
+    )
 
-@router.post(
-    "/facebook",
-    response_model=LoginResponse,
-    summary="Đăng nhập hoặc đăng ký nhanh bằng tài khoản Facebook"
-)
-def facebook_login(
-    payload: FacebookLoginRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Xác thực và đăng nhập người dùng bằng tài khoản Facebook (App ID 1092777120272337).
-    - Hỗ trợ Facebook User Access Token từ Facebook JavaScript SDK (FB.login).
-    - Tự động truy vấn Facebook Graph API lấy id, name, email, avatar.
-    - Hỗ trợ thông tin trực tiếp từ profile Facebook.
-    - Tự động tạo người dùng mới trong database nếu chưa tồn tại.
-    - Phát hành access token JWT (Bearer).
-    """
-    email = payload.email
-    name = payload.name
-    fb_id = payload.facebook_id
-    picture = payload.picture
+    redirect.headers["Cache-Control"] = "no-store"
+    redirect.headers["Referrer-Policy"] = "no-referrer"
 
-    # 1. Nếu có Facebook access_token, gọi Facebook Graph API để xác minh và lấy thông tin
-    if payload.access_token:
-        try:
-            import httpx
-            graph_url = "https://graph.facebook.com/v19.0/me"
-            params = {
-                "fields": "id,name,email,picture.type(large)",
-                "access_token": payload.access_token
-            }
-            resp = httpx.get(graph_url, params=params, timeout=5.0)
-            if resp.status_code == 200:
-                fb_data = resp.json()
-                email = fb_data.get("email") or email
-                name = fb_data.get("name") or name
-                fb_id = fb_data.get("id") or fb_id
-                pic_data = fb_data.get("picture", {}).get("data", {})
-                if pic_data.get("url"):
-                    picture = pic_data.get("url")
-        except Exception:
-            pass
-
-    # Facebook đôi khi không trả về email (nếu tài khoản lập bằng SĐT hoặc người dùng từ chối chia sẻ email)
-    # Ta tạo email định danh duy nhất theo Facebook ID hoặc tạo email ngẫu nhiên an toàn
-    if not email and fb_id:
-        email = f"fb_{fb_id}@facebook.com"
-    elif not email and name:
-        import uuid
-        email = f"fb_{uuid.uuid4().hex[:8]}@facebook.com"
-
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không lấy được thông tin email hoặc xác thực từ tài khoản Facebook"
-        )
-
-    email_clean = str(email).strip().lower()
-    user_name = (name or email_clean.split("@")[0]).strip()
-
-    # 2. Tìm hoặc tạo người dùng trong DB
-    user = db.query(User).filter(User.email == email_clean).first()
-
-    if not user:
-        import secrets
-        import uuid
-        base_username = user_name.replace(" ", "_")
-        existing_user_by_name = db.query(User).filter(User.username == base_username).first()
-        if existing_user_by_name:
-            base_username = f"{base_username}_{uuid.uuid4().hex[:4]}"
-
-        hashed_password = get_password_hash(secrets.token_urlsafe(16))
-        user = User(
-            username=base_username,
-            email=email_clean,
-            password=hashed_password,
-            role="user",
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    else:
-        if hasattr(user, "is_active") and not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tài khoản của bạn đã bị vô hiệu hóa"
-            )
-
-    # 3. Tạo JWT access token nội bộ DaNang Guide
-    access_token = create_access_token({
-        "sub": str(user.id),
-        "username": user.username,
-        "role": user.role
-    })
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "role": user.role
-    }
+    return redirect
 
 
-@router.get(
-    "/facebook/url",
-    summary="Lấy đường dẫn URL chuyển hướng Facebook OAuth 2.0"
-)
-def get_facebook_auth_url(redirect_uri: str | None = None):
-    """
-    Tạo URL đăng nhập Facebook OAuth 2.0 chuẩn với FACEBOOK_APP_ID (1092777120272337).
-    """
-    import urllib.parse
-    cb = redirect_uri or "http://127.0.0.1:8000/auth/facebook/callback"
-    params = {
-        "client_id": FACEBOOK_APP_ID,
-        "redirect_uri": cb,
-        "response_type": "code",
-        "scope": "email,public_profile"
-    }
-    auth_url = f"https://www.facebook.com/v19.0/dialog/oauth?{urllib.parse.urlencode(params)}"
-    return {
-        "client_id": FACEBOOK_APP_ID,
-        "redirect_uri": cb,
-        "auth_url": auth_url
-    }
-
-
-@router.get(
-    "/facebook/callback",
-    summary="Callback nhận mã authorization code từ Facebook OAuth 2.0"
-)
+@router.get("/facebook/callback")
 def facebook_callback(
-    code: str,
-    redirect_to: str | None = None,
-    db: Session = Depends(get_db)
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
 ):
-    """
-    Xử lý mã ủy quyền (code) từ Facebook OAuth, đổi token bằng App Secret,
-    lấy thông tin người dùng và chuyển hướng về frontend kèm JWT token.
-    """
-    import httpx
-    from fastapi.responses import RedirectResponse
+    if error or not code or not state:
+        response = RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
+        )
+        response.delete_cookie(FACEBOOK_STATE_COOKIE, path="/")
+        return response
 
-    callback_url = "http://127.0.0.1:8000/auth/facebook/callback"
+    saved_state = request.cookies.get(FACEBOOK_STATE_COOKIE)
+    if not saved_state or not hmac.compare_digest(saved_state, state):
+        raise HTTPException(
+            status_code=400,
+            detail="Facebook OAuth state không hợp lệ",
+        )
 
-    # 1. Trao đổi authorization code lấy access_token
+    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Facebook OAuth chưa được cấu hình",
+        )
+
+    graph_base = (
+        "https://graph.facebook.com/"
+        + os.getenv("FACEBOOK_GRAPH_VERSION", "v24.0")
+    )
     try:
-        resp = httpx.get(
-            "https://graph.facebook.com/v19.0/oauth/access_token",
+        token_response = httpx.get(
+            f"{graph_base}/oauth/access_token",
             params={
-                "client_id": FACEBOOK_APP_ID,
-                "client_secret": FACEBOOK_APP_SECRET,
-                "redirect_uri": callback_url,
-                "code": code
+                "client_id": app_id,
+                "client_secret": app_secret,
+                "redirect_uri": facebook_callback_url(),
+                "code": code,
             },
-            timeout=10.0
+            timeout=15.0,
         )
-        if resp.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Lỗi trao đổi token với Facebook: {resp.text}"
-            )
-        token_data = resp.json()
-        access_token_str = token_data.get("access_token")
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Không thể kết nối đến Facebook Token API: {str(e)}"
+        token_response.raise_for_status()
+        access_token = token_response.json().get("access_token")
+        if not access_token:
+            raise ValueError("Facebook did not return an access token")
+
+        profile_response = httpx.get(
+            f"{graph_base}/me",
+            params={
+                "fields": "id,name,email",
+                "access_token": access_token,
+            },
+            timeout=15.0,
         )
-
-    # 2. Lấy thông tin user từ Facebook Graph API
-    email = None
-    name = None
-    fb_id = None
-    if access_token_str:
-        try:
-            user_resp = httpx.get(
-                "https://graph.facebook.com/v19.0/me",
-                params={
-                    "fields": "id,name,email,picture.type(large)",
-                    "access_token": access_token_str
-                },
-                timeout=6.0
-            )
-            if user_resp.status_code == 200:
-                user_info = user_resp.json()
-                email = user_info.get("email")
-                name = user_info.get("name")
-                fb_id = user_info.get("id")
-        except Exception:
-            pass
-
-    if not email and fb_id:
-        email = f"fb_{fb_id}@facebook.com"
-    elif not email and name:
-        import uuid
-        email = f"fb_{uuid.uuid4().hex[:8]}@facebook.com"
-
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không lấy được thông tin email từ tài khoản Facebook"
+        profile_response.raise_for_status()
+        profile = profile_response.json()
+    except (httpx.HTTPError, ValueError):
+        logger.exception("Facebook OAuth token/profile verification failed")
+        return RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
         )
 
-    email_clean = str(email).strip().lower()
-    user_name = (name or email_clean.split("@")[0]).strip()
-
-    # 3. Tạo hoặc lấy người dùng
-    user = db.query(User).filter(User.email == email_clean).first()
-    if not user:
-        import secrets, uuid
-        base_username = user_name.replace(" ", "_")
-        existing_user_by_name = db.query(User).filter(User.username == base_username).first()
-        if existing_user_by_name:
-            base_username = f"{base_username}_{uuid.uuid4().hex[:4]}"
-        hashed_password = get_password_hash(secrets.token_urlsafe(16))
-        user = User(
-            username=base_username,
-            email=email_clean,
-            password=hashed_password,
-            role="user",
-            is_active=True
+    email = profile.get("email")
+    if not isinstance(email, str) or not email.strip():
+        return RedirectResponse(
+            _oauth_redirect_url("facebook", success=False),
+            status_code=303,
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
 
-    # 4. Tạo JWT token nội bộ của DaNang Guide
-    access_token = create_access_token({
-        "sub": str(user.id),
-        "username": user.username,
-        "role": user.role
-    })
+    user = _oauth_user(
+        db,
+        email.strip().lower(),
+        str(profile.get("name") or email.split("@")[0]).strip(),
+        "facebook",
+    )
+    response = _oauth_session_response(user, "facebook")
+    response.delete_cookie(FACEBOOK_STATE_COOKIE, path="/")
+    return response
 
-    target = redirect_to or f"http://127.0.0.1:5500/frontend/login.html?token={access_token}&facebook_login=1"
-    if "?" in target:
-        final_url = f"{target}&token={access_token}&facebook_login=1"
-    else:
-        final_url = f"{target}?token={access_token}&facebook_login=1"
 
-    return RedirectResponse(url=final_url)
+# ==============================================
+# LOGOUT
+# ==============================================
+
+@router.post("/logout")
+def logout():
+
+    response = Response(
+        status_code=204
+    )
+
+    response.delete_cookie(
+        key=SESSION_COOKIE,
+        path="/"
+    )
+
+    return response

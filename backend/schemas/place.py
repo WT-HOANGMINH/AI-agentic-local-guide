@@ -11,6 +11,9 @@ class PlaceBase(BaseModel):
     price_level: int | None = Field(default=None, ge=1, le=5, description="Mức giá từ 1 đến 5")
     opening_hours: str | None = Field(default=None, max_length=100, description="Giờ mở cửa")
     rating: float | None = Field(default=None, ge=0, le=5, description="Đánh giá từ 0 đến 5")
+    activities: list[str] | None = None
+    ticket_info: str | None = Field(default=None, max_length=255)
+    ticket_source_url: str | None = Field(default=None, max_length=500)
 
 
 class PlaceCreate(PlaceBase):
@@ -28,7 +31,9 @@ class PlaceUpdate(BaseModel):
     opening_hours: str | None = None
     rating: float | None = Field(default=None, ge=0, le=5)
     is_active: bool | None = None
-
+    activities: list[str] | None = None
+    ticket_info: str | None = Field(default=None, max_length=255)
+    ticket_source_url: str | None = Field(default=None, max_length=500)
 
 class PlaceResponse(PlaceBase):
     id: int

@@ -1,6 +1,8 @@
 import mimetypes
 import os
+from urllib.parse import urlsplit
 
+from fastapi.responses import RedirectResponse
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +47,84 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+
+def _configured_https_origins():
+    origins = set()
+    for variable in ("FRONTEND_URL", "PUBLIC_ORIGIN"):
+        configured_url = os.getenv(variable, "").strip()
+        if not configured_url:
+            continue
+
+        parsed = urlsplit(configured_url)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            continue
+
+        hostname = parsed.hostname.lower()
+        if ":" in hostname:
+            hostname = f"[{hostname}]"
+        port = parsed.port
+        origins.add(
+            f"https://{hostname}"
+            + (f":{port}" if port and port != 443 else "")
+        )
+    return origins
+
+
+# ============================================
+# CSRF PROTECTION - DANANG GUIDE
+# ============================================
+
+@app.middleware("http")
+async def csrf_origin_guard(request: Request, call_next):
+
+    unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
+
+    session_cookie = request.cookies.get("danang_session")
+
+    if request.method in unsafe_methods and session_cookie:
+
+        app_env = os.getenv("APP_ENV", "development").lower()
+
+        if app_env == "production":
+            allowed_origins = _configured_https_origins()
+        else:
+            allowed_origins = {
+                "http://127.0.0.1:5500",
+                "http://localhost:5500",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
+                "http://127.0.0.1:8000",
+                "http://localhost:8000"
+            }
+
+        request_origin = request.headers.get("origin")
+
+        if not request_origin:
+            referer = request.headers.get("referer")
+
+            if referer:
+                parsed = urlsplit(referer)
+                request_origin = f"{parsed.scheme}://{parsed.netloc}"
+
+        if request_origin not in allowed_origins:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "CSRF: request origin not allowed"
+                }
+            )
+
+    return await call_next(request)
 
 # ==============================================================
 # API Validation & Global Error Handling
@@ -136,20 +216,23 @@ async def global_unhandled_exception_handler(
 # CORS Configuration
 # ==============================================================
 
+cors_origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+]
+cors_origins.extend(sorted(_configured_https_origins() - set(cors_origins)))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:8080",
-        "http://localhost:8080",
-    ],
+    allow_origins=cors_origins,
     allow_origin_regex=(
         r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$"
     ),
@@ -208,9 +291,14 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("Database tables initialized successfully.")
 
-        from backend.seed_places import ensure_rating_column, normalize_place_categories
+        from backend.seed_places import (
+            ensure_rating_column,
+            ensure_place_detail_columns,
+            normalize_place_categories,
+        )
 
         ensure_rating_column()
+        ensure_place_detail_columns()
         normalize_place_categories()
 
         from backend.database import SessionLocal
@@ -220,7 +308,11 @@ def startup_event():
 
         try:
             # Tao tai khoan admin mau neu chua co tai khoan
-            if db.query(User).count() == 0:
+            if (
+                os.getenv("APP_ENV", "development").lower() == "development"
+                and os.getenv("ENABLE_DEMO_ADMIN", "false").lower() == "true"
+                and db.query(User).count() == 0
+            ):
                 demo_user = User(
                     username="admin",
                     email="admin@localguide.vn",
@@ -238,6 +330,7 @@ def startup_event():
                 )
 
             # Nap dia diem mau neu bang Place dang rong
+            # (de nap day du hon, chay: python -X utf8 -m backend.seed_places)
             if db.query(Place).count() == 0:
                 from backend.seed_places import main as seed_places_main
                 seed_places_main()
@@ -246,7 +339,13 @@ def startup_event():
         finally:
             db.close()
 
+    
     except Exception as error:
+        # Production phai dung neu khoi tao database that bai
+        if os.getenv("APP_ENV", "development").lower() == "production":
+            raise
+
+        # Local: hien thi canh bao de debug
         safe_msg = (
             str(error)
             .encode("ascii", "replace")
@@ -254,17 +353,17 @@ def startup_event():
         )
         print(f"Database connection warning: {safe_msg}")
 
-
 # ==============================================================
 # Home API
 # ==============================================================
 
-@app.get("/")
-def home():
-    return {
-        "message": "Agentic AI Local Guide is running!"
-    }
 
+@app.get("/")
+def root():
+    return RedirectResponse(
+        url="/app/index.html",
+        status_code=302
+    )
 
 # ==============================================================
 # Backend Health Check
@@ -275,7 +374,6 @@ def health():
     return {
         "status": "OK"
     }
-
 
 # ==============================================================
 # MySQL Connection Test

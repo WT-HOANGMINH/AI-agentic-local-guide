@@ -1,0 +1,31 @@
+/* Thêm sau style.css. Đổi màu theo theme của bạn (hiện dùng xanh ngọc DaNangGuide). */
+.dg-msg{max-width:88%;padding:10px 14px;border-radius:14px;margin:8px 0;line-height:1.5;font-size:14px;white-space:pre-wrap;word-wrap:break-word}
+.dg-msg.user{margin-left:auto;background:#0f6b5a;color:#fff}
+.dg-msg.bot{background:#fff;color:#1f2d2a;border:1px solid #e3ebe9}
+.dg-msg a{color:#0b6e5c;text-decoration:underline}
+.dg-msg.user a{color:#fff}
+.dg-error{color:#b3261e}
+
+.dg-steps,.dg-steps-done{font-size:12.5px;color:#6b7c78;margin:6px 0}
+.dg-step{display:flex;align-items:center;gap:8px;padding:2px 0}
+.dg-step.done::before{content:"✓";color:#0f8f78;font-weight:700}
+.dg-step.active{color:#0b6e5c}
+.dg-step.active::before{content:"";width:8px;height:8px;border-radius:50%;background:#0f8f78;animation:dgp 1s infinite}
+.dg-steps-done summary{cursor:pointer;list-style:none;color:#6b7c78}
+.dg-steps-done summary::before{content:"✓ ";color:#0f8f78}
+@keyframes dgp{0%,100%{opacity:.3}50%{opacity:1}}
+.dg-cursor{display:inline-block;width:7px;height:14px;background:#0f8f78;margin-left:2px;vertical-align:-2px;animation:dgb 1s steps(1) infinite}
+@keyframes dgb{50%{opacity:0}}
+
+.dg-suggest,.dg-links{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.dg-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #0f8f78;color:#0b6e5c;background:#fff;
+  border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.dg-chip:hover{background:#e8f6f3}
+.dg-chip.on{background:#0f8f78;color:#fff}
+.dg-box{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;display:inline-block;position:relative}
+.dg-chip.on .dg-box::after{content:"✓";position:absolute;inset:-3px 0 0 1px;font-size:12px;line-height:14px}
+.dg-send{border:0;background:#0f8f78;color:#fff;border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer}
+.dg-send:disabled{opacity:.4;cursor:not-allowed}
+.dg-linkbtn{display:inline-block;background:#0f6b5a;color:#fff !important;text-decoration:none !important;
+  border-radius:999px;padding:7px 14px;font-size:13px}
+.dg-stop{background:#b3261e !important}

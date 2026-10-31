@@ -21,3 +21,10 @@ class Place(Base):
     rating = Column(Float, nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # --- Cac cot cho planner (duoc dien boi: python -m backend.enrich_places) ---
+    duration_min = Column(Integer, nullable=True)     # thoi gian tham quan, phut
+    open_time = Column(String(5), nullable=True)      # "07:30"
+    close_time = Column(String(5), nullable=True)     # "17:00"
+    best_time = Column(String(20), nullable=True)     # morning | afternoon | sunset | night
+    zone = Column(String(30), nullable=True)          # trung_tam | son_tra | ba_na | hoi_an ...

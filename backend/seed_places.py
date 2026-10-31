@@ -17,6 +17,36 @@ from backend.models.itinerary import Itinerary, ItineraryItem
 from backend.models.favorite import Favorite
 
 
+def ensure_place_detail_columns():
+    """Bo sung cot chi tiet, giu nguyen du lieu cu."""
+
+    existing = {
+        column["name"]
+        for column in inspect(engine).get_columns("places")
+    }
+
+    new_columns = {
+        "activities": "JSON",
+        "ticket_info": "VARCHAR(255)",
+        "ticket_source_url": "VARCHAR(500)",
+        "duration_min": "INTEGER",
+        "open_time": "VARCHAR(5)",
+        "close_time": "VARCHAR(5)",
+        "best_time": "VARCHAR(20)",
+        "zone": "VARCHAR(30)",
+    }
+
+    with engine.begin() as conn:
+        for name, sql_type in new_columns.items():
+            if name not in existing:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE places "
+                        f"ADD COLUMN {name} {sql_type}"
+                    )
+                )
+                print(f"[Migration] Added column: {name}")
+
 def ensure_rating_column():
     """Them cot rating neu bang places chua co (MySQL va SQLite deu chay duoc)."""
     cols = [c["name"] for c in inspect(engine).get_columns("places")]
@@ -405,6 +435,7 @@ RENAME_MAP = {
 def main():
     Base.metadata.create_all(bind=engine)
     ensure_rating_column()
+    ensure_place_detail_columns()
     normalize_place_categories()
 
     db = SessionLocal()
@@ -426,6 +457,8 @@ def main():
             row = db.query(Place).filter(Place.name == data["name"]).first()
             if row:
                 for key, value in data.items():
+                    if key == "rating" and value is None:
+                        continue
                     setattr(row, key, value)
                 updated += 1
             else:

@@ -1,57 +1,54 @@
-/* =========================================================
-   DA NANG GUIDE - API CLIENT
-   - USE_MOCK:true  -> dung data.js + localStorage (demo)
-   - USE_MOCK:false -> goi FastAPI that
-   - Chat AI luon goi backend /agent/chat (ke ca khi USE_MOCK:true)
-   - Yeu thich / lich trinh: dong bo FastAPI backend /favorites va /itineraries
-     (kem fallback localStorage khi chua dang nhap)
-   ========================================================= */
+
+/*
+  DaNang Guide - frontend/js/api.js
+
+  USE_MOCK = true  : Chạy dữ liệu demo
+  USE_MOCK = false : Kết nối Backend của Phương
+*/
 
 const CFG = window.LOCAL_GUIDE_CONFIG || {
   USE_MOCK: false,
-  API_BASE: '',
-  TOKEN_KEY: 'localguide_token',
-  GOOGLE_CLIENT_ID: '853984856354-131ekmamkn9sqn75mbckbbm0805ab21m.apps.googleusercontent.com',
-  FACEBOOK_APP_ID: '1092777120272337'
+  API_BASE: 'http://127.0.0.1:8000',
+  TOKEN_KEY: 'localguide_token'
 };
 
+// ================================
+// LOCAL STORAGE
+// ================================
 
 const store = {
-  get(k, fallback = null) {
+  get(key, fallback = null) {
     try {
-      const v = localStorage.getItem(k);
-      return v === null ? fallback : JSON.parse(v);
+      const value = localStorage.getItem(key);
+
+      return value === null
+        ? fallback
+        : JSON.parse(value);
     } catch {
       return fallback;
     }
   },
-  set(k, v) {
-    localStorage.setItem(k, JSON.stringify(v));
+
+  set(key, value) {
+    localStorage.setItem(
+      key,
+      JSON.stringify(value)
+    );
   }
 };
 
-const delay = () => new Promise(r => setTimeout(r, 220));
-const cleanUser = u => ({ id: u.id, name: u.name, email: u.email });
+const delay = () =>
+  new Promise(resolve => setTimeout(resolve, 220));
 
-const normalizePlaces = x =>
-  Array.isArray(x) ? x : (x?.places || x?.items || x?.results || []);
+const normalizePlaces = data =>
+  Array.isArray(data)
+    ? data
+    : (data?.places || data?.items || data?.results || []);
 
-/* ---------- Vi tri GPS (de AI tim "gan toi") ---------- */
-let userPos = {};
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(
-    p => {
-      userPos = {
-        latitude: p.coords.latitude,
-        longitude: p.coords.longitude
-      };
-    },
-    () => {},
-    { timeout: 8000 }
-  );
-}
+// ================================
+// DANH MỤC ĐỊA ĐIỂM
+// ================================
 
-/* ---------- Anh xa danh muc: giao dien (tieng Viet) -> DB ---------- */
 const CATEGORY_TO_DB = {
   'Tham quan': 'tourist_attraction',
   'Biển': 'tourist_attraction',
@@ -77,608 +74,1043 @@ const CATEGORY_EMOJI = {
   shopping: '🛍️'
 };
 
-/* Chuyen 1 ban ghi tu backend sang dang giao dien dang dung va lam giau du lieu */
-function mapPlace(p) {
-  if (!p) return p;
+const TOPIC_WORDS = {
+  'Biển': ['biển', 'bãi'],
 
-  const addr = p.address || '';
-  const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
+  'Thiên nhiên': [
+    'rừng',
+    'núi',
+    'đèo',
+    'bán đảo',
+    'suối',
+    'thác',
+    'hồ',
+    'ghềnh'
+  ],
 
-  // Chuẩn hóa tên để so khớp chính xác với DEMO_PLACES
-  const normalize = (str) => String(str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
+  'Văn hóa': [
+    'chùa',
+    'bảo tàng',
+    'nhà thờ',
+    'thánh địa',
+    'phố cổ',
+    'làng'
+  ]
+};
 
-  const pNorm = normalize(p.name);
+// ================================
+// CHUẨN HÓA ĐỊA ĐIỂM
+// ================================
 
-  // Tim trong DEMO_PLACES de lam giau thong tin chi tiet (activities, highlights, best_time, tips, ticket_price, sourceUrl)
-  // Ưu tiên so khớp theo TÊN để tránh xung đột ID tự tăng giữa database và demo
-  const demo = (window.DEMO_PLACES || []).find(d => {
-    const dNorm = normalize(d.name);
-    return dNorm && pNorm && dNorm === pNorm;
-  }) || (window.DEMO_PLACES || []).find(d => {
-    const dNorm = normalize(d.name);
-    return dNorm && pNorm && (dNorm.includes(pNorm) || pNorm.includes(dNorm));
-  }) || (window.DEMO_PLACES || []).find(d => {
-    const dNorm = normalize(d.name);
-    return String(d.id) === String(p.id) && (!dNorm || !pNorm || dNorm === pNorm);
-  });
+function mapPlace(place) {
+  const rawCategory =
+    place.rawCategory || place.category || '';
 
-  const rawCat = p.rawCategory || p.category || (demo ? (demo.rawCategory || demo.category) : '');
-  const catLabel = CATEGORY_LABEL[rawCat] || p.category || (demo ? demo.category : 'Tham quan');
+  const address = place.address || '';
 
-  // Lấy ảnh chuẩn cho địa điểm
-  let placeImg = '';
-  if (typeof getPlaceImage === 'function') {
-    placeImg = getPlaceImage(p) || (demo ? getPlaceImage(demo) : '');
-  }
-  if (!placeImg && demo && demo.image) {
-    placeImg = demo.image;
-  }
-  if (!placeImg && p.image) {
-    placeImg = p.image;
-  }
+  const parts = address
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  const district =
+    place.district ||
+    (parts.length >= 2
+      ? parts[parts.length - 2]
+      : 'Đà Nẵng');
 
   return {
-    ...(demo || {}),
-    ...p,
-    id: p.id !== undefined ? p.id : (demo ? demo.id : p.id),
-    name: p.name || (demo ? demo.name : ''),
-    image: placeImg,
-    category: catLabel,
-    rawCategory: rawCat,
-    district: parts.length >= 2 ? parts[parts.length - 2] : ((demo && demo.district) || 'Đà Nẵng'),
-    area: (demo && demo.area) || (parts.length >= 2 ? parts[parts.length - 2] : 'Đà Nẵng'),
-    address: p.address || (demo && demo.address) || '',
-    emoji: (demo && demo.emoji) || CATEGORY_EMOJI[rawCat] || '📍',
-    rating: p.rating ?? (demo ? demo.rating : null),
-    latitude: p.latitude ?? (demo ? demo.latitude : null),
-    longitude: p.longitude ?? (demo ? demo.longitude : null),
-    opening_hours: p.opening_hours || (demo ? demo.opening_hours : ''),
-    price_level: p.price_level ?? (demo ? demo.price_level : 1),
-    ticket_price: (demo && demo.ticket_price) || (p.price_level ? (p.price_level === 1 ? 'Miễn phí / Tiết kiệm' : p.price_level === 2 ? 'Bình dân (~50.000 – 150.000 VNĐ)' : p.price_level === 3 ? 'Trung cấp (~200.000 – 600.000 VNĐ)' : 'Cao cấp (~700.000 – 1.500.000 VNĐ)') : 'Vui lòng xác nhận trước khi đi'),
-    activities: (demo && Array.isArray(demo.activities) && demo.activities.length) ? demo.activities : (p.activities || []),
-    highlights: (demo && demo.highlights) || p.highlights || '',
-    best_time: (demo && demo.best_time) || p.best_time || '',
-    tips: (demo && demo.tips) || p.tips || '',
-    distanceNote: (demo && demo.distanceNote) || p.distanceNote || '',
-    sourceUrl: p.sourceUrl || (demo && demo.sourceUrl) || null
+    ...place,
+
+    category:
+      CATEGORY_LABEL[rawCategory] ||
+      place.category ||
+      'Tham quan',
+
+    rawCategory,
+
+    district,
+
+    area: place.area || district,
+
+    emoji:
+      place.emoji ||
+      CATEGORY_EMOJI[rawCategory] ||
+      '📍',
+
+    description: place.description || '',
+
+    activities: Array.isArray(place.activities)
+      ? place.activities
+      : [],
+
+    latitude:
+      place.latitude ?? place.lat ?? null,
+
+    longitude:
+      place.longitude ?? place.lng ?? null
   };
 }
 
-/* Lay thong bao loi tu nhieu dinh dang tra ve cua backend */
-function extractError(payload, status) {
-  if (!payload) return `HTTP ${status}`;
-  if (Array.isArray(payload.details) && payload.details.length) {
-    return payload.details.map(d => `${d.field}: ${d.message}`).join('; ');
+// ================================
+// XỬ LÝ THÔNG BÁO LỖI
+// ================================
+
+function errorMessage(data, status) {
+  if (Array.isArray(data?.detail)) {
+    return data.detail
+      .map(item =>
+        item.msg ||
+        item.message ||
+        JSON.stringify(item)
+      )
+      .join('; ');
   }
+
+  if (typeof data?.detail === 'string') {
+    return data.detail;
+  }
+
+  if (Array.isArray(data?.details)) {
+    return data.details
+      .map(item =>
+        item.message ||
+        item.msg ||
+        JSON.stringify(item)
+      )
+      .join('; ');
+  }
+
   return (
-    payload.error ||
-    payload.detail ||
-    payload.message ||
+    data?.error ||
+    data?.message ||
     `HTTP ${status}`
   );
 }
 
+// ================================
+// KIỂM TRA JWT TOKEN
+// ================================
+
+function validLocalToken(token) {
+  if (!token || token === 'demo-token') {
+    return false;
+  }
+
+  try {
+    const parts = token.split('.');
+
+    if (parts.length !== 3) {
+      return false;
+    }
+
+    const payload = JSON.parse(
+      atob(
+        parts[1]
+          .replace(/-/g, '+')
+          .replace(/_/g, '/')
+      )
+    );
+
+    return (
+      !payload.exp ||
+      payload.exp * 1000 > Date.now()
+    );
+
+  } catch {
+    return false;
+  }
+}
+
+// Kiểm tra ở đây chỉ để cập nhật giao diện.
+// Backend vẫn phải xác thực chữ ký và quyền của JWT.
+
+function itineraryIdKey() {
+  return (
+    'lg_itinerary_server_id_' +
+    (API.user()?.email || 'guest')
+  );
+}
+
+// ================================
+// API CHÍNH
+// ================================
+
 const API = {
 
-  /* ---------------- Ham goi API chung ---------------- */
-  async request(path, { method = 'GET', body, auth = false } = {}) {
-    const headers = { 'Content-Type': 'application/json' };
+  // ==============================
+  // GỬI REQUEST ĐẾN BACKEND
+  // ==============================
 
-    if (auth) {
-      const token = localStorage.getItem(CFG.TOKEN_KEY);
-      if (token) headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Tu dong dinh tuyen sang FastAPI cong 8000 neu FE dang mo bang Live Server cong 5500/3000
-    let apiBase = CFG.API_BASE || '';
-    if (!apiBase && typeof location !== 'undefined' && (location.port === '5500' || location.port === '3000' || location.port === '5173')) {
-      apiBase = 'http://127.0.0.1:8000';
-    }
-
-    let response;
-    try {
-      response = await fetch(apiBase + path, {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body)
-      });
-    } catch {
-      throw new Error(
-        'Không kết nối được Backend. Kiểm tra FastAPI (cổng 8000), CORS và API_BASE.'
-      );
-    }
-
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      if (response.status === 401 && auth) {
-        localStorage.removeItem(CFG.TOKEN_KEY);
-        localStorage.removeItem('lg_current_user');
-      }
-      throw new Error(extractError(payload, response.status));
-    }
-
-    return payload;
-  },
-
-  /* ---------------- Dang ky ---------------- */
-  async register(name, email, password) {
-    if (!CFG.USE_MOCK) {
-      // Backend yeu cau truong "username"
-      return this.request('/auth/register', {
-        method: 'POST',
-        body: { username: name, email, password }
-      });
-    }
-
-    await delay();
-    const users = store.get('lg_users', []);
-
-    if (users.some(x => x.email === email.toLowerCase())) {
-      throw new Error('Email đã tồn tại trong dữ liệu demo.');
-    }
-
-    users.push({ id: Date.now(), name, email: email.toLowerCase(), password });
-    store.set('lg_users', users);
-    return { message: 'Đăng ký thành công' };
-  },
-
-  /* ---------------- Dang nhap ---------------- */
-  async login(email, password) {
-    if (!CFG.USE_MOCK) {
-      const res = await this.request('/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      });
-
-      localStorage.setItem(CFG.TOKEN_KEY, res.access_token);
-
-      // Backend tra username/email/role o cap ngoai, khong co res.user
-      const user = {
-        id: res.user_id,
-        name: res.username || email.split('@')[0],
-        email: res.email || email,
-        role: res.role
-      };
-
-      store.set('lg_current_user', user);
-      return user;
-    }
-
-    await delay();
-    const user = store
-      .get('lg_users', [])
-      .find(x => x.email === email.toLowerCase() && x.password === password);
-
-    if (!user) throw new Error('Email hoặc mật khẩu không đúng.');
-
-    const safe = cleanUser(user);
-    store.set('lg_current_user', safe);
-    localStorage.setItem(CFG.TOKEN_KEY, 'demo-token');
-    return safe;
-  },
-
-  /* ---------------- Dang nhap bang Google ---------------- */
-  async googleLogin({ credential, access_token, email, name, picture, google_id } = {}) {
-    if (!CFG.USE_MOCK) {
-      const res = await this.request('/auth/google', {
-        method: 'POST',
-        body: { credential, access_token, email, name, picture, google_id }
-      });
-
-      localStorage.setItem(CFG.TOKEN_KEY, res.access_token);
-
-      const user = {
-        id: res.user_id,
-        name: res.username || (email ? email.split('@')[0] : 'Google User'),
-        email: res.email || email,
-        role: res.role,
-        picture: picture || ''
-      };
-
-      store.set('lg_current_user', user);
-      return user;
-    }
-
-    await delay();
-    const gEmail = (email || 'google.user@gmail.com').toLowerCase();
-    const gName = name || gEmail.split('@')[0];
-
-    let users = store.get('lg_users', []);
-    let user = users.find(x => x.email === gEmail);
-
-    if (!user) {
-      user = { id: Date.now(), name: gName, email: gEmail, role: 'user', picture };
-      users.push(user);
-      store.set('lg_users', users);
-    }
-
-    const safe = cleanUser(user);
-    store.set('lg_current_user', safe);
-    localStorage.setItem(CFG.TOKEN_KEY, 'demo-google-token');
-    return safe;
-  },
-
-  /* ---------------- Dang nhap bang Facebook ---------------- */
-  async facebookLogin({ access_token, signed_request, email, name, picture, facebook_id } = {}) {
-    if (!CFG.USE_MOCK) {
-      const res = await this.request('/auth/facebook', {
-        method: 'POST',
-        body: { access_token, signed_request, email, name, picture, facebook_id }
-      });
-
-      localStorage.setItem(CFG.TOKEN_KEY, res.access_token);
-
-      const user = {
-        id: res.user_id,
-        name: res.username || (name || (email ? email.split('@')[0] : 'Facebook User')),
-        email: res.email || email,
-        role: res.role,
-        picture: picture || ''
-      };
-
-      store.set('lg_current_user', user);
-      return user;
-    }
-
-    await delay();
-    const fbEmail = (email || (facebook_id ? `fb_${facebook_id}@facebook.com` : 'facebook.user@gmail.com')).toLowerCase();
-    const fbName = name || fbEmail.split('@')[0];
-
-    let users = store.get('lg_users', []);
-    let user = users.find(x => x.email === fbEmail);
-
-    if (!user) {
-      user = { id: Date.now(), name: fbName, email: fbEmail, role: 'user', picture };
-      users.push(user);
-      store.set('lg_users', users);
-    }
-
-    const safe = cleanUser(user);
-    store.set('lg_current_user', safe);
-    localStorage.setItem(CFG.TOKEN_KEY, 'demo-facebook-token');
-    return safe;
-  },
-
-  logout() {
-
-    localStorage.removeItem(CFG.TOKEN_KEY);
-    localStorage.removeItem('lg_current_user');
-    location.href = 'login.html';
-  },
-
-  user() {
-    return store.get('lg_current_user');
-  },
-
-  async getProfile() {
-    if (!CFG.USE_MOCK) {
-      try {
-        const u = await this.request('/auth/me', { auth: true });
-        const user = {
-          id: u.id,
-          name: u.username,
-          email: u.email,
-          role: u.role
-        };
-        store.set('lg_current_user', user);
-        return user;
-      } catch {
-        return this.user();
-      }
-    }
-    return this.user();
-  },
-
-  isLogged() {
-    return !!localStorage.getItem(CFG.TOKEN_KEY);
-  },
-
-  /* ---------------- Danh sach dia diem ---------------- */
-  async places(params = {}) {
-    if (!CFG.USE_MOCK) {
-      try {
-        const query = {};
-
-        if (params.q) query.keyword = params.q;
-        if (params.keyword) query.keyword = params.keyword;
-
-        if (params.category && params.category !== 'all') {
-          query.category = CATEGORY_TO_DB[params.category] || params.category;
-        }
-
-        if (params.max_price) query.max_price = params.max_price;
-        let list;
-        if (params.allPages) {
-          const pageSize = 100;
-          let skip = 0;
-          let total = Infinity;
-          list = [];
-
-          while (skip < total) {
-            const qs = new URLSearchParams({
-              ...query,
-              skip: String(skip),
-              limit: String(pageSize)
-            });
-            const data = await this.request('/places/?' + qs);
-            const page = normalizePlaces(data).map(mapPlace);
-            list.push(...page);
-            skip += page.length;
-            total = Number(data.total ?? skip);
-            if (!page.length) break;
-          }
-        } else {
-          query.limit = params.limit || 100;
-          const qs = new URLSearchParams(query);
-          const data = await this.request('/places/?' + qs);
-          list = normalizePlaces(data).map(mapPlace);
-        }
-
-        // Cac nhan nhu "Biển", "Thiên nhiên" cung la tourist_attraction trong DB,
-        // nen loc them theo ten/mo ta cho dung chu de.
-        const topicWords = {
-          'Biển': ['biển', 'bãi'],
-          'Thiên nhiên': ['rừng', 'núi', 'đèo', 'bán đảo', 'thiên nhiên'],
-          'Văn hóa': ['phố cổ', 'chùa', 'bảo tàng', 'nhà thờ', 'thánh địa', 'làng']
-        };
-
-        const words = topicWords[params.category];
-        if (words) {
-          const filtered = list.filter(p => {
-            const text = `${p.name} ${p.description || ''}`.toLocaleLowerCase('vi');
-            return words.some(w => text.includes(w));
-          });
-          list = filtered.length ? filtered : list;
-        }
-
-        return list;
-      } catch (err) {
-        console.warn('Backend /places fetch failed, falling back to DEMO_PLACES:', err);
-      }
-    }
-
-    await delay();
-    const q = (params.q || '').toLocaleLowerCase('vi');
-
-    return (window.DEMO_PLACES || []).map(mapPlace).filter(p =>
-      (!q ||
-        (
-          p.name + ' ' + (p.description || '') + ' ' + (p.district || '') + ' ' +
-          (p.area || '') + ' ' + (p.activities || []).join(' ')
-        )
-          .toLocaleLowerCase('vi')
-          .includes(q)) &&
-      (!params.category || params.category === 'all' || p.category === params.category)
+  async request(
+    path,
+    {
+      method = 'GET',
+      body,
+      auth = false
+    } = {}
+  ) {
+    const token = localStorage.getItem(
+      CFG.TOKEN_KEY
     );
-  },
 
-  /* ---------------- Chi tiet 1 dia diem ---------------- */
-  async place(id) {
-    if (!CFG.USE_MOCK) {
-      try {
-        const data = await this.request('/places/' + encodeURIComponent(id));
-        return mapPlace(data);
-      } catch (err) {
-        // Fallback sang DEMO_PLACES neu backend khong tim thay ID hoac backend offline
-        const demo = (window.DEMO_PLACES || []).find(p => String(p.id) === String(id));
-        if (demo) return mapPlace(demo);
-        throw err;
-      }
-    }
-
-    await delay();
-    const demo = (window.DEMO_PLACES || []).find(p => String(p.id) === String(id)) || null;
-    return demo ? mapPlace(demo) : null;
-  },
-
-  /* ---------------- Dia diem gan toi ---------------- */
-  async nearby(radiusKm = 5, category = '') {
-    if (userPos.latitude === undefined) {
-      throw new Error('Chưa lấy được vị trí của bạn. Hãy cho phép truy cập vị trí.');
-    }
-
-    const query = {
-      latitude: userPos.latitude,
-      longitude: userPos.longitude,
-      radius_km: radiusKm
+    const headers = {
+      Accept: 'application/json'
     };
 
-    if (category) query.category = CATEGORY_TO_DB[category] || category;
-
-    const data = await this.request('/places/nearby?' + new URLSearchParams(query));
-    return normalizePlaces(data).map(mapPlace);
-  },
-
-  /* ---------------- Goi y ca nhan hoa ---------------- */
-  async recommend(category = 'all') {
-    if (!CFG.USE_MOCK) {
-      const query = category && category !== 'all'
-        ? `?category=${encodeURIComponent(category)}`
-        : '';
-
-      // Co dang nhap thi dung goi y theo so thich, neu loi thi lay danh sach thuong
-      try {
-        const data = await this.request('/recommendations/for-me', { auth: true });
-        let list = normalizePlaces(data).map(mapPlace);
-        if (category && category !== 'all') {
-          const catLower = category.toLowerCase();
-          const filtered = list.filter(p =>
-            (p.category && p.category.toLowerCase() === catLower) ||
-            (p.rawCategory && p.rawCategory.toLowerCase() === (CATEGORY_TO_DB[category] || category).toLowerCase())
-          );
-          if (filtered.length) return filtered;
-        }
-        return list;
-      } catch {
-        const data = await this.request('/recommendations' + query);
-        return normalizePlaces(data).map(mapPlace);
-      }
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
     }
 
-    const arr = await this.places({ category });
-
-    return category === 'all'
-      ? [...arr.filter(p => p.id >= 9).slice(0, 2), ...arr.filter(p => p.id < 9).slice(0, 2)]
-      : arr.slice(0, 4);
-  },
-
-  /* ---------------- CHAT AI (luon goi backend that) ---------------- */
-  async chat(message) {
-    const headers = { 'Content-Type': 'application/json' };
-
-    // Gui token neu co (khong bat buoc voi /agent/chat)
-    const token = localStorage.getItem(CFG.TOKEN_KEY);
-    if (token && token !== 'demo-token') {
+    if (auth && validLocalToken(token)) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     let response;
+
     try {
-      response = await fetch(`${CFG.API_BASE}/agent/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ message, ...userPos })
-      });
+
+    response = await fetch(
+  (CFG.API_BASE || '').replace(/\/$/, '') + path,
+  {
+    method,
+    headers,
+    credentials: "include",
+
+    body: body === undefined
+      ? undefined
+      : JSON.stringify(body)
+  }
+);
+
+
     } catch {
-      throw new Error('Không kết nối được Chat AI. Hãy kiểm tra FastAPI ở cổng 8000.');
+      throw new Error(
+        'Không kết nối được Backend. ' +
+        'Kiểm tra FastAPI, CORS và API_BASE.'
+      );
     }
 
-    const result = await response.json().catch(() => ({}));
+    const data = await response
+      .json()
+      .catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(extractError(result, response.status));
-    }
 
-    return result.reply || result.answer || result.response || 'AI chưa trả về nội dung.';
-  },
-
-  /* ---------------- Yeu thich (Dong bo Backend /favorites + Cache Local) ---------------- */
-  async favorites() {
-    if (!CFG.USE_MOCK && this.isLogged()) {
-      try {
-        const ids = await this.request('/favorites', { auth: true });
-        if (Array.isArray(ids)) {
-          store.set('lg_favorites_' + this.user()?.email, ids);
-          return ids;
-        }
-      } catch (err) {
-        console.warn('Khong lay duoc yeu thich tu backend, dung cache:', err.message);
+      if (response.status === 401 && auth) {
+        localStorage.removeItem(CFG.TOKEN_KEY);
+        localStorage.removeItem('lg_current_user');
       }
-    }
 
-    // Tra ve mang ID de places.js va recommendations.js dung saved.includes(p.id)
-    return store.get('lg_favorites_' + this.user()?.email, []);
-  },
-
-  async favoritePlaces() {
-    if (!CFG.USE_MOCK && this.isLogged()) {
-      try {
-        const data = await this.request('/favorites/details', { auth: true });
-        return normalizePlaces(data).map(mapPlace);
-      } catch {}
-    }
-    const ids = await this.favorites();
-    if (!ids.length) return [];
-    if (!CFG.USE_MOCK) {
-      const results = await Promise.all(
-        ids.map(id => this.place(id).catch(() => null))
+      throw new Error(
+        errorMessage(data, response.status)
       );
-      return results.filter(Boolean);
     }
-    return window.DEMO_PLACES.filter(p => ids.includes(p.id));
+
+    return data;
   },
+
+  // ==============================
+  // ĐĂNG KÝ TÀI KHOẢN
+  // ==============================
+
+  async register(name, email, password) {
+
+    if (!CFG.USE_MOCK) {
+      return this.request('/auth/register', {
+        method: 'POST',
+
+        body: {
+          username: name.trim(),
+          email: email.trim(),
+          password
+        }
+      });
+    }
+
+    await delay();
+
+    const users = store.get('lg_users', []);
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    if (
+      users.some(user =>
+        user.email === normalizedEmail
+      )
+    ) {
+      throw new Error(
+        'Email đã tồn tại trong dữ liệu demo.'
+      );
+    }
+
+    users.push({
+      id: Date.now(),
+      name,
+      email: normalizedEmail,
+      password
+    });
+
+    store.set('lg_users', users);
+
+    return {
+      message: 'Đăng ký thành công'
+    };
+  },
+
+  // ==============================
+  // ĐĂNG NHẬP EMAIL
+  // ==============================
+
+  async login(email, password) {
+
+    if (!CFG.USE_MOCK) {
+
+      const result = await this.request(
+        '/auth/login',
+        {
+          method: 'POST',
+
+          body: {
+            email: email.trim(),
+            password
+          }
+        }
+      );
+
+      if (!result.access_token) {
+        throw new Error(
+          'Backend không trả về JWT token.'
+        );
+      }
+
+      const user = {
+        id: result.user_id,
+
+        name:
+          result.username ||
+          email.split('@')[0],
+
+        email: result.email || email,
+
+        role: result.role
+      };
+
+      localStorage.setItem(
+        CFG.TOKEN_KEY,
+        result.access_token
+      );
+
+      store.set('lg_current_user', user);
+
+      return user;
+    }
+
+    // Đăng nhập demo
+    await delay();
+
+    const user = store.get(
+      'lg_users',
+      []
+    ).find(item =>
+      item.email === email.trim().toLowerCase() &&
+      item.password === password
+    );
+
+    if (!user) {
+      throw new Error(
+        'Email hoặc mật khẩu không đúng.'
+      );
+    }
+
+    const safe = {
+      id: user.id,
+      name: user.name,
+      email: user.email
+    };
+
+    store.set('lg_current_user', safe);
+
+    localStorage.setItem(
+      CFG.TOKEN_KEY,
+      'demo-token'
+    );
+
+    return safe;
+  },
+
+  // ==============================
+  // ĐĂNG XUẤT
+  // ==============================
+
+  logout() {
+    localStorage.removeItem(
+      CFG.TOKEN_KEY
+    );
+
+    localStorage.removeItem(
+      'lg_current_user'
+    );
+
+    sessionStorage.removeItem(
+      'danang_oauth_user'
+    );
+
+    location.href = 'login.html';
+  },
+
+  // ==============================
+  // LẤY USER ĐANG ĐĂNG NHẬP
+  // ==============================
+
+  user() {
+    return store.get(
+      'lg_current_user'
+    );
+  },
+
+  // ==============================
+  // KIỂM TRA ĐĂNG NHẬP
+  // ==============================
+
+
+isLogged() {
+  const token = localStorage.getItem(CFG.TOKEN_KEY);
+
+  return CFG.USE_MOCK
+    ? !!token
+    : validLocalToken(token) ||
+      this._cookieAuthenticated === true;
+},
+
+  // ==============================
+  // LẤY THÔNG TIN TÀI KHOẢN
+  // ==============================
+
+
+async getProfile() {
+
+  if (CFG.USE_MOCK) {
+    return this.user();
+  }
+
+  try {
+    const result = await this.request(
+      '/auth/me',
+      {
+        auth: true
+      }
+    );
+
+    // Backend da xac thuc phien dang nhap
+    this._cookieAuthenticated = true;
+
+    const user = {
+      id: result.id,
+
+      name:
+        result.username ||
+        result.name ||
+        result.email,
+
+      email: result.email,
+
+      role: result.role
+    };
+
+    store.set('lg_current_user', user);
+
+    return user;
+
+  } catch (error) {
+
+    // Khong xac thuc duoc phien
+    this._cookieAuthenticated = false;
+
+    if (!this.isLogged()) {
+      return null;
+    }
+
+    throw error;
+  }
+},
+
+  // ==============================
+  // LẤY DANH SÁCH ĐỊA ĐIỂM
+  // ==============================
+
+  async places(params = {}) {
+
+    if (!CFG.USE_MOCK) {
+
+      const category = params.category;
+
+      const query = new URLSearchParams();
+
+      const keyword =
+        params.q || params.keyword;
+
+      if (keyword) {
+        query.set('keyword', keyword);
+      }
+
+      if (
+        category &&
+        category !== 'all'
+      ) {
+        query.set(
+          'category',
+          CATEGORY_TO_DB[category] || category
+        );
+      }
+
+      const limit = 100;
+      const places = [];
+      let skip = 0;
+      let total = Infinity;
+
+      do {
+        query.set('limit', String(limit));
+        query.set('skip', String(skip));
+
+        const data = await this.request(
+          '/places/?' + query.toString()
+        );
+        const page = normalizePlaces(data).map(mapPlace);
+        places.push(...page);
+        skip += page.length;
+        total = Number(data.total);
+
+        if (
+          !params.allPages ||
+          page.length < limit ||
+          !Number.isFinite(total) ||
+          skip >= total
+        ) {
+          break;
+        }
+      } while (skip < total);
+
+      if (TOPIC_WORDS[category]) {
+
+        const words = TOPIC_WORDS[category];
+
+        places = places.filter(place => {
+          const text = (
+            `${place.name} ${place.description}`
+          ).toLocaleLowerCase('vi');
+
+          return words.some(word =>
+            text.includes(word)
+          );
+
+        }).map(place => ({
+          ...place,
+          category
+        }));
+      }
+
+      return places;
+    }
+
+    // Dữ liệu demo
+    await delay();
+
+    const q = (
+      params.q ||
+      params.keyword ||
+      ''
+    ).toLocaleLowerCase('vi');
+
+    return (
+      window.DEMO_PLACES || []
+    ).filter(place => {
+
+      const searchable = [
+        place.name,
+        place.description,
+        place.district,
+        place.area,
+        ...(place.activities || [])
+      ]
+        .join(' ')
+        .toLocaleLowerCase('vi');
+
+      return (
+        (!q || searchable.includes(q)) &&
+        (
+          !params.category ||
+          params.category === 'all' ||
+          place.category === params.category
+        )
+      );
+    });
+  },
+
+  // ==============================
+  // LẤY CHI TIẾT MỘT ĐỊA ĐIỂM
+  // ==============================
+
+  async place(id) {
+
+    if (!CFG.USE_MOCK) {
+
+      const data = await this.request(
+        '/places/' + encodeURIComponent(id)
+      );
+
+      return mapPlace(data);
+    }
+
+    await delay();
+
+    return (
+      window.DEMO_PLACES || []
+    ).find(place =>
+      String(place.id) === String(id)
+    ) || null;
+  },
+
+  async nearby(latitude, longitude, radiusKm = 5, category = '') {
+    const latitudeValue = Number(latitude);
+    const longitudeValue = Number(longitude);
+    const radiusValue = Number(radiusKm);
+
+    if (
+      !Number.isFinite(latitudeValue) ||
+      latitudeValue < -90 ||
+      latitudeValue > 90 ||
+      !Number.isFinite(longitudeValue) ||
+      longitudeValue < -180 ||
+      longitudeValue > 180
+    ) {
+      throw new Error('Vui lòng cung cấp vị trí hợp lệ để tìm địa điểm gần đây.');
+    }
+    if (!Number.isFinite(radiusValue) || radiusValue <= 0 || radiusValue > 50) {
+      throw new Error('Bán kính tìm kiếm phải lớn hơn 0 và không quá 50 km.');
+    }
+
+    if (!CFG.USE_MOCK) {
+      const query = new URLSearchParams({
+        latitude: String(latitudeValue),
+        longitude: String(longitudeValue),
+        radius_km: String(radiusValue)
+      });
+
+      if (category && category !== 'all') {
+        query.set('category', CATEGORY_TO_DB[category] || category);
+      }
+
+      const data = await this.request(
+        '/places/nearby?' + query.toString()
+      );
+
+      return normalizePlaces(data).map(mapPlace);
+    }
+
+    const radians = degrees => (degrees * Math.PI) / 180;
+    const places = await this.places({ category });
+
+    return places
+      .filter(place =>
+        Number.isFinite(Number(place.latitude)) &&
+        Number.isFinite(Number(place.longitude))
+      )
+      .map(place => {
+        const latitudeDelta = radians(Number(place.latitude) - latitudeValue);
+        const longitudeDelta = radians(Number(place.longitude) - longitudeValue);
+        const value =
+          Math.sin(latitudeDelta / 2) ** 2 +
+          Math.cos(radians(latitudeValue)) *
+            Math.cos(radians(Number(place.latitude))) *
+            Math.sin(longitudeDelta / 2) ** 2;
+        const distance = 6371 * 2 * Math.atan2(
+          Math.sqrt(value),
+          Math.sqrt(1 - Math.min(1, value))
+        );
+
+        return { ...place, distance_km: Number(distance.toFixed(2)) };
+      })
+      .filter(place => place.distance_km <= radiusValue)
+      .sort((a, b) => a.distance_km - b.distance_km);
+  },
+
+  // ==============================
+  // GỢI Ý ĐỊA ĐIỂM
+  // ==============================
+
+  async recommend(category = 'all') {
+
+    if (!CFG.USE_MOCK) {
+
+      const query = new URLSearchParams({
+        limit: '20'
+      });
+
+      if (
+        category &&
+        category !== 'all'
+      ) {
+        query.set('category', category);
+      }
+
+      const data = await this.request(
+        '/recommendations?' +
+        query.toString()
+      );
+
+      return normalizePlaces(data)
+        .map(mapPlace)
+        .map(place =>
+          TOPIC_WORDS[category]
+            ? { ...place, category }
+            : place
+        );
+    }
+
+    const places = await this.places({
+      category
+    });
+
+    return places.slice(0, 4);
+  },
+
+  // ==============================
+  // CHAT AI
+  // ==============================
+
+  async chat(message) {
+
+    if (!CFG.USE_MOCK) {
+
+      const result = await this.request(
+        '/agent/chat',
+        {
+          method: 'POST',
+
+          body: {
+            message: String(message).trim()
+          }
+        }
+      );
+
+      return (
+        result.reply ||
+        result.answer ||
+        result.response ||
+        'AI chưa trả về nội dung.'
+      );
+    }
+
+    await delay();
+
+    const places = (
+      window.DEMO_PLACES || []
+    ).slice(0, 3);
+
+    return (
+      '🤖 Chế độ demo — chưa gọi AI thật.\n\n' +
+      'Gợi ý: ' +
+      places.map(p => p.name).join(', ') +
+      '.'
+    );
+  },
+
+  // ==============================
+  // DANH SÁCH YÊU THÍCH
+  // ==============================
+
+  async favorites() {
+
+    if (!CFG.USE_MOCK) {
+
+      const ids = await this.request(
+        '/favorites',
+        {
+          auth: true
+        }
+      );
+
+      return Array.isArray(ids)
+        ? ids
+        : [];
+    }
+
+    return store.get(
+      'lg_favorites_' +
+      (this.user()?.email || 'guest'),
+      []
+    );
+  },
+
+  // ==============================
+  // THÊM / XÓA YÊU THÍCH
+  // ==============================
 
   async toggleFavorite(id) {
-    const key = 'lg_favorites_' + this.user()?.email;
-    let ids = store.get(key, []);
 
-    if (!CFG.USE_MOCK && this.isLogged()) {
-      try {
-        const res = await this.request('/favorites/' + encodeURIComponent(id), {
+    if (!CFG.USE_MOCK) {
+
+      const result = await this.request(
+        '/favorites/' +
+        encodeURIComponent(id),
+        {
           method: 'POST',
           auth: true
-        });
-        if (res && Array.isArray(res.place_ids)) {
-          store.set(key, res.place_ids);
-          return res.place_ids;
         }
-      } catch (err) {
-        console.warn('Khong dong bo duoc yeu thich len server:', err.message);
-      }
+      );
+
+      return Array.isArray(
+        result.place_ids
+      )
+        ? result.place_ids
+        : [];
     }
 
-    ids = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
+    const key =
+      'lg_favorites_' +
+      (this.user()?.email || 'guest');
+
+    let ids = store.get(key, []);
+
+    const numericId = Number(id);
+
+    ids = ids.includes(numericId)
+      ? ids.filter(x => x !== numericId)
+      : [...ids, numericId];
+
     store.set(key, ids);
+
     return ids;
   },
 
-  /* ---------------- Lich trinh (danh sach dia diem da chon) ---------------- */
-  async saveItinerary(ids) {
-    store.set('lg_itinerary_' + this.user()?.email, ids);
-
-    // Dong thoi luu len backend (neu dang o che do API va co token that)
-    if (!CFG.USE_MOCK && ids.length) {
-      try {
-        const existingId = store.get('lg_itinerary_server_id_' + this.user()?.email);
-        const items = ids.map((placeId, index) => ({
-          place_id: placeId,
-          day_number: 1,
-          order_index: index + 1
-        }));
-
-        if (existingId) {
-          await this.request('/itineraries/' + existingId, { method: 'DELETE', auth: true })
-            .catch(() => {});
-        }
-
-        const created = await this.request('/itineraries/', {
-          method: 'POST',
-          auth: true,
-          body: {
-            title: 'Lịch trình Đà Nẵng',
-            total_days: 1,
-            items
-          }
-        });
-
-        store.set('lg_itinerary_server_id_' + this.user()?.email, created.id);
-      } catch (error) {
-        console.warn('Không đồng bộ được lịch trình lên server:', error.message);
-      }
-    }
-
-    return { ids };
-  },
+  // ==============================
+  // LẤY LỊCH TRÌNH
+  // ==============================
 
   async itinerary() {
-    const local = store.get('lg_itinerary_' + this.user()?.email, []);
 
-    // Neu local chua co nhung da dang nhap API that, thu lay tu server
-    if (!CFG.USE_MOCK && this.isLogged() && !local.length) {
-      try {
-        const data = await this.request('/itineraries/?limit=1', { auth: true });
-        const list = data.itineraries || [];
-        if (list.length && list[0].id) {
-          const detail = await this.request('/itineraries/' + list[0].id, { auth: true });
-          const ids = (detail.items || []).map(item => item.place_id).filter(Boolean);
-          if (ids.length) {
-            store.set('lg_itinerary_' + this.user()?.email, ids);
-            store.set('lg_itinerary_server_id_' + this.user()?.email, detail.id);
-            return ids;
-          }
+    if (CFG.USE_MOCK) {
+      return store.get(
+        'lg_itinerary_' +
+        (this.user()?.email || 'guest'),
+        []
+      );
+    }
+
+    const list = await this.request(
+      '/itineraries/?limit=50',
+      {
+        auth: true
+      }
+    );
+
+    const savedId = store.get(
+      itineraryIdKey()
+    );
+
+    const records = list.itineraries || [];
+
+    const selected =
+      records.find(x => x.id === savedId) ||
+      records.find(x =>
+        x.title === 'Lịch trình Đà Nẵng'
+      );
+
+    if (!selected) {
+      return [];
+    }
+
+    store.set(
+      itineraryIdKey(),
+      selected.id
+    );
+
+    const detail = await this.request(
+      '/itineraries/' + selected.id,
+      {
+        auth: true
+      }
+    );
+
+    return (
+      detail.items || []
+    )
+      .filter(item =>
+        item.place_id != null
+      )
+      .sort((a, b) =>
+        (a.day_number - b.day_number) ||
+        (a.order_index - b.order_index)
+      )
+      .map(item => item.place_id);
+  },
+
+  // ==============================
+  // LƯU LỊCH TRÌNH
+  // ==============================
+
+  async saveItinerary(ids) {
+
+    const uniqueIds = [
+      ...new Set(ids.map(Number))
+    ].filter(Number.isInteger);
+
+    if (CFG.USE_MOCK) {
+
+      store.set(
+        'lg_itinerary_' +
+        (this.user()?.email || 'guest'),
+        uniqueIds
+      );
+
+      return {
+        ids: uniqueIds
+      };
+    }
+
+    // Tìm lịch trình cũ
+    const records = await this.request(
+      '/itineraries/?limit=50',
+      {
+        auth: true
+      }
+    );
+
+    const savedId = store.get(
+      itineraryIdKey()
+    );
+
+    const current =
+      (
+        records.itineraries || []
+      ).find(x => x.id === savedId) ||
+
+      (
+        records.itineraries || []
+      ).find(x =>
+        x.title === 'Lịch trình Đà Nẵng'
+      );
+
+    // Nếu đã có lịch trình, kiểm tra ID
+    if (current) {
+
+      const detail = await this.request(
+        '/itineraries/' + current.id,
+        {
+          auth: true
         }
-      } catch (err) {
-        console.warn('Khong lay duoc lich trinh tu backend:', err.message);
+      );
+
+      const oldIds = (
+        detail.items || []
+      )
+        .filter(item =>
+          item.place_id != null
+        )
+        .sort((a, b) =>
+          (a.day_number - b.day_number) ||
+          (a.order_index - b.order_index)
+        )
+        .map(item => item.place_id);
+
+      // Không lưu lại nếu không thay đổi
+      if (
+        JSON.stringify(oldIds) ===
+        JSON.stringify(uniqueIds)
+      ) {
+        return {
+          ids: uniqueIds
+        };
       }
     }
 
-    return local;
+    // Xóa lịch trình nếu không còn địa điểm
+    if (uniqueIds.length === 0) {
+
+      if (current) {
+        await this.request(
+          '/itineraries/' + current.id,
+          {
+            method: 'DELETE',
+            auth: true
+          }
+        );
+      }
+
+      localStorage.removeItem(
+        itineraryIdKey()
+      );
+
+      return {
+        ids: []
+      };
+    }
+
+    // Tạo lịch trình mới
+    const created = await this.request(
+      '/itineraries/',
+      {
+        method: 'POST',
+        auth: true,
+
+        body: {
+          title: 'Lịch trình Đà Nẵng',
+
+          total_days: 1,
+
+          items: uniqueIds.map(
+            (placeId, index) => ({
+              place_id: placeId,
+              day_number: 1,
+              order_index: index + 1
+            })
+          )
+        }
+      }
+    );
+
+    store.set(
+      itineraryIdKey(),
+      created.id
+    );
+
+    // Chỉ xóa lịch trình cũ sau khi
+    // tạo lịch trình mới thành công
+    if (
+      current &&
+      current.id !== created.id
+    ) {
+      try {
+
+        await this.request(
+          '/itineraries/' + current.id,
+          {
+            method: 'DELETE',
+            auth: true
+          }
+        );
+
+      } catch (error) {
+        console.warn(
+          'Đã lưu lịch trình mới nhưng ' +
+          'chưa xóa được bản cũ:',
+          error
+        );
+      }
+    }
+
+    return {
+      ids: uniqueIds,
+      id: created.id
+    };
   }
+
 };
+
+// ================================
+// CHO CÁC FILE JS KHÁC SỬ DỤNG
+// ================================
 
 window.API = API;
