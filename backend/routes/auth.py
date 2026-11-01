@@ -219,7 +219,7 @@ def _oauth_redirect_url(provider, success):
         if success
         else f"?auth=error&provider={provider}"
     )
-    return f"{frontend_url}/{page}{query}"
+    return f"{frontend_url}/app/{page}{query}"
 
 
 def _oauth_user(db, email, name, provider):
