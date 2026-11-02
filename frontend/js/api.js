@@ -566,7 +566,7 @@ async getProfile() {
       }
 
       const limit = 100;
-      const places = [];
+      let places = [];
       let skip = 0;
       let total = Infinity;
 

@@ -4,6 +4,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!host) return;
 
   try {
+    try {
+      await API.getProfile();
+    } catch {}
+
     const places = await API.places({
       category: "tourist_attraction",
       limit: 100
@@ -12,9 +16,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter(place => getPlaceImage(place))
       .slice(0, 5);
 
+    const favorites = API.isLogged() ? await API.favorites() : [];
+
     host.innerHTML = featuredPlaces.map(p => `
       <div class="col-12 col-sm-6 col-lg">
-        ${placeCard(p, false, true)}
+        ${placeCard(p, favorites.includes(p.id), true)}
       </div>
     `).join("") || `
       <div class="col-12 empty">
@@ -25,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof wirePlaceActions === "function") {
       wirePlaceActions(host);
     }
+    await syncItineraryButtons(host);
   } catch (error) {
     flash(error.message);
   }
