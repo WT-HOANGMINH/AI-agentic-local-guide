@@ -4,7 +4,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from backend.routes.ai_guide import _compute, _get_state, _meta, full_text
+from backend.routes.ai_guide import (
+    _apply_llm,
+    _compute_request,
+    _get_state,
+    _meta,
+    _full_text,
+    _record_turn,
+)
 
 router = APIRouter(prefix="/agent", tags=["Agent Chat"])
 
@@ -24,11 +31,15 @@ async def chat(payload: ChatIn):
         raise HTTPException(status_code=400, detail="Vui long nhap cau hoi.")
     sid, st = _get_state(payload.session_id)
     try:
-        reply = await run_in_threadpool(_compute, message, st, payload.latitude, payload.longitude)
+        reply = await _compute_request(
+            message, st, payload.latitude, payload.longitude, None
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Khong the xu ly yeu cau AI luc nay.")
+    answer = await run_in_threadpool(_apply_llm, message, st, reply)
+    _record_turn(st, message, answer)
     return {
-        "reply": full_text(reply),
+        "reply": _full_text({**reply, "text": answer}),
         "intent": reply["intent"],
         "confidence": round(float(reply["confidence"]), 3),
         "session_id": sid,

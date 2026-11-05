@@ -15,6 +15,22 @@
   const SID_KEY = "dg_session_id";
   const state = { pos: null, controller: null, busy: false, cfg: null };
 
+  function getSessionId() {
+    try {
+      return sessionStorage.getItem(SID_KEY);
+    } catch (error) {
+      console.warn("Không thể đọc phiên chat trong trình duyệt.", error);
+      return null;
+    }
+  }
+  function setSessionId(value) {
+    try {
+      sessionStorage.setItem(SID_KEY, value);
+    } catch (error) {
+      console.warn("Không thể lưu phiên chat trong trình duyệt.", error);
+    }
+  }
+
   function defaultApiBase() {
     if (window.API_BASE_URL) return String(window.API_BASE_URL).replace(/\/$/, "");
     if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) return String(window.APP_CONFIG.API_BASE_URL).replace(/\/$/, "");
@@ -24,6 +40,32 @@
   }
 
   const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const TYPE_DELAY_MS = 20;
+  function graphemes(text) {
+    if (typeof Intl.Segmenter === "function") {
+      return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
+        .map((part) => part.segment);
+    }
+    return Array.from(text);
+  }
+  const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
+  function parseFrame(frame) {
+    const data = frame.split(/\r\n|\r|\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""))
+      .join("\n");
+    if (!data) return null;
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      throw new Error("Phản hồi streaming từ máy chủ không hợp lệ.");
+    }
+    if (!event || typeof event !== "object" || Array.isArray(event)) {
+      throw new Error("Phản hồi streaming từ máy chủ không hợp lệ.");
+    }
+    return event;
+  }
   function fmt(raw) {
     return esc(raw)
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
@@ -128,16 +170,84 @@
     toBottom(box, true);
   }
 
+  function renderItineraryAction(box, itinerary) {
+    if (!itinerary || !Array.isArray(itinerary.days)) return;
+
+    const wrap = el("div", "dg-itinerary-save");
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const text = document.createElement("span");
+    const status = document.createElement("span");
+
+    checkbox.type = "checkbox";
+    text.textContent = "Lưu lịch trình này";
+    status.className = "dg-itinerary-status";
+    label.append(checkbox, text);
+    wrap.append(label, status);
+
+    checkbox.addEventListener("change", async () => {
+      if (!checkbox.checked) return;
+      checkbox.disabled = true;
+      status.textContent = "Đang lưu…";
+
+      try {
+        if (!window.API || typeof window.API.saveChatItinerary !== "function") {
+          throw new Error("Chức năng lưu lịch trình chưa sẵn sàng.");
+        }
+        const saved = await window.API.saveChatItinerary(itinerary);
+        status.textContent = "Đã lưu. Mở lịch trình trong mục Lịch trình của tôi:";
+        const link = document.createElement("a");
+        link.className = "dg-itinerary-open";
+        link.href = `itinerary.html?id=${encodeURIComponent(saved.id)}`;
+        link.textContent = "Mở lịch trình đã lưu";
+        wrap.appendChild(link);
+      } catch (error) {
+        checkbox.checked = false;
+        checkbox.disabled = false;
+        if (/chưa đăng nhập|đăng nhập/i.test(error.message || "")) {
+          status.textContent = "Đăng nhập để lưu lịch trình; sau đó quay lại và chọn lại ô này. ";
+          const loginLink = document.createElement("a");
+          loginLink.className = "dg-itinerary-open";
+          loginLink.href = "login.html";
+          loginLink.target = "_blank";
+          loginLink.rel = "noopener noreferrer";
+          loginLink.textContent = "Đăng nhập";
+          status.appendChild(loginLink);
+        } else {
+          status.textContent = error.message || "Không thể lưu lịch trình.";
+        }
+      }
+      toBottom(box, true);
+    });
+
+    box.appendChild(wrap);
+  }
+
+  function makeTypewriter(node) {
+    node.textContent = "";
+    const textNode = document.createTextNode("");
+    const cursor = el("span", "dg-cursor");
+    node.append(textNode, cursor);
+    let text = "";
+
+    return async function write(chunk, signal) {
+      for (const character of graphemes(chunk)) {
+        if (signal.aborted) break;
+        text += character;
+        textNode.appendData(character);
+        toBottom(node.parentElement);
+        await sleep(TYPE_DELAY_MS);
+      }
+      return text;
+    };
+  }
+
   // ---------- hiện chữ dần cho câu trả lời có sẵn ----------
   async function reveal(node, text, signal) {
-    const step = Math.max(2, Math.ceil(text.length / 140));
-    for (let i = 0; i < text.length; i += step) {
-      if (signal.aborted) break;
-      node.innerHTML = fmt(text.slice(0, i + step)) + '<span class="dg-cursor"></span>';
-      toBottom(node.parentElement);
-      await sleep(14);
-    }
-    node.innerHTML = fmt(text);
+    const write = makeTypewriter(node);
+    const displayed = await write(text, signal);
+    if (!signal.aborted) node.innerHTML = fmt(displayed);
+    return displayed;
   }
 
   // ---------- gửi tin ----------
@@ -162,13 +272,13 @@
     addMsg(box, "user", esc(showText));
     c.input.value = "";
 
-    const body = { message: text, session_id: sessionStorage.getItem(SID_KEY) || undefined };
+    const body = { message: text, session_id: getSessionId() || undefined };
     if (state.pos) Object.assign(body, state.pos);
 
     setBusy(true);
     const steps = makeSteps(box);
     steps.add("Đang phân tích yêu cầu của bạn...");
-    let bot = null, raw = "", gotResult = false, failed = false;
+    let bot = null, raw = "", typeText = null, gotResult = false, failed = false;
     state.controller = new AbortController();
     const signal = state.controller.signal;
 
@@ -185,37 +295,55 @@
       const reader = res.body.getReader();
       const dec = new TextDecoder("utf-8");
       let buf = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let i;
-        while ((i = buf.indexOf("\n\n")) >= 0) {
-          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-          if (!chunk.startsWith("data: ")) continue;
-          const ev = JSON.parse(chunk.slice(6));
-          if (ev.type === "session") sessionStorage.setItem(SID_KEY, ev.session_id);
-          else if (ev.type === "step") steps.add(ev.text);
-          else if (ev.type === "token") {
-            if (!bot) { steps.finish(); bot = addMsg(box, "bot", ""); }
-            raw += ev.text;
-            bot.innerHTML = fmt(raw) + '<span class="dg-cursor"></span>';
-            toBottom(box);
-          } else if (ev.type === "result") {
-            gotResult = true;
+      async function dispatchFrame(frame) {
+        const ev = parseFrame(frame);
+        if (!ev) return;
+        if (ev.type === "session" && ev.session_id) setSessionId(ev.session_id);
+        else if (ev.type === "step") steps.add(ev.text);
+        else if (ev.type === "token") {
+          if (!bot) {
             steps.finish();
-            if (ev.text) {
-              bot = bot || addMsg(box, "bot", "");
+            bot = addMsg(box, "bot", "");
+            typeText = makeTypewriter(bot);
+          }
+          raw = await typeText(ev.text, signal);
+        } else if (ev.type === "result") {
+          gotResult = true;
+          steps.finish();
+          if (ev.text) {
+            bot = bot || addMsg(box, "bot", "");
+            if (!raw && c.revealLocal) {
+              raw = await reveal(bot, ev.text, signal);
+            } else {
               raw = ev.text;
-              if (c.revealLocal) await reveal(bot, raw, signal); else bot.innerHTML = fmt(raw);
-            } else if (bot) bot.innerHTML = fmt(raw);
-            renderSuggestions(box, ev);
-          } else if (ev.type === "error") {
-            failed = true;
-            if (bot) bot.innerHTML = fmt(raw);
-            showError(box, text, showText, ev.text);
+              if (!signal.aborted) bot.innerHTML = fmt(raw);
+            }
+            if (signal.aborted) return;
+          } else if (bot) bot.innerHTML = fmt(raw);
+          renderItineraryAction(box, ev.itinerary);
+          renderSuggestions(box, ev);
+        } else if (ev.type === "error") {
+          failed = true;
+          if (bot) bot.innerHTML = fmt(raw);
+          showError(box, text, showText, ev.text);
+        }
+      }
+
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let boundary;
+          while ((boundary = frameBoundary.exec(buf)) !== null) {
+            await dispatchFrame(buf.slice(0, boundary.index));
+            buf = buf.slice(boundary.index + boundary[0].length);
           }
         }
+        buf += dec.decode();
+        if (buf.trim()) await dispatchFrame(buf);
+      } finally {
+        reader.releaseLock();
       }
     } catch (e) {
       if (e.name === "AbortError") {
@@ -226,7 +354,8 @@
       }
     } finally {
       if (!gotResult) steps.finish();
-      if (bot && !failed) bot.innerHTML = fmt(raw);
+      if (bot && signal.aborted) bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+      else if (bot && !failed && gotResult) bot.innerHTML = fmt(raw);
       state.controller = null;
       setBusy(false);
     }

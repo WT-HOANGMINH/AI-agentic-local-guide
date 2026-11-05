@@ -78,6 +78,29 @@ INTEREST_MAP = {
     "sunset": ["hoang hon", "sunset", "binh minh", "sunrise"],
     "photo": ["chup anh", "check in", "check-in", "song ao", "photo"],
 }
+DISH_LABEL = {
+    "mi quang": "mì Quảng",
+    "bun cha ca": "bún chả cá",
+    "banh mi": "bánh mì",
+    "hai san": "hải sản",
+    "banh xeo": "bánh xèo",
+}
+AREA_ALIASES = {
+    "trung_tam": ("trung tam", "hai chau", "thanh khe", "cam le"),
+    "son_tra": ("son tra", "my khe", "bien my khe"),
+    "ngu_hanh_son": ("ngu hanh son", "non nuoc"),
+    "ba_na": ("ba na", "ba na hills"),
+    "hoi_an": ("hoi an", "pho co hoi an"),
+    "hoa_vang": ("hoa vang", "hoa phu"),
+}
+
+
+def area_of(value):
+    normalized = strip_accents(value)
+    for area, aliases in AREA_ALIASES.items():
+        if any(re.search(rf"\b{re.escape(alias)}\b", normalized) for alias in aliases):
+            return area
+    return None
 
 
 def _num(text):
@@ -118,7 +141,7 @@ def _budget(text):
 
 
 def extract_slots(text):
-    """Trả về (slots, spans). slots gồm: days, start_time, early, meal, interests, budget_*, people, places."""
+    """Trả về (slots, spans), gồm thời lượng, khung giờ, sở thích và các ràng buộc lịch."""
     slots, places, spans = {}, [], tag(text)
     normalized = strip_accents(text)
     day_count = re.search(
@@ -130,18 +153,23 @@ def extract_slots(text):
         if count:
             slots["days"] = min(max(count, 1), 7)
 
-    zone_aliases = {
-        "trung_tam": (r"\b(trung tam|hai chau|thanh khe|cam le)\b",),
-        "son_tra": (r"\b(son tra|my khe|bien my khe)\b",),
-        "ngu_hanh_son": (r"\b(ngu hanh son|non nuoc)\b",),
-        "ba_na": (r"\b(ba na|ba na hills)\b",),
-        "hoi_an": (r"\b(hoi an|pho co hoi an)\b",),
-        "hoa_vang": (r"\b(hoa vang|hoa phu)\b",),
-    }
-    matched_zones = [
-        zone for zone, patterns in zone_aliases.items()
-        if any(re.search(pattern, normalized) for pattern in patterns)
-    ]
+    stop_count = re.search(
+        r"\b(\d+|mot|hai|ba|bon|nam|sau|bay)\s*(?:cho|dia diem|places|stops)\b",
+        normalized,
+    )
+    if stop_count:
+        count = _num(stop_count.group(1))
+        if count:
+            slots["stops_per_day"] = min(max(count, 1), 12)
+
+    if re.search(r"\b(?:buoi sang|morning only|before noon)\b", normalized) or re.search(
+        r"\btruoc\s*(?:12|muoi hai)\s*(?:h|gio)?\s*(?:trua)?\b",
+        normalized,
+    ):
+        slots["day_end"] = "12:00"
+
+    matched_zones = [area for area, aliases in AREA_ALIASES.items()
+                     if any(re.search(rf"\b{re.escape(alias)}\b", normalized) for alias in aliases)]
     if len(matched_zones) == 1:
         slots["zone"] = matched_zones[0]
 
@@ -163,6 +191,11 @@ def extract_slots(text):
         elif kind == "BUDGET":
             slots.update(_budget(val))
         elif kind == "PEOPLE":
+            has_person_unit = bool(
+                re.search(r"\b(?:\d+\s*)?(?:nguoi|people|persons)\b", normalized)
+            )
+            if stop_count and not has_person_unit and _num(val) == _num(stop_count.group(1)):
+                continue
             if re.search(r"mot minh|alone|solo", t):
                 slots["people"] = 1
             else:
@@ -172,6 +205,9 @@ def extract_slots(text):
             places.append(val)
     if places:
         slots["places"] = places
+
+    if slots.get("day_end") and slots.get("start_time", "00:00") >= slots["day_end"]:
+        slots.pop("start_time", None)
 
     meal_phrase = re.search(
         r"\b(an|bua|dung bua|breakfast|lunch|dinner)\b.{0,40}?"
@@ -200,12 +236,15 @@ def extract_slots(text):
     for query, pattern in food_preferences:
         if re.search(pattern, normalized):
             slots["food_query"] = query
+            slots["dish"] = [query]
             break
 
     if re.search(r"\b(ca phe|cafe|coffee|cf)\b", normalized):
         slots["cafe_requested"] = True
+        slots.setdefault("wants", []).append("coffee")
     if re.search(r"\b(nghi trua|nghi ngoi|ngu trua|nghi mot chut)\b", normalized):
         slots["midday_rest"] = True
+        slots.setdefault("wants", []).append("rest")
 
     companions = (
         ("couple", r"\b(ban gai|ban trai|nguoi yeu|vo chong|hai dua)\b"),

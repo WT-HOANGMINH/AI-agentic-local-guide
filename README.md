@@ -149,7 +149,7 @@ SECRET_KEY=agentic-ai-local-guide-secret-key-2026
 ```
 
 > [!NOTE]
-> Chat `/agent/chat` dùng dữ liệu địa phương và không cần **Gemini API Key**. Key chỉ cần cho API tích hợp cũ `/api/ai-guide/ask`. Nếu **MySQL chưa bật**, backend sẽ thử dùng SQLite cục bộ.
+> Chat chính `/api/ai-guide/chat-stream` dùng hội thoại và dữ liệu địa phương; khi có `GEMINI_API_KEY`, Gemini giúp hiểu ngữ cảnh và diễn đạt câu trả lời tự nhiên hơn. Không có key, hệ thống vẫn dùng dialogue/planner cục bộ. Địa điểm, giá và dữ kiện địa phương chỉ được khẳng định khi có dữ liệu xác minh. Lịch trình do chat tạo có thể lưu vào trang **Lịch trình của tôi**.
 
 #### Đăng nhập Google / Facebook (tùy chọn)
 
@@ -186,6 +186,16 @@ python training/src/train_intent_v2.py --final
 ```
 
 Lệnh này huấn luyện đủ tám intent; không cần Gemini API Key để trả lời trong giao diện chat.
+
+### Nhập giá có nguồn xác minh
+
+`backend/data/place_prices.csv` là mẫu chỉ có header; không điền giá ước đoán. Mỗi dòng cần có tên địa điểm khớp duy nhất với database, loại giá, khoảng giá VND, đơn vị, URL nguồn HTTP(S) và ngày kiểm chứng (`YYYY-MM-DD`). Sau khi thêm dữ liệu có nguồn vào CSV, từ thư mục gốc chạy:
+
+```bash
+python -m backend.services.place_price_import
+```
+
+Có thể truyền đường dẫn CSV riêng làm tham số. Importer kiểm tra toàn bộ file trước khi lưu và cập nhật cùng một mặt hàng/đơn vị thay vì tạo bản ghi trùng. Chi tiết địa điểm và API địa điểm trả về giá kèm nguồn/ngày kiểm chứng; khi chưa có giá đã xác minh, chatbot sẽ nói rõ thay vì suy đoán.
 
 Khi khởi động thành công, màn hình terminal sẽ hiển thị:
 ```text
@@ -261,7 +271,7 @@ python -X utf8 training\src\generate_slots.py
 python -X utf8 training\src\train_slots.py
 ```
 
-CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để diễn đạt câu trả lời đã được kiểm chứng và gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả địa phương qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý.
+CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để xử lý câu hỏi tự do hoặc diễn đạt câu trả lời dựa trên dữ liệu đã kiểm chứng, đồng thời gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả dialogue cục bộ qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý. Lịch trình có cấu trúc được lưu qua `/itineraries/from-chat` và hiển thị lại sau khi tải trang.
 
 ---
 

@@ -5,11 +5,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from helpers import FakeDB, install_fake_repo  # noqa: E402
+from helpers import FakeDB, P, install_fake_repo  # noqa: E402
 
 from backend.services import dialogue as dg  # noqa: E402
 from backend.services import planner as pl  # noqa: E402
-from backend.services.slot_service import model_ready  # noqa: E402
+from backend.services.slot_service import extract_slots, model_ready  # noqa: E402
 
 
 def _talk(st, msg, intent, conf=0.95):
@@ -158,6 +158,124 @@ def test_full_planning_and_early_bana_flow():
             assert pl.to_min(s["start"]) >= pl.opens(p) and pl.to_min(s["end"]) <= pl.closes(p)
 
 
+def test_food_request_with_trip_length_routes_to_itinerary():
+    if not model_ready():
+        return
+    install_fake_repo()
+    st = dg.State()
+    progress = []
+    response = _talk(
+        st,
+        "mình đi 2 ngày mình muốn thử mì quảng ở khu vực xung quanh hải châu vì mình ở gần đây",
+        "food",
+        conf=0.7176,
+    )
+
+    assert response["status"] == "completed"
+    assert len(st.plan) == 2
+    assert "Ngày 1" in response["text"]
+    assert "Quanh Mì Quảng Bà Mua" not in response["text"]
+    assert "Mì Quảng Bà Mua" in response["text"]
+    assert any(
+        stop["kind"] == "meal"
+        for day in st.plan
+        for stop in day["stops"]
+    )
+
+    planned = dg.State()
+    response = dg.respond(
+        planned,
+        "mình đi 2 ngày mình muốn thử mì quảng ở khu vực xung quanh hải châu vì mình ở gần đây",
+        "food",
+        0.7176,
+        FakeDB(),
+        on_step=progress.append,
+    )
+    assert progress == response["steps"]
+    assert any("tìm kiếm địa điểm" in step.casefold() for step in progress)
+    assert any("truy cập cơ sở dữ liệu" in step.casefold() for step in progress)
+    assert any("đang xếp lịch" in step.casefold() for step in progress)
+
+
+def test_new_itinerary_request_asks_again_instead_of_reusing_previous_trip():
+    if not model_ready():
+        return
+    install_fake_repo()
+    st = dg.State()
+
+    first = _talk(st, "Lịch trình 2 ngày thích biển", "itinerary")
+    assert first["status"] == "completed"
+    previous_plan = st.plan
+    assert st.slots["interests"] == ["beach"]
+
+    followup = _talk(st, "Lên lịch trình", "itinerary")
+
+    assert followup["status"] == "needs_clarification"
+    assert "mấy ngày" in followup["text"]
+    assert st.pending_for == "itinerary"
+    assert st.starting_new_itinerary is True
+    assert st.plan is previous_plan
+    assert not st.slots
+
+    days = _talk(st, "3 ngày", "clarify_reply")
+    assert days["status"] == "needs_clarification"
+    assert "sở thích" in days["text"] or "thích hướng nào" in days["text"]
+    assert st.starting_new_itinerary is True
+
+    answer = _talk(st, "mình thích văn hóa", "clarify_reply")
+    assert answer["status"] == "completed"
+    assert len(st.plan) == 3
+    assert st.starting_new_itinerary is False
+    assert st.slots["interests"] == ["culture"]
+
+
+def test_morning_only_slots_include_noon_cutoff_and_stop_count():
+    slots, _ = extract_slots(
+        "Lịch trình buổi sáng 1 ngày, đi 4 chỗ trước 12h trưa"
+    )
+
+    assert slots["days"] == 1
+    assert slots["stops_per_day"] == 4
+    assert slots["day_end"] == "12:00"
+    assert "start_time" not in slots
+    assert "people" not in slots
+
+
+def test_morning_only_request_builds_four_stops_before_noon():
+    if not model_ready():
+        return
+    places = [
+        P(
+            501 + index,
+            f"Điểm trung tâm {index}",
+            "tourist_attraction",
+            "trung_tam",
+            "07:00",
+            "12:00",
+            30,
+        )
+        for index in range(4)
+    ]
+    install_fake_repo(places)
+    st = dg.State()
+
+    response = _talk(
+        st,
+        "Lịch trình buổi sáng 1 ngày, đi 4 chỗ trước 12h trưa",
+        "itinerary",
+    )
+    visits = [
+        stop
+        for day in st.plan
+        for stop in day["stops"]
+        if stop["kind"] == "visit"
+    ]
+
+    assert response["status"] == "completed"
+    assert len(visits) == 4
+    assert all(pl.to_min(stop["end"]) <= 12 * 60 for stop in visits)
+
+
 def test_add_breakfast_uses_early_open_place():
     if not model_ready():
         return
@@ -208,6 +326,22 @@ def test_greeting_and_unclear():
     assert "chưa chắc hiểu" in unclear["text"]
     assert unclear["status"] == "needs_clarification"
     assert unclear["suggestions"]
+
+
+def test_clear_cafe_request_replaces_stale_clarification():
+    if not model_ready():
+        return
+    install_fake_repo()
+    st = dg.State(pending="clarify_reply", pending_for="clarify_reply")
+
+    answer = _talk(st, "Quán cà phê đẹp", "cafe")
+
+    assert answer["status"] == "completed"
+    assert any(
+        name in answer["text"]
+        for name in ("Trình Cà Phê", "Gió Biển Cafe", "Faifo Coffee Hội An")
+    )
+    assert st.pending_for is None
 
 
 def test_long_place_takes_whole_day_and_others_are_moved():

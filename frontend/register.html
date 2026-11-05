@@ -201,8 +201,7 @@
         </p>
 
         <p class="small muted mt-3 text-center">
-          Có thể tiếp tục bằng Google hoặc đăng ký bằng email.
-          Facebook Login đang được phát triển.
+          Có thể tiếp tục bằng Google, Facebook hoặc đăng ký bằng email.
         </p>
 
       </div>
@@ -226,40 +225,65 @@
   <script src="js/api.js?v=2"></script>
 
   <!-- Giao diện chung -->
-  <script src="js/common.js?v=place-images-3"></script>
+  <script src="js/common.js?v=chat-ui-2"></script>
 
   <!-- Đăng ký email -->
   <script src="js/auth.js"></script>
 
   <!-- Xử lý đăng ký mạng xã hội -->
   <script>
-    const BACKEND_URL = "http://127.0.0.1:8000";
+    const backendUrl = window.LOCAL_GUIDE_CONFIG.API_BASE;
+    const messageBox = document.getElementById("message");
 
-    // 1. Đăng ký / đăng nhập bằng Google
-    document
-      .getElementById("google-register")
-      .addEventListener("click", function () {
+    async function startSocialLogin(provider, button, allowedPrefix) {
+      button.disabled = true;
+      messageBox.className = "alert alert-info mt-3";
+      messageBox.textContent = `Đang kết nối đến ${provider}...`;
 
-        // Chuyển người dùng tới Backend FastAPI
-        window.location.href =
-          BACKEND_URL + "/api/auth/google";
+      try {
+        const response = await fetch(
+          `${backendUrl}/auth/${provider}/url`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            headers: { Accept: "application/json" }
+          }
+        );
+        const data = await response.json().catch(() => ({}));
 
-      });
+        if (!response.ok) {
+          throw new Error(
+            data.detail ||
+            data.error ||
+            `Không thể bắt đầu đăng nhập ${provider} (HTTP ${response.status}).`
+          );
+        }
 
-    // 2. Facebook Login chưa hoàn thành
-    document
-      .getElementById("facebook-register")
-      .addEventListener("click", function () {
+        if (
+          typeof data.auth_url !== "string" ||
+          !data.auth_url.startsWith(allowedPrefix)
+        ) {
+          throw new Error(`Đường dẫn OAuth ${provider} không hợp lệ.`);
+        }
 
-        const message = document.getElementById("message");
+        window.location.assign(data.auth_url);
+      } catch (error) {
+        console.error(`${provider} login error:`, error);
+        messageBox.className = "alert alert-danger mt-3";
+        messageBox.textContent =
+          error.message || `Không thể đăng nhập bằng ${provider}.`;
+        button.disabled = false;
+      }
+    }
 
-        message.className = "alert alert-info mt-3";
+    document.getElementById("google-register").addEventListener("click", (event) => {
+      startSocialLogin("google", event.currentTarget, "https://accounts.google.com/");
+    });
 
-        message.textContent =
-          "Facebook Login đang được phát triển. " +
-          "Vui lòng sử dụng Google hoặc email.";
-
-      });
+    document.getElementById("facebook-register").addEventListener("click", (event) => {
+      startSocialLogin("facebook", event.currentTarget, "https://www.facebook.com/");
+    });
   </script>
 
 </body>

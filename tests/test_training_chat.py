@@ -27,6 +27,12 @@ class TrainedIntentTests(unittest.TestCase):
                 self.assertEqual(intent, expected)
                 self.assertGreater(confidence, 0)
 
+    def test_short_cafe_request_is_routed_to_cafe_intent(self):
+        intent, confidence = chat_service.predict_intent("Quán cà phê đẹp")
+
+        self.assertEqual(intent, "cafe")
+        self.assertGreater(confidence, 0.4)
+
     @patch("backend.services.chat_service.planner.build_itinerary")
     @patch(
         "backend.services.chat_service.predict_intent",
@@ -132,10 +138,14 @@ class TrainedIntentTests(unittest.TestCase):
         "backend.routes.agent._get_state",
         return_value=("test-session", object()),
     )
-    @patch("backend.routes.agent._compute")
+    @patch("backend.routes.agent._record_turn")
+    @patch("backend.routes.agent._apply_llm", return_value="ok")
+    @patch("backend.routes.agent._compute_request")
     def test_chat_route_forwards_both_gps_coordinates(
         self,
         compute,
+        apply_llm,
+        record_turn,
         get_state,
     ):
         compute.return_value = {
@@ -160,6 +170,7 @@ class TrainedIntentTests(unittest.TestCase):
             get_state.return_value[1],
             16.05,
             108.20,
+            None,
         )
 
     def test_nearby_explains_when_database_has_no_coordinates(self):

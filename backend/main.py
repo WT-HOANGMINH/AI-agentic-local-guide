@@ -16,6 +16,7 @@ from backend.models.place import Place
 from backend.models.preference import UserPreference
 from backend.models.itinerary import Itinerary, ItineraryItem
 from backend.models.favorite import Favorite
+from backend.services.itinerary_migration import ensure_itinerary_data_column
 
 from backend.routes.auth import router as auth_router
 from backend.routes.users import router as users_router
@@ -289,6 +290,7 @@ if os.path.isdir(frontend_dir):
 def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_itinerary_data_column(engine)
         print("Database tables initialized successfully.")
 
         from backend.seed_places import (

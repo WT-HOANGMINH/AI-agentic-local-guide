@@ -9,6 +9,7 @@ from backend.models.user import User
 from backend.schemas.itinerary import (
     ItineraryCreate,
     ItineraryDetailResponse,
+    ItineraryFromChatCreate,
     ItineraryGenerateRequest,
     ItineraryItemCreate,
     ItineraryItemResponse,
@@ -57,6 +58,7 @@ def get_user_itineraries(
             "end_date": it.end_date,
             "total_days": it.total_days,
             "budget_level": it.budget_level,
+            "itinerary_data": it.itinerary_data,
             "status": it.status,
             "item_count": len(it.items),
             "created_at": it.created_at,
@@ -90,6 +92,10 @@ def create_itinerary(
         end_date=data.end_date,
         total_days=data.total_days,
         budget_level=data.budget_level,
+        itinerary_data=(
+            data.itinerary_data.model_dump(mode="json")
+            if data.itinerary_data else None
+        ),
         status=data.status or "planning"
     )
 
@@ -207,6 +213,82 @@ def generate_smart_itinerary(
     return new_it
 
 
+@router.post(
+    "/from-chat",
+    response_model=ItineraryDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="[Protected] Lưu lịch trình đầy đủ do chat AI tạo"
+)
+def save_chat_itinerary(
+    data: ItineraryFromChatCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    plan = data.itinerary
+    referenced_ids = {
+        item.place_id
+        for day in plan.days
+        for item in day.items
+        if item.place_id is not None
+    }
+    if referenced_ids:
+        existing_ids = {
+            place_id for (place_id,) in
+            db.query(Place.id).filter(Place.id.in_(referenced_ids)).all()
+        }
+        missing_ids = referenced_ids - existing_ids
+        if missing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Lịch trình có địa điểm không tồn tại.",
+            )
+
+    level = plan.budget.level
+    budget_level = level if isinstance(level, int) and 1 <= level <= 5 else 2
+    itinerary = Itinerary(
+        user_id=current_user.id,
+        title=plan.title,
+        description=plan.description,
+        start_date=plan.travel_date,
+        total_days=plan.duration_days,
+        budget_level=budget_level,
+        status="planning",
+        itinerary_data=plan.model_dump(mode="json"),
+    )
+    db.add(itinerary)
+    db.flush()
+
+    for day in plan.days:
+        for item in day.items:
+            time_slot = (
+                f"{item.start_time}–{item.end_time}"
+                if item.start_time and item.end_time
+                else item.start_time or item.end_time
+            )
+            note_parts = [
+                item.title,
+                item.description,
+                item.address,
+            ]
+            if item.transport_minutes_from_previous is not None:
+                note_parts.append(
+                    f"Di chuyển ước tính {item.transport_minutes_from_previous} phút"
+                )
+            db.add(ItineraryItem(
+                itinerary_id=itinerary.id,
+                place_id=item.place_id,
+                day_number=day.day_number,
+                order_index=item.order,
+                time_slot=time_slot,
+                notes="\n".join(part for part in note_parts if part),
+                estimated_cost=item.estimated_cost_vnd,
+            ))
+
+    db.commit()
+    db.refresh(itinerary)
+    return itinerary
+
+
 @router.get(
     "/{itinerary_id}",
     response_model=ItineraryDetailResponse,
@@ -263,6 +345,8 @@ def update_itinerary(
         )
 
     update_dict = data.model_dump(exclude_unset=True)
+    if isinstance(update_dict.get("itinerary_data"), dict):
+        update_dict["itinerary_data"] = data.itinerary_data.model_dump(mode="json")
     for field, val in update_dict.items():
         setattr(itinerary, field, val)
 

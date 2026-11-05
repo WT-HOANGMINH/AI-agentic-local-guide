@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 
 from backend.database import Base
@@ -16,6 +16,7 @@ class Itinerary(Base):
     end_date = Column(String(20), nullable=True)
     total_days = Column(Integer, default=1)
     budget_level = Column(Integer, default=2)
+    itinerary_data = Column(JSON, nullable=True)
     status = Column(String(30), default="planning")  # planning, ongoing, completed, archived
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

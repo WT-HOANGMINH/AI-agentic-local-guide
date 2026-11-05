@@ -54,6 +54,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function revealBotText(element, text) {
+    const characters = typeof Intl.Segmenter === 'function'
+      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
+        .map(part => part.segment)
+      : Array.from(text);
+    element.textContent = '';
+    for (const character of characters) {
+      element.append(character);
+      messages.scrollTop = messages.scrollHeight;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    renderBotText(element, text);
+  }
+
   // =====================================
   // HIEN THI TIN NHAN
   // =====================================
@@ -131,6 +145,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bubble = appendMessage('bot', '');
     const stepsEl = document.createElement('div');
     const textEl = document.createElement('span');
+    const replyText = document.createTextNode('');
+    textEl.appendChild(replyText);
     const suggestionsEl = document.createElement('div');
     suggestionsEl.className = 'dg-chat-suggestions';
 
@@ -159,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           onToken: token => {
             if (waiting.parentNode) waiting.remove();
-            textEl.textContent += token;
+            replyText.appendData(token);
             messages.scrollTop = messages.scrollHeight;
           },
 
@@ -167,6 +183,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (waiting.parentNode) waiting.remove();
             if (result.text && !textEl.textContent) {
               textEl.textContent = result.text;
+            }
+            if (textEl.textContent) {
+              renderBotText(textEl, result.text || textEl.textContent);
             }
             (result.links || []).forEach(link => {
               const anchor = document.createElement('a');
@@ -177,6 +196,34 @@ document.addEventListener('DOMContentLoaded', async () => {
               anchor.textContent = `🗺️ ${link.label}`;
               bubble.insertBefore(anchor, suggestionsEl);
             });
+            if (result.itinerary && Array.isArray(result.itinerary.days)) {
+              const saveWrap = document.createElement('div');
+              saveWrap.className = 'dg-chat-itinerary-action';
+              const saveButton = document.createElement('button');
+              saveButton.type = 'button';
+              saveButton.className = 'dg-chat-suggestion';
+              saveButton.textContent = 'Lưu lịch trình này';
+              const saveStatus = document.createElement('span');
+              saveStatus.className = 'muted';
+              saveButton.addEventListener('click', async () => {
+                saveButton.disabled = true;
+                saveStatus.textContent = 'Đang lưu…';
+                try {
+                  const saved = await API.saveChatItinerary(result.itinerary);
+                  saveStatus.textContent = 'Đã lưu lịch trình.';
+                  const savedLink = document.createElement('a');
+                  savedLink.href = `itinerary.html?id=${encodeURIComponent(saved.id)}`;
+                  savedLink.textContent = 'Mở lịch trình đã lưu';
+                  savedLink.className = 'dg-chat-link';
+                  saveWrap.appendChild(savedLink);
+                } catch (error) {
+                  saveStatus.textContent = error.message || 'Không thể lưu lịch trình.';
+                  saveButton.disabled = false;
+                }
+              });
+              saveWrap.append(saveButton, saveStatus);
+              bubble.insertBefore(saveWrap, suggestionsEl);
+            }
             const multi = result.suggestion_mode === 'multi';
             const picked = new Map();
             const choices = result.suggestions || [];
@@ -243,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Du phong: khong streaming
         const reply = await API.chat(text);
         if (waiting.parentNode) waiting.remove();
-        textEl.textContent = reply || 'AI chưa trả về nội dung.';
+        await revealBotText(textEl, reply || 'AI chưa trả về nội dung.');
       }
 
       if (!textEl.textContent) {

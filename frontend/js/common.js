@@ -598,10 +598,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!location.pathname.endsWith('/chat.html')) {
     const streamScript = document.createElement('script');
-    streamScript.src = 'js/chat-stream.js';
+    streamScript.src = 'js/chat-stream.js?v=chat-save-2';
     streamScript.onload = () => {
       const chatScript = document.createElement('script');
-      chatScript.src = 'js/chat-widget.js';
+      chatScript.src = 'js/chat-widget.js?v=chat-resize-1';
       chatScript.onload = () => {
         if (!window.DGChat) {
           console.error('Không khởi tạo được chat streaming.');

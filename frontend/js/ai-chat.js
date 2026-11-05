@@ -3,6 +3,39 @@
 (function () {
   window.API = window.API || {};
 
+  const TYPE_DELAY_MS = 20;
+  const graphemes = text => {
+    if (typeof Intl.Segmenter === 'function') {
+      return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
+        .map(part => part.segment);
+    }
+    return Array.from(text);
+  };
+  const emitText = async (text, onToken) => {
+    for (const character of graphemes(String(text || ''))) {
+      onToken(character);
+      await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS));
+    }
+  };
+  const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
+  const parseFrame = frame => {
+    const data = frame.split(/\r\n|\r|\n/)
+      .filter(line => line.startsWith('data:'))
+      .map(line => line.slice(5).replace(/^ /, ''))
+      .join('\n');
+    if (!data) return null;
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
+    }
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
+    }
+    return event;
+  };
+
   let userPosition = {};
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -78,24 +111,17 @@
     let buffer = '';
 
     async function dispatchFrame(frame) {
-      if (!frame.startsWith('data: ')) return;
-      let event;
-      try {
-        event = JSON.parse(frame.slice(6));
-      } catch {
-        throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
-      }
+      const event = parseFrame(frame);
+      if (!event) return;
 
-      if (event.type === 'session') setSid(event.session_id);
+      if (event.type === 'session' && event.session_id) setSid(event.session_id);
       else if (event.type === 'step' && h.onStep) h.onStep(event.text);
-      else if (event.type === 'token' && h.onToken) h.onToken(event.text);
+      else if (event.type === 'token' && h.onToken) {
+        await emitText(event.text, h.onToken);
+      }
       else if (event.type === 'result') {
         if (!event.streaming && event.text && h.onToken) {
-          const characters = Array.from(event.text);
-          for (let index = 0; index < characters.length; index += 5) {
-            h.onToken(characters.slice(index, index + 5).join(''));
-            await new Promise(resolve => setTimeout(resolve, 12));
-          }
+          await emitText(event.text, h.onToken);
           if (h.onResult) h.onResult({ ...event, text: '' });
         } else if (h.onResult) {
           h.onResult(event);
@@ -110,10 +136,10 @@
         if (chunk.done) break;
         buffer += decoder.decode(chunk.value, { stream: true });
 
-        let index;
-        while ((index = buffer.indexOf('\n\n')) >= 0) {
-          await dispatchFrame(buffer.slice(0, index));
-          buffer = buffer.slice(index + 2);
+        let boundary;
+        while ((boundary = frameBoundary.exec(buffer)) !== null) {
+          await dispatchFrame(buffer.slice(0, boundary.index));
+          buffer = buffer.slice(boundary.index + boundary[0].length);
         }
       }
 

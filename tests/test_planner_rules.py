@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from helpers import make_places  # noqa: E402
+from helpers import P, make_places  # noqa: E402
 
 from backend.services import planner as pl  # noqa: E402
 
@@ -85,3 +85,59 @@ def test_dinner_comes_before_night_place_and_no_evening_lunch():
     kinds = [(s["kind"], s["start"]) for s in res["stops"]]
     assert kinds[0][0] == "meal" and kinds[-1][0] == "visit", kinds
     assert not any(k == "meal" and pl.to_min(t) < 17 * 60 for k, t in kinds), "không có bữa trưa lúc chiều tối"
+
+
+def test_infers_dayparts_and_schedules_an_evening_meal():
+    attrs = [
+        P(101, "Bãi Biển Mỹ Khê", "tourist_attraction", "trung_tam", "06:00", "17:00", 90,
+          description="Bãi biển đón bình minh"),
+        P(102, "Bảo tàng Điêu khắc Chăm", "tourist_attraction", "trung_tam", "07:30", "17:00", 90,
+          description="Bảo tàng văn hóa Chăm"),
+        P(103, "Cầu Rồng Đà Nẵng", "tourist_attraction", "trung_tam", None, None, 45,
+          description="Biểu tượng phun lửa phun nước"),
+    ]
+    foods = [
+        P(201, "Quán ăn trưa", "restaurant", "trung_tam", "06:00", "22:00"),
+        P(202, "Quán ăn tối", "restaurant", "trung_tam", "06:00", "22:00"),
+    ]
+
+    day = pl.build_day(attrs, foods, day_start="08:00")
+    visits = [stop for stop in day["stops"] if stop["kind"] == "visit"]
+    meals = [stop for stop in day["stops"] if stop["kind"] == "meal"]
+
+    assert any(pl.to_min(stop["start"]) < 12 * 60 for stop in visits)
+    assert any(13 * 60 <= pl.to_min(stop["start"]) < 17 * 60 for stop in visits)
+    assert any(pl.to_min(stop["start"]) >= 19 * 60 for stop in visits)
+    assert any(pl.to_min(stop["start"]) >= 18 * 60 for stop in meals)
+
+
+def test_morning_only_plan_respects_noon_cutoff_and_requested_stop_count():
+    attrs = [
+        P(301 + i, f"Điểm tham quan {i}", "tourist_attraction", "trung_tam", "07:00", "12:00", 30)
+        for i in range(4)
+    ]
+    scores = {place.id: 1.0 for place in attrs}
+
+    plan = pl.plan_trip(attrs, [], [], scores, 1, day_end=12 * 60, per_day=4)
+
+    assert len(plan[0]["attr_ids"]) == 4
+    assert all(
+        pl.to_min(stop["end"]) <= 12 * 60
+        for stop in plan[0]["stops"]
+    )
+
+
+def test_day_without_a_night_attraction_keeps_an_evening_block():
+    attrs = [
+        P(401, "Bãi Biển Mỹ Khê", "tourist_attraction", "trung_tam", "06:00", "17:00", 60,
+          best_time="morning"),
+    ]
+    foods = [P(402, "Quán ăn tối", "restaurant", "trung_tam", "06:00", "22:00")]
+
+    day = pl.build_day(attrs, foods, day_start="08:00")
+
+    assert any(
+        "buổi tối" in item["name"].casefold()
+        and pl.to_min(item["start"]) >= 19 * 60
+        for item in day["breaks"]
+    )

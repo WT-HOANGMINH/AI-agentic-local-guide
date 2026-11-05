@@ -118,6 +118,11 @@
 
   width: min(390px, calc(100vw - 24px));
   height: min(570px, calc(100dvh - 135px));
+  min-width: min(300px, calc(100vw - 24px));
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  resize: both;
 
   display: flex;
   flex-direction: column;
@@ -416,6 +421,41 @@
   text-align: center;
 }
 
+.dg-itinerary-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #d6e7e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #28423b;
+  font-size: 12px;
+}
+
+.dg-itinerary-save label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.dg-itinerary-save input {
+  accent-color: #176b60;
+}
+
+.dg-itinerary-status {
+  flex-basis: 100%;
+  color: #667771;
+}
+
+.dg-itinerary-open {
+  color: #176b60;
+  font-weight: 600;
+}
+
 @keyframes dgfw-pulse {
   0% {
     transform: scale(1);
@@ -448,6 +488,10 @@
 }
 
 @media (max-width: 600px) {
+  .dgfw-resize-note {
+    display: none;
+  }
+
   .dgfw-launcher {
     right: 16px;
     bottom: 16px;
@@ -465,6 +509,9 @@
     bottom: 85px;
     width: calc(100vw - 20px);
     height: min(600px, calc(100dvh - 105px));
+    min-width: 0;
+    min-height: 0;
+    resize: none;
   }
 }
 

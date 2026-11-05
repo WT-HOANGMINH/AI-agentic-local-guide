@@ -5,6 +5,74 @@ from backend.routes import ai_guide, auth
 from backend.services import llm_service
 
 
+def test_request_analysis_uses_validated_json_and_conversation_history(monkeypatch):
+    from types import SimpleNamespace
+
+    request = {}
+
+    def generate_content(**kwargs):
+        request.update(kwargs)
+        return SimpleNamespace(
+            text='{"intent":"general","confidence":0.97,"requires_local_data":false}'
+        )
+
+    client = SimpleNamespace(
+        models=SimpleNamespace(generate_content=generate_content)
+    )
+    monkeypatch.setattr(llm_service, "get_gemini_client", lambda: client)
+
+    result = llm_service.analyze_request(
+        "Mặc gì cho chuyến đi?",
+        history=[
+            {"role": "user", "content": "Tôi đi Đà Nẵng 3 ngày"},
+            {"role": "assistant", "content": "Mình có thể giúp bạn chuẩn bị."},
+        ],
+    )
+
+    assert result.intent == "general"
+    assert result.requires_local_data is False
+    assert request["config"]["response_mime_type"] == "application/json"
+    assert request["config"]["response_schema"] is llm_service.RequestAnalysis
+    assert "Tôi đi Đà Nẵng 3 ngày" in request["contents"]
+    assert "Mặc gì cho chuyến đi?" in request["contents"]
+
+
+def test_general_chat_uses_llm_analysis_without_intent_classifier(monkeypatch):
+    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: True)
+    monkeypatch.setattr(
+        ai_guide,
+        "analyze_request",
+        lambda message, history: llm_service.RequestAnalysis(
+            intent="general",
+            confidence=0.97,
+            requires_local_data=False,
+        ),
+    )
+    monkeypatch.setattr(
+        ai_guide,
+        "predict_intent",
+        lambda message: (_ for _ in ()).throw(
+            AssertionError("classifier should not route LLM-analyzed requests")
+        ),
+    )
+    monkeypatch.setattr(
+        ai_guide,
+        "ask_llm",
+        lambda message, history=None, grounded_answer=None: (
+            "Bạn nên chuẩn bị trang phục thoải mái."
+        ),
+    )
+
+    response = TestClient(app).post(
+        "/api/ai-guide/chat",
+        json={"message": "Tôi nên mặc gì khi đi du lịch?"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["intent"] == "general"
+    assert response.json()["reply"] == "Bạn nên chuẩn bị trang phục thoải mái."
+
+
 def test_gemini_stream_yields_only_user_facing_model_output(monkeypatch):
     from types import SimpleNamespace
 

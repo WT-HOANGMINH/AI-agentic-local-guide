@@ -11,7 +11,7 @@
   // Tu nap CSS cua widget
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "css/chat-widget.css";
+  css.href = "css/chat-widget.css?v=chat-resize-1";
   document.head.appendChild(css);
 
   const root = document.createElement("div");
@@ -105,6 +105,7 @@
 
       <div class="dgfw-note">
         ✨ Khám phá Đà Nẵng cùng trợ lý AI
+        <span class="dgfw-resize-note"> · Kéo góc dưới bên phải để đổi kích thước</span>
       </div>
     </section>
   `;
@@ -266,6 +267,26 @@ function positionChatPanel() {
   panel.style.left = left + "px";
   panel.style.top = top + "px";
 }
+
+const panelResizeObserver = new ResizeObserver(() => {
+  if (panel.hidden) return;
+
+  const rect = panel.getBoundingClientRect();
+  const left = limit(
+    rect.left,
+    8,
+    Math.max(8, window.innerWidth - rect.width - 8)
+  );
+  const top = limit(
+    rect.top,
+    8,
+    Math.max(8, window.innerHeight - rect.height - 8)
+  );
+
+  if (Math.abs(rect.left - left) > 1) panel.style.left = left + "px";
+  if (Math.abs(rect.top - top) > 1) panel.style.top = top + "px";
+});
+panelResizeObserver.observe(panel);
 
 // Bat dau giu chuot vao robot
 launcher.addEventListener("pointerdown", (event) => {

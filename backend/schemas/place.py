@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PlaceBase(BaseModel):
@@ -35,12 +37,24 @@ class PlaceUpdate(BaseModel):
     ticket_info: str | None = Field(default=None, max_length=255)
     ticket_source_url: str | None = Field(default=None, max_length=500)
 
+class PlacePriceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    item_name: str
+    price_min_vnd: int
+    price_max_vnd: int
+    currency: str
+    unit: str
+    source_url: str
+    verified_at: date
+
 class PlaceResponse(PlaceBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     is_active: bool
-
-    class Config:
-        from_attributes = True
+    prices: list[PlacePriceResponse] = Field(default_factory=list)
 
 
 class PlaceNearbyItem(PlaceResponse):

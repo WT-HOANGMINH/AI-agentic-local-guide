@@ -566,7 +566,7 @@ async getProfile() {
       }
 
       const limit = 100;
-      const places = [];
+      let places = [];
       let skip = 0;
       let total = Infinity;
 
@@ -888,6 +888,62 @@ async getProfile() {
   // ==============================
   // LẤY LỊCH TRÌNH
   // ==============================
+
+  async savedItineraries() {
+    if (CFG.USE_MOCK) {
+      return store.get(
+        'lg_saved_itineraries_' + (this.user()?.email || 'guest'),
+        []
+      );
+    }
+
+    const result = await this.request('/itineraries/?limit=50', {
+      auth: true
+    });
+    return Promise.all((result.itineraries || []).map(async itinerary => {
+      const detail = await this.request('/itineraries/' + itinerary.id, {
+        auth: true
+      });
+      return detail;
+    }));
+  },
+
+  async saveChatItinerary(itinerary) {
+    if (CFG.USE_MOCK) {
+      const key = 'lg_saved_itineraries_' + (this.user()?.email || 'guest');
+      const saved = store.get(key, []);
+      const record = {
+        id: Date.now(),
+        title: itinerary.title,
+        description: itinerary.description,
+        total_days: itinerary.duration_days,
+        itinerary_data: itinerary,
+        items: []
+      };
+      store.set(key, [record, ...saved]);
+      return record;
+    }
+
+    return this.request('/itineraries/from-chat', {
+      method: 'POST',
+      auth: true,
+      body: { itinerary }
+    });
+  },
+
+  async deleteSavedItinerary(id) {
+    if (CFG.USE_MOCK) {
+      const key = 'lg_saved_itineraries_' + (this.user()?.email || 'guest');
+      const saved = store.get(key, []);
+      store.set(key, saved.filter(item => String(item.id) !== String(id)));
+      return { status: 'success' };
+    }
+
+    return this.request('/itineraries/' + id, {
+      method: 'DELETE',
+      auth: true
+    });
+  },
 
   async itinerary() {
 
