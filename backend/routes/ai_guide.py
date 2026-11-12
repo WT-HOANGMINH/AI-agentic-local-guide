@@ -8,7 +8,7 @@ DanangGuide AI Guide API
 """
 
 from __future__ import annotations
-
+from backend.services.weather_chat import looks_like_weather, maybe_weather_reply
 import asyncio
 import json
 import logging
@@ -32,7 +32,7 @@ from backend.services.llm_service import (
     is_gemini_configured,
     stream_grounded_answer,
 )
-from backend.services.slot_service import model_ready
+from backend.services.slot_service import model_ready, strip_accents
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +191,11 @@ def _compute(
         )
         confidence = analysis.confidence
 
-    if intent == "general":
+    weather_requested = intent == "weather" or looks_like_weather(message)
+    if weather_requested:
+        intent = "weather"
+
+    if intent == "general" and not weather_requested:
         reply = _normalise_reply({
             "text": "",
             "steps": [],
@@ -205,16 +209,25 @@ def _compute(
 
     db = SessionLocal()
     try:
-        raw_reply = respond(
-            state,
-            message,
-            intent,
-            confidence,
-            db,
-            choice=choice,
-            lat=latitude,
-            lng=longitude,
+        cue = strip_accents(message)
+        itinerary_weather = weather_requested and bool(state.plan) and any(
+            phrase in cue for phrase in ("lich trinh", "ke hoach", "neu mua")
         )
+        if weather_requested and not itinerary_weather:
+            raw_reply = maybe_weather_reply(message, intent, state, db)
+            if raw_reply is None:
+                raise RuntimeError("Weather request was not handled by the weather service.")
+        else:
+            raw_reply = respond(
+                state,
+                message,
+                intent,
+                confidence,
+                db,
+                choice=choice,
+                lat=latitude,
+                lng=longitude,
+            )
         reply = _normalise_reply(raw_reply)
     finally:
         db.close()
@@ -262,6 +275,8 @@ def _meta(reply: dict[str, Any]) -> dict[str, Any]:
             result[key] = reply[key]
     if reply.get("itinerary") is not None:
         result["itinerary"] = reply["itinerary"]
+    if reply.get("weather") is not None:
+        result["weather"] = reply["weather"]
     return result
 
 
@@ -278,8 +293,8 @@ def _response_payload(reply: dict[str, Any], session_id: str) -> dict[str, Any]:
     return {
         "success": True,
         "reply": answer,
-        "message": answer,       # legacy client compatibility
-        "ai_answer": answer,     # legacy client compatibility
+        "message": answer,      # legacy client compatibility
+        "ai_answer": answer,    # legacy client compatibility
         "steps": reply["steps"],
         "intent": reply["intent"],
         "confidence": reply["confidence"],
@@ -346,15 +361,21 @@ def _sse(event: dict[str, Any]) -> str:
     return f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
 
 
+def _completed_step_text(step: Any) -> str:
+    text = str(step)
+    if text.startswith("Đang "):
+        return "Đã " + text[len("Đang "):]
+    return text
+
+
 @router.post("/chat-stream")
 async def chat_stream(req: ChatRequest):
     """
     SSE-compatible endpoint.
 
-    The current dialogue engine returns a completed response rather than
-    yielding tokens. Therefore this endpoint sends actual completed steps and
-    answer content; it deliberately does not invent live tool progress or
-    pretend that local text generation is token streaming.
+    Request/analysis statuses are emitted before their work starts. Completed
+    dialogue steps are sent only after the dialogue has returned; local answer
+    text is never marked as model-token streaming.
     """
     message = _clean_message(req.message)
     sid, state = _get_state(req.session_id)
@@ -363,6 +384,16 @@ async def chat_stream(req: ChatRequest):
         yield _sse({"type": "session", "session_id": sid})
 
         try:
+            yield _sse({
+                "type": "status",
+                "phase": "received",
+                "text": "Đã nhận yêu cầu.",
+            })
+            yield _sse({
+                "type": "status",
+                "phase": "analyzing",
+                "text": "Đang phân tích yêu cầu và kiểm tra dữ liệu phù hợp…",
+            })
             reply = await _compute_request(
                 message,
                 state,
@@ -370,6 +401,18 @@ async def chat_stream(req: ChatRequest):
                 req.longitude,
                 req.choice,
             )
+
+            yield _sse({
+                "type": "status",
+                "phase": "analyzed",
+                "text": "Đã hoàn thành phân tích và tra cứu dữ liệu.",
+            })
+            for step in reply.get("steps", []):
+                yield _sse({
+                    "type": "step",
+                    "text": _completed_step_text(step),
+                    "completed": True,
+                })
 
             answer_parts = []
             streamed_model = False
@@ -381,10 +424,20 @@ async def chat_stream(req: ChatRequest):
                 ):
                     answer_parts.append(reply["text"])
                 elif reply.get("intent") in {"general", "out_of_scope", "unclear"}:
+                    yield _sse({
+                        "type": "status",
+                        "phase": "generating",
+                        "text": "Đang tạo câu trả lời bằng mô hình AI…",
+                    })
                     answer_parts.append(await run_in_threadpool(
                         ask_llm, message, state.history
                     ))
                 else:
+                    yield _sse({
+                        "type": "status",
+                        "phase": "generating",
+                        "text": "Đang nhận câu trả lời từ mô hình AI…",
+                    })
                     stream = stream_grounded_answer(
                         message,
                         reply["text"],
@@ -397,11 +450,6 @@ async def chat_stream(req: ChatRequest):
                 reply["text"] = "".join(answer_parts).strip()
                 if not reply["text"]:
                     raise RuntimeError("LLM không tạo được câu trả lời.")
-
-            # Steps are emitted after dialogue execution because respond()
-            # currently returns a list and has no live on_step callback.
-            for step in reply.get("steps", []):
-                yield _sse({"type": "step", "text": str(step)})
 
             if reply.get("links"):
                 yield _sse({"type": "links", "items": reply["links"]})

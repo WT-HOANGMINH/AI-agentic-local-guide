@@ -2,8 +2,7 @@
  *
  * Hiển thị:
  *  - các bước xử lý THẬT do backend báo ("Đang truy cập cơ sở dữ liệu...", "Đang truy cập dữ liệu thời tiết...")
- *  - chữ hiện dần (stream thật từ Gemini nếu có key; nếu không, câu trả lời từ dữ liệu địa phương
- *    được hiện dần phía trình duyệt - đây là hiệu ứng, không phải stream thật)
+ *  - chữ hiện dần chỉ khi backend thực sự stream token từ Gemini
  *  - gợi ý bấm/tick chọn: 1 lựa chọn -> gửi ngay; nhiều lựa chọn -> tick rồi bấm "Gửi lựa chọn"
  *  - nút bản đồ Google Maps, nút "Dùng vị trí của tôi", nút Dừng, nút Thử lại
  *
@@ -13,7 +12,25 @@
  */
 (function () {
   const SID_KEY = "dg_session_id";
+  const TOKEN_DELAY_MS = 40;
   const state = { pos: null, controller: null, busy: false, cfg: null };
+  const graphemes = text => {
+    if (typeof Intl.Segmenter === "function") {
+      return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
+        .map(part => part.segment);
+    }
+    return Array.from(text);
+  };
+  async function revealText(text, onCharacter, signal) {
+    const characters = graphemes(String(text || ""));
+    for (let index = 0; index < characters.length; index += 1) {
+      if (signal && signal.aborted) break;
+      onCharacter(characters[index]);
+      if (index < characters.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, TOKEN_DELAY_MS));
+      }
+    }
+  }
 
   function getSessionId() {
     try {
@@ -40,14 +57,6 @@
   }
 
   const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const TYPE_DELAY_MS = 20;
-  function graphemes(text) {
-    if (typeof Intl.Segmenter === "function") {
-      return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
-        .map((part) => part.segment);
-    }
-    return Array.from(text);
-  }
   const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
   function parseFrame(frame) {
     const data = frame.split(/\r\n|\r|\n/)
@@ -71,8 +80,6 @@
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
       .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   }
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
   function el(tag, cls, html) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -104,23 +111,33 @@
   // ---------- bước xử lý ----------
   function makeSteps(box) {
     const wrap = el("div", "dg-steps");
+    const status = el("div", "dg-status");
+    const completed = el("div", "dg-completed-steps");
+    wrap.append(status, completed);
     box.appendChild(wrap);
-    let active = null;
+    let count = 0;
+    let finished = false;
     return {
+      status(text) {
+        status.hidden = !text;
+        status.textContent = text || "";
+        toBottom(box);
+      },
       add(text) {
-        if (active) { active.classList.remove("active"); active.classList.add("done"); }
-        active = el("div", "dg-step active");
-        active.textContent = text;
-        wrap.appendChild(active);
+        const step = el("div", "dg-step done");
+        step.textContent = text;
+        completed.appendChild(step);
+        count += 1;
         toBottom(box);
       },
       finish() {
-        if (active) { active.classList.remove("active"); active.classList.add("done"); }
-        const n = wrap.children.length;
-        if (!n) { wrap.remove(); return; }
+        if (finished) return;
+        finished = true;
+        status.remove();
+        if (!count) { wrap.remove(); return; }
         const d = el("details", "dg-steps-done");
-        d.appendChild(el("summary", "", "Đã thực hiện " + n + " bước"));
-        while (wrap.firstChild) d.appendChild(wrap.firstChild);
+        d.appendChild(el("summary", "", "Đã hoàn thành " + count + " bước xử lý"));
+        d.appendChild(completed);
         wrap.replaceWith(d);
       },
       remove() { wrap.remove(); },
@@ -223,33 +240,6 @@
     box.appendChild(wrap);
   }
 
-  function makeTypewriter(node) {
-    node.textContent = "";
-    const textNode = document.createTextNode("");
-    const cursor = el("span", "dg-cursor");
-    node.append(textNode, cursor);
-    let text = "";
-
-    return async function write(chunk, signal) {
-      for (const character of graphemes(chunk)) {
-        if (signal.aborted) break;
-        text += character;
-        textNode.appendData(character);
-        toBottom(node.parentElement);
-        await sleep(TYPE_DELAY_MS);
-      }
-      return text;
-    };
-  }
-
-  // ---------- hiện chữ dần cho câu trả lời có sẵn ----------
-  async function reveal(node, text, signal) {
-    const write = makeTypewriter(node);
-    const displayed = await write(text, signal);
-    if (!signal.aborted) node.innerHTML = fmt(displayed);
-    return displayed;
-  }
-
   // ---------- gửi tin ----------
   async function sendMessage(text, shown) {
     if (state.busy) return;
@@ -277,8 +267,8 @@
 
     setBusy(true);
     const steps = makeSteps(box);
-    steps.add("Đang phân tích yêu cầu của bạn...");
-    let bot = null, raw = "", typeText = null, gotResult = false, failed = false;
+    steps.status("Đang gửi yêu cầu…");
+    let bot = null, raw = "", failed = false, gotResult = false;
     state.controller = new AbortController();
     const signal = state.controller.signal;
 
@@ -299,32 +289,53 @@
         const ev = parseFrame(frame);
         if (!ev) return;
         if (ev.type === "session" && ev.session_id) setSessionId(ev.session_id);
+        else if (ev.type === "status") steps.status(ev.text);
         else if (ev.type === "step") steps.add(ev.text);
         else if (ev.type === "token") {
+          steps.status("Đang nhận câu trả lời từ mô hình AI…");
           if (!bot) {
-            steps.finish();
             bot = addMsg(box, "bot", "");
-            typeText = makeTypewriter(bot);
           }
-          raw = await typeText(ev.text, signal);
+          raw += ev.text;
+          bot.classList.add("dg-streaming-text");
+          await revealText(ev.text, character => {
+            bot.textContent += character;
+            toBottom(box);
+          }, signal);
         } else if (ev.type === "result") {
           gotResult = true;
-          steps.finish();
           if (ev.text) {
             bot = bot || addMsg(box, "bot", "");
-            if (!raw && c.revealLocal) {
-              raw = await reveal(bot, ev.text, signal);
-            } else {
-              raw = ev.text;
-              if (!signal.aborted) bot.innerHTML = fmt(raw);
+            const finalText = String(ev.text);
+            if (finalText !== raw) {
+              steps.status("Đang hiển thị câu trả lời…");
+              const suffix = finalText.startsWith(raw)
+                ? finalText.slice(raw.length)
+                : finalText;
+              if (suffix === finalText && raw) bot.textContent = "";
+              raw = finalText;
+              bot.classList.add("dg-streaming-text");
+              if (!signal.aborted) {
+                await revealText(suffix, character => {
+                  bot.textContent += character;
+                  toBottom(box);
+                }, signal);
+              }
             }
+            bot.classList.remove("dg-streaming-text");
+            if (!signal.aborted) bot.innerHTML = fmt(raw);
             if (signal.aborted) return;
           } else if (bot) bot.innerHTML = fmt(raw);
+          steps.finish();
           renderItineraryAction(box, ev.itinerary);
           renderSuggestions(box, ev);
         } else if (ev.type === "error") {
           failed = true;
-          if (bot) bot.innerHTML = fmt(raw);
+          steps.status("");
+          if (bot) {
+            bot.classList.remove("dg-streaming-text");
+            bot.innerHTML = fmt(raw);
+          }
           showError(box, text, showText, ev.text);
         }
       }
@@ -347,13 +358,18 @@
       }
     } catch (e) {
       if (e.name === "AbortError") {
-        if (bot) bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+        if (bot) {
+          bot.classList.remove("dg-streaming-text");
+          bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+        }
       } else {
         failed = true;
+        steps.status("");
         showError(box, text, showText, "Mình gặp sự cố kết nối. ");
       }
     } finally {
-      if (!gotResult) steps.finish();
+      steps.finish();
+      if (bot) bot.classList.remove("dg-streaming-text");
       if (bot && signal.aborted) bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
       else if (bot && !failed && gotResult) bot.innerHTML = fmt(raw);
       state.controller = null;
@@ -389,7 +405,7 @@
   function init(opts) {
     const q = (s) => (typeof s === "string" ? document.querySelector(s) : s);
     const cfg = Object.assign({
-      endpoint: "/api/ai-guide/chat-stream", apiBase: defaultApiBase(), revealLocal: true,
+      endpoint: "/api/ai-guide/chat-stream", apiBase: defaultApiBase(),
       userClass: "", botClass: "", replaceExisting: true,
     }, opts);
     cfg.box = q(opts.messages); cfg.input = q(opts.input); cfg.send = q(opts.send);

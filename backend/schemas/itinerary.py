@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from pydantic import BaseModel, Field, model_validator
 from backend.schemas.place import PlaceResponse
@@ -103,6 +103,10 @@ class ItineraryCreate(ItineraryBase):
     items: list[ItineraryItemCreate] = Field(default_factory=list, description="Danh sách các điểm dừng trong lịch trình")
 
 
+class ItineraryItemsReplace(BaseModel):
+    items: list[ItineraryItemCreate] = Field(default_factory=list, max_length=100)
+
+
 class ItineraryUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=150)
     description: str | None = None
@@ -138,6 +142,7 @@ class ItineraryDetailResponse(ItineraryBase):
 
 class ItineraryGenerateRequest(BaseModel):
     days: int = Field(default=2, ge=1, le=7, description="Số ngày muốn đi du lịch Đà Nẵng (1-7 ngày)")
+    travel_date: date | None = Field(default=None, description="Ngày bắt đầu dự kiến")
     budget_level: int = Field(default=2, ge=1, le=5, description="Mức chi tiêu từ 1 đến 5")
     travel_style: str = Field(default="Khám phá", description="Phong cách: Khám phá, Nghỉ dưỡng, Ẩm thực, Check-in")
     preferred_categories: list[str] = Field(

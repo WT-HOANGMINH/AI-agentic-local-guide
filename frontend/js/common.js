@@ -597,11 +597,16 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFooter();
 
   if (!location.pathname.endsWith('/chat.html')) {
+    const streamStyles = document.createElement('link');
+    streamStyles.rel = 'stylesheet';
+    streamStyles.href = 'css/chat-stream.css?v=truthful-progress-2';
+    document.head.appendChild(streamStyles);
+
     const streamScript = document.createElement('script');
-    streamScript.src = 'js/chat-stream.js?v=chat-save-2';
+    streamScript.src = 'js/chat-stream.js?v=truthful-progress-2';
     streamScript.onload = () => {
       const chatScript = document.createElement('script');
-      chatScript.src = 'js/chat-widget.js?v=chat-resize-1';
+      chatScript.src = 'js/chat-widget.js?v=chat-controls-stream-2';
       chatScript.onload = () => {
         if (!window.DGChat) {
           console.error('Không khởi tạo được chat streaming.');

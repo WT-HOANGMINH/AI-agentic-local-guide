@@ -247,7 +247,8 @@ const API = {
     {
       method = 'GET',
       body,
-      auth = false
+      auth = false,
+      headers: extraHeaders = {}
     } = {}
   ) {
     const token = localStorage.getItem(
@@ -265,6 +266,7 @@ const API = {
     if (auth && validLocalToken(token)) {
       headers.Authorization = `Bearer ${token}`;
     }
+    Object.assign(headers, extraHeaders);
 
     let response;
 
@@ -1038,16 +1040,8 @@ async getProfile() {
       itineraryIdKey()
     );
 
-    const current =
-      (
-        records.itineraries || []
-      ).find(x => x.id === savedId) ||
-
-      (
-        records.itineraries || []
-      ).find(x =>
-        x.title === 'Lịch trình Đà Nẵng'
-      );
+    const current = (records.itineraries || [])
+      .find(x => String(x.id) === String(savedId));
 
     // Nếu đã có lịch trình, kiểm tra ID
     if (current) {
@@ -1078,6 +1072,28 @@ async getProfile() {
       ) {
         return {
           ids: uniqueIds
+        };
+      }
+
+      if (uniqueIds.length > 0) {
+        await this.request(
+          `/itineraries/${current.id}/items`,
+          {
+            method: 'PUT',
+            auth: true,
+            body: {
+              items: uniqueIds.map((placeId, index) => ({
+                place_id: placeId,
+                day_number: 1,
+                order_index: index + 1
+              }))
+            }
+          }
+        );
+        store.set(itineraryIdKey(), current.id);
+        return {
+          ids: uniqueIds,
+          id: current.id
         };
       }
     }
@@ -1131,31 +1147,6 @@ async getProfile() {
       itineraryIdKey(),
       created.id
     );
-
-    // Chỉ xóa lịch trình cũ sau khi
-    // tạo lịch trình mới thành công
-    if (
-      current &&
-      current.id !== created.id
-    ) {
-      try {
-
-        await this.request(
-          '/itineraries/' + current.id,
-          {
-            method: 'DELETE',
-            auth: true
-          }
-        );
-
-      } catch (error) {
-        console.warn(
-          'Đã lưu lịch trình mới nhưng ' +
-          'chưa xóa được bản cũ:',
-          error
-        );
-      }
-    }
 
     return {
       ids: uniqueIds,

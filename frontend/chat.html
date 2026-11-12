@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="vi">
 
@@ -50,11 +49,20 @@
     .dg-chat {
       display: grid;
       grid-template-columns: 285px minmax(0, 1fr);
-      min-height: 610px;
+      height: 610px;
+      min-width: 560px;
+      min-height: 480px;
+      max-width: 100%;
+      max-height: 90vh;
+      resize: both;
+      overflow: hidden;
       border: 1px solid #e2e9e6;
       border-radius: 14px;
-      overflow: hidden;
       background: #ffffff;
+    }
+
+    .dg-chat.is-expanded {
+      height: calc(100vh - 150px);
     }
 
     /* ===== COT BEN TRAI ===== */
@@ -63,6 +71,7 @@
       background: #f7faf8;
       padding: 27px 22px;
       border-right: 1px solid #e5ebe8;
+      overflow-y: auto;
     }
 
     .dg-assistant-icon {
@@ -143,7 +152,7 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
-      min-height: 610px;
+      min-height: 0;
     }
 
     .dg-chat-topbar {
@@ -153,6 +162,26 @@
       padding: 19px 25px;
       border-bottom: 1px solid #edf0ef;
       background: #ffffff;
+    }
+
+    .dg-chat-tools {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+
+    .dg-tool-btn {
+      border: 1px solid #dce5e0;
+      background: #fff;
+      color: #30423d;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .dg-tool-btn:hover {
+      background: #eaf5ef;
     }
 
     .dg-avatar {
@@ -184,9 +213,10 @@
 
     .dg-chat-messages {
       flex: 1;
-      min-height: 380px;
-      max-height: 530px;
+      min-height: 0;
+      max-height: none;
       overflow-y: auto;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
@@ -293,7 +323,6 @@
     /* ===== RESPONSIVE ===== */
 
     @media (max-width: 991px) {
-
       .dg-chat {
         grid-template-columns: 235px minmax(0, 1fr);
       }
@@ -301,11 +330,9 @@
       .dg-sidebar {
         padding: 24px 16px;
       }
-
     }
 
     @media (max-width: 767px) {
-
       .dg-chat-page {
         padding-top: 22px;
       }
@@ -315,8 +342,15 @@
       }
 
       .dg-chat {
+        resize: none;
+        min-width: 0;
+        height: calc(100vh - 120px);
         display: flex;
         flex-direction: column;
+      }
+
+      .dg-chat-tools {
+        display: none;
       }
 
       .dg-sidebar {
@@ -345,13 +379,8 @@
         margin-bottom: 8px;
       }
 
-      .dg-chat-main {
-        min-height: 480px;
-      }
-
       .dg-chat-messages {
         padding: 18px;
-        min-height: 310px;
       }
 
       .dg-chat-messages .bubble {
@@ -373,7 +402,7 @@
     }
 
 
-    /* ===== HIEN THI BUOC SUY NGHI + CHU HIEN DAN ===== */
+    /* ===== TRANG THAI XU LY + CHU HIEN DAN ===== */
 
     .dg-chat-messages .bubble .dg-step {
       font-size: 12px;
@@ -381,11 +410,41 @@
       color: #7a8b86;
     }
 
+    .dg-chat-messages .bubble .dg-chat-progress {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #176b60;
+    }
+
+    .dg-chat-messages .bubble .dg-chat-progress::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 50%;
+      background: #176b60;
+      animation: dgstep-pulse 1s ease-in-out infinite;
+    }
+
+    .dg-chat-messages .bubble .dg-step.done::before {
+      content: "✓";
+      color: #176b60;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+
+    .dg-chat-messages .bubble .dg-chat-progress {
+      margin-bottom: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
     .dg-chat-messages .bubble .dg-step:last-child {
       margin-bottom: 8px;
     }
 
-    .dg-chat-messages .bubble.streaming > span::after {
+    .dg-chat-messages .bubble .dg-streaming-text::after {
       content: "\258D";
       margin-left: 2px;
       animation: dgblink 1s steps(2) infinite;
@@ -444,6 +503,17 @@
 
     @keyframes dgblink {
       50% { opacity: 0; }
+    }
+
+    @keyframes dgstep-pulse {
+      50% { opacity: 0.35; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .dg-chat-messages .bubble .dg-chat-progress::before,
+      .dg-chat-messages .bubble .dg-streaming-text::after {
+        animation: none;
+      }
     }
 
   </style>
@@ -583,6 +653,11 @@
             </small>
           </div>
 
+          <div class="dg-chat-tools">
+            <button type="button" class="dg-tool-btn" id="chat-expand">⤢ Phóng to</button>
+            <button type="button" class="dg-tool-btn" id="chat-reset">↺ Mặc định</button>
+          </div>
+
         </div>
 
         <!-- DANH SACH TIN NHAN -->
@@ -654,14 +729,38 @@
   <script src="js/api.js?v=2"></script>
 
   <!-- KET NOI CHAT AI THAT -->
-  <script src="js/ai-chat.js"></script>
+  <script src="js/ai-chat.js?v=truthful-stream-2"></script>
 
   <!-- CHUC NANG CHUNG -->
-  <script src="js/common.js?v=chat-ui-2"></script>
+  <script src="js/common.js?v=chat-controls-stream-2"></script>
 
   <!-- GIAO DIEN CHAT -->
-  <script src="js/chat.js?v=2"></script>
+  <script src="js/chat.js?v=stream-truth-2"></script>
+  <script src="js/chat-widget.js?v=chat-controls-stream-2"></script>
   <script src="js/oauth-ui.js"></script>
+
+  <script>
+    (function () {
+      const box = document.querySelector('.dg-chat');
+      const expandBtn = document.getElementById('chat-expand');
+      const resetBtn = document.getElementById('chat-reset');
+      const messages = document.getElementById('chat-messages');
+      if (!box || !expandBtn || !resetBtn) return;
+      expandBtn.addEventListener('click', () => {
+        box.style.width = '';
+        box.style.height = '';
+        const expanded = box.classList.toggle('is-expanded');
+        expandBtn.textContent = expanded ? '⤡ Thu nhỏ' : '⤢ Phóng to';
+        messages.scrollTop = messages.scrollHeight;
+      });
+      resetBtn.addEventListener('click', () => {
+        box.classList.remove('is-expanded');
+        box.style.width = '';
+        box.style.height = '';
+        expandBtn.textContent = '⤢ Phóng to';
+      });
+    })();
+  </script>
 
 </body>
 </html>

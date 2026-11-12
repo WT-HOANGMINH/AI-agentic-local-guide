@@ -1,11 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import hashlib
+import json
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.auth_utils import get_current_user
 from backend.database import get_db
-from backend.models.itinerary import Itinerary, ItineraryItem
+from backend.models.itinerary import Itinerary, ItineraryIdempotency, ItineraryItem
 from backend.models.place import Place
 from backend.models.user import User
+from backend.services.weather_analyzer import analyze_date, classify_hour, poi_allowed
+from backend.services.weather_planner import profile_of
+from backend.services.weather_service import TZ, get_weather_forecast
 from backend.schemas.itinerary import (
     ItineraryCreate,
     ItineraryDetailResponse,
@@ -13,6 +21,7 @@ from backend.schemas.itinerary import (
     ItineraryGenerateRequest,
     ItineraryItemCreate,
     ItineraryItemResponse,
+    ItineraryItemsReplace,
     ItineraryItemUpdate,
     ItineraryListResponse,
     ItineraryResponse,
@@ -139,23 +148,38 @@ def generate_smart_itinerary(
     - Tự động lấy các địa điểm tốt nhất từ cơ sở dữ liệu Đà Nẵng và lưu trực tiếp vào tài khoản người dùng.
     """
     days = req.days
+    travel_date = req.travel_date or datetime.now(TZ).date()
     title = req.title or f"Hành trình Đà Nẵng {days} ngày {days-1} đêm ({req.travel_style})"
     desc = (
         f"Lịch trình {req.travel_style.lower()} được tạo tự động bởi Agentic Local Guide. "
         f"Mức ngân sách: ₫{'₫' * max(0, min(req.budget_level, 5)-1)}."
     )
 
+    forecast = None
+    weather_notice = ""
+    try:
+        forecast = get_weather_forecast(forecast_days=7)
+    except RuntimeError:
+        weather_notice = (
+            "Chưa thể xác minh dự báo thời tiết trực tiếp; lịch trình dùng cách chọn địa điểm thông thường."
+        )
+    if forecast and forecast.get("is_stale"):
+        weather_notice = (
+            "Dữ liệu thời tiết đang cũ; không dùng dữ liệu này để ưu tiên hoặc loại bỏ địa điểm."
+        )
+
     new_it = Itinerary(
         user_id=current_user.id,
         title=title,
-        description=desc,
+        description=desc + (f" {weather_notice}" if weather_notice else ""),
+        start_date=travel_date.isoformat(),
+        end_date=(travel_date + timedelta(days=days - 1)).isoformat(),
         total_days=days,
         budget_level=req.budget_level,
         status="planning"
     )
     db.add(new_it)
-    db.commit()
-    db.refresh(new_it)
+    db.flush()
 
     # Lấy danh sách địa điểm theo các nhóm
     attractions = db.query(Place).filter(Place.is_active == True, Place.category == "tourist_attraction").all()
@@ -165,6 +189,19 @@ def generate_smart_itinerary(
 
     # Fallback nếu thiếu dữ liệu
     all_places = db.query(Place).filter(Place.is_active == True).all()
+
+    if forecast and not forecast.get("is_stale"):
+        forecast_dates = {row.get("date") for row in forecast.get("daily", [])}
+        requested_dates = {
+            (travel_date + timedelta(days=offset)).isoformat()
+            for offset in range(days)
+        }
+        if requested_dates - forecast_dates:
+            weather_notice = (
+                "Dự báo hiện không bao phủ toàn bộ ngày đi; những ngày chưa có dữ liệu "
+                "được xếp theo cách thông thường."
+            )
+            new_it.description = f"{desc} {weather_notice}"
 
     time_slots = [
         ("08:30 - 11:30", "Buổi sáng tham quan, chụp ảnh và check-in", attractions),
@@ -177,25 +214,82 @@ def generate_smart_itinerary(
     rest_idx = 0
     cafe_idx = 0
     other_idx = 0
+    selected_ids = set()
+    generated_days = []
+
+    def slot_risk(day_iso, slot_time):
+        if not forecast or forecast.get("is_stale"):
+            return None
+        start, end = [
+            part.strip() for part in slot_time.split("-", maxsplit=1)
+        ]
+        start_minute = int(start[:2]) * 60 + int(start[3:])
+        end_minute = int(end[:2]) * 60 + int(end[3:])
+        risks = []
+        for hour in forecast.get("hours", []):
+            if not hour.get("time", "").startswith(day_iso):
+                continue
+            minute = int(hour["time"][11:13]) * 60 + int(hour["time"][14:16])
+            if start_minute <= minute < end_minute:
+                risks.append(classify_hour(hour)["risk"])
+        return max(risks) if risks else None
 
     for day in range(1, days + 1):
+        day_iso = (travel_date + timedelta(days=day - 1)).isoformat()
+        plan_items = []
         for slot_idx, (slot_time, note, pool) in enumerate(time_slots, start=1):
+            candidates = [place for place in pool if place.id not in selected_ids]
+            if not candidates:
+                candidates = [place for place in all_places if place.id not in selected_ids]
+
+            risk = slot_risk(day_iso, slot_time)
             chosen_place = None
-            if pool:
+            if candidates:
                 if "Buổi sáng" in note and attractions:
-                    chosen_place = attractions[attr_idx % len(attractions)]
+                    cursor = attr_idx
                     attr_idx += 1
                 elif "ẩm thực" in note and restaurants:
-                    chosen_place = restaurants[rest_idx % len(restaurants)]
+                    cursor = rest_idx
                     rest_idx += 1
                 elif "cà phê" in note and cafes:
-                    chosen_place = cafes[cafe_idx % len(cafes)]
+                    cursor = cafe_idx
                     cafe_idx += 1
                 else:
-                    chosen_place = pool[other_idx % len(pool)]
+                    cursor = other_idx
                     other_idx += 1
-            elif all_places:
-                chosen_place = all_places[(day + slot_idx) % len(all_places)]
+                cursor %= len(candidates)
+
+                def score_candidate(index_place):
+                    index, place = index_place
+                    profile = profile_of(place)
+                    if risk is None or risk <= 1:
+                        weather_penalty = 0
+                        profile_penalty = 0
+                    else:
+                        weather_penalty = 0 if poi_allowed(profile, risk) else 1
+                        profile_penalty = {
+                            "indoor": 0,
+                            "weather_dependent": 1,
+                            "outdoor": 2,
+                        }.get(profile, 1)
+                    return (
+                        weather_penalty,
+                        profile_penalty if risk is not None and risk >= 2 else 0,
+                        (index - cursor) % len(candidates),
+                    )
+
+                chosen_place = min(enumerate(candidates), key=score_candidate)[1]
+                selected_ids.add(chosen_place.id)
+
+            item_title = chosen_place.name if chosen_place else "Tự do khám phá"
+            item_kind = (
+                "meal" if "ẩm thực" in note else
+                "cafe" if "cà phê" in note else
+                "visit" if chosen_place else "free_time"
+            )
+            start_time, end_time = [
+                part.strip() for part in slot_time.split("-", maxsplit=1)
+            ]
 
             item = ItineraryItem(
                 itinerary_id=new_it.id,
@@ -207,7 +301,56 @@ def generate_smart_itinerary(
                 estimated_cost=150000.0 if "ẩm thực" in note else (50000.0 if "cà phê" in note else 0.0)
             )
             db.add(item)
+            plan_items.append({
+                "order": slot_idx,
+                "kind": item_kind,
+                "place_id": chosen_place.id if chosen_place else None,
+                "title": item_title,
+                "start_time": start_time,
+                "end_time": end_time,
+                "description": note,
+                "address": chosen_place.address if chosen_place else None,
+                "estimated_cost_vnd": (
+                    150000.0 if "ẩm thực" in note
+                    else 50000.0 if "cà phê" in note
+                    else 0.0
+                ),
+            })
+        generated_days.append({"day_number": day, "items": plan_items})
 
+    new_it.itinerary_data = {
+        "title": title,
+        "description": new_it.description,
+        "travel_date": travel_date.isoformat(),
+        "duration_days": days,
+        "budget": {"level": req.budget_level, "currency": "VND"},
+        "preferences": {
+            "travel_style": req.travel_style,
+            "preferred_categories": req.preferred_categories,
+            "weather_notice": weather_notice or None,
+            "weather_source": forecast.get("source") if forecast else None,
+            "weather_reference_url": (
+                "https://open-meteo.com/en/docs" if forecast else None
+            ),
+            "weather_fetched_at": forecast.get("fetched_at") if forecast else None,
+            "weather_cache_status": (
+                "unavailable" if not forecast else
+                "stale" if forecast.get("is_stale") else
+                "cached" if forecast.get("from_cache") else "fresh"
+            ),
+            "weather_valid_from": min(
+                (row["date"] for row in forecast.get("daily", []) if row.get("date")),
+                default=None,
+            ) if forecast else None,
+            "weather_valid_until": max(
+                (row["date"] for row in forecast.get("daily", []) if row.get("date")),
+                default=None,
+            ) if forecast else None,
+            "weather_region": forecast.get("location", "Da Nang, Vietnam") if forecast else None,
+        },
+        "days": generated_days,
+        "verified_data_only": True,
+    }
     db.commit()
     db.refresh(new_it)
     return new_it
@@ -223,8 +366,37 @@ def save_chat_itinerary(
     data: ItineraryFromChatCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ):
     plan = data.itinerary
+    serialized_plan = json.dumps(
+        plan.model_dump(mode="json"),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    request_hash = hashlib.sha256(serialized_plan.encode("utf-8")).hexdigest()
+    key = (idempotency_key or request_hash).strip()
+    if not key:
+        key = request_hash
+
+    previous_request = db.query(ItineraryIdempotency).filter(
+        ItineraryIdempotency.user_id == current_user.id,
+        ItineraryIdempotency.idempotency_key == key,
+    ).first()
+    if previous_request:
+        if previous_request.request_hash != request_hash:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Khóa lưu lịch trình đã được sử dụng cho nội dung khác.",
+            )
+        previous_itinerary = db.query(Itinerary).filter(
+            Itinerary.id == previous_request.itinerary_id,
+            Itinerary.user_id == current_user.id,
+        ).first()
+        if previous_itinerary:
+            return previous_itinerary
+
     referenced_ids = {
         item.place_id
         for day in plan.days
@@ -284,7 +456,28 @@ def save_chat_itinerary(
                 estimated_cost=item.estimated_cost_vnd,
             ))
 
-    db.commit()
+    db.add(ItineraryIdempotency(
+        user_id=current_user.id,
+        idempotency_key=key,
+        request_hash=request_hash,
+        itinerary_id=itinerary.id,
+    ))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        previous_request = db.query(ItineraryIdempotency).filter(
+            ItineraryIdempotency.user_id == current_user.id,
+            ItineraryIdempotency.idempotency_key == key,
+        ).first()
+        if previous_request and previous_request.request_hash == request_hash:
+            previous_itinerary = db.query(Itinerary).filter(
+                Itinerary.id == previous_request.itinerary_id,
+                Itinerary.user_id == current_user.id,
+            ).first()
+            if previous_itinerary:
+                return previous_itinerary
+        raise
     db.refresh(itinerary)
     return itinerary
 
@@ -308,8 +501,7 @@ def get_itinerary_detail(
             detail="Không tìm thấy lịch trình này"
         )
 
-    # Đảm bảo chỉ chủ sở hữu hoặc admin mới xem được
-    if itinerary.user_id != current_user.id and current_user.role != "admin":
+    if itinerary.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền truy cập lịch trình này"
@@ -338,7 +530,7 @@ def update_itinerary(
             detail="Không tìm thấy lịch trình để cập nhật"
         )
 
-    if itinerary.user_id != current_user.id and current_user.role != "admin":
+    if itinerary.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền sửa lịch trình này"
@@ -373,12 +565,15 @@ def delete_itinerary(
             detail="Không tìm thấy lịch trình để xóa"
         )
 
-    if itinerary.user_id != current_user.id and current_user.role != "admin":
+    if itinerary.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền xóa lịch trình này"
         )
 
+    db.query(ItineraryIdempotency).filter(
+        ItineraryIdempotency.itinerary_id == itinerary.id
+    ).delete(synchronize_session=False)
     db.delete(itinerary)
     db.commit()
 
@@ -391,6 +586,88 @@ def delete_itinerary(
 # ==============================================================
 # Quản lý từng điểm dừng chân (Items) trong lịch trình
 # ==============================================================
+
+@router.put(
+    "/{itinerary_id}/items",
+    response_model=ItineraryDetailResponse,
+    summary="[Protected] Thay thế có giao dịch toàn bộ điểm dừng"
+)
+def replace_itinerary_items(
+    itinerary_id: int,
+    data: ItineraryItemsReplace,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    itinerary = db.query(Itinerary).filter(Itinerary.id == itinerary_id).first()
+    if not itinerary:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch trình")
+    if itinerary.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền chỉnh sửa lịch trình")
+    if any(item.day_number > itinerary.total_days for item in data.items):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ngày trong lịch trình vượt quá thời lượng chuyến đi")
+
+    place_ids = {item.place_id for item in data.items if item.place_id is not None}
+    places = {
+        place.id: place
+        for place in db.query(Place).filter(Place.id.in_(place_ids)).all()
+    } if place_ids else {}
+    if place_ids - places.keys():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Địa điểm không tồn tại")
+
+    db.query(ItineraryItem).filter(
+        ItineraryItem.itinerary_id == itinerary.id
+    ).delete(synchronize_session=False)
+    for item_data in data.items:
+        db.add(ItineraryItem(
+            itinerary_id=itinerary.id,
+            place_id=item_data.place_id,
+            day_number=item_data.day_number,
+            order_index=item_data.order_index,
+            time_slot=item_data.time_slot,
+            notes=item_data.notes,
+            estimated_cost=item_data.estimated_cost,
+        ))
+
+    grouped = {day: [] for day in range(1, itinerary.total_days + 1)}
+    for item_data in sorted(
+        data.items,
+        key=lambda item: (item.day_number, item.order_index),
+    ):
+        place = places.get(item_data.place_id)
+        start_time = end_time = None
+        if item_data.time_slot:
+            parts = item_data.time_slot.split("-", maxsplit=1)
+            start_time = parts[0].strip()
+            end_time = parts[1].strip() if len(parts) == 2 else None
+        grouped.setdefault(item_data.day_number, []).append({
+            "order": item_data.order_index,
+            "kind": "visit",
+            "place_id": item_data.place_id,
+            "title": place.name if place else (item_data.notes or "Hoạt động"),
+            "start_time": start_time,
+            "end_time": end_time,
+            "description": item_data.notes,
+            "address": place.address if place else None,
+            "estimated_cost_vnd": item_data.estimated_cost,
+        })
+
+    itinerary.itinerary_data = {
+        "title": itinerary.title,
+        "description": itinerary.description,
+        "travel_date": itinerary.start_date,
+        "duration_days": itinerary.total_days,
+        "budget": {"level": itinerary.budget_level, "currency": "VND"},
+        "preferences": {},
+        "days": [
+            {"day_number": day, "items": items}
+            for day, items in sorted(grouped.items())
+        ],
+        "verified_data_only": True,
+    }
+    db.commit()
+    db.refresh(itinerary)
+    return itinerary
+
 
 @router.post(
     "/{itinerary_id}/items",
@@ -409,7 +686,7 @@ def add_itinerary_item(
     if not itinerary:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch trình")
 
-    if itinerary.user_id != current_user.id and current_user.role != "admin":
+    if itinerary.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền chỉnh sửa lịch trình")
 
     if item_data.place_id:
@@ -448,7 +725,7 @@ def delete_itinerary_item(
     if not itinerary:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch trình")
 
-    if itinerary.user_id != current_user.id and current_user.role != "admin":
+    if itinerary.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền chỉnh sửa lịch trình")
 
     item = db.query(ItineraryItem).filter(ItineraryItem.id == item_id, ItineraryItem.itinerary_id == itinerary_id).first()

@@ -1,5 +1,15 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from backend.database import Base
@@ -41,3 +51,26 @@ class ItineraryItem(Base):
     # Relationships
     itinerary = relationship("Itinerary", back_populates="items")
     place = relationship("Place")
+
+
+class ItineraryIdempotency(Base):
+    __tablename__ = "itinerary_idempotency"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_itinerary_idempotency_user_key",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    idempotency_key = Column(String(128), nullable=False)
+    request_hash = Column(String(64), nullable=False)
+    itinerary_id = Column(
+        Integer,
+        ForeignKey("itineraries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

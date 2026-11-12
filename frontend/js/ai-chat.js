@@ -3,7 +3,7 @@
 (function () {
   window.API = window.API || {};
 
-  const TYPE_DELAY_MS = 20;
+  const TYPE_DELAY_MS = 40;
   const graphemes = text => {
     if (typeof Intl.Segmenter === 'function') {
       return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
@@ -11,12 +11,16 @@
     }
     return Array.from(text);
   };
-  const emitText = async (text, onToken) => {
-    for (const character of graphemes(String(text || ''))) {
-      onToken(character);
-      await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS));
+  const revealText = async (text, onCharacter) => {
+    const characters = graphemes(String(text || ''));
+    for (let index = 0; index < characters.length; index += 1) {
+      onCharacter(characters[index]);
+      if (index < characters.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS));
+      }
     }
   };
+  window.API.revealText = revealText;
   const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
   const parseFrame = frame => {
     const data = frame.split(/\r\n|\r|\n/)
@@ -115,19 +119,17 @@
       if (!event) return;
 
       if (event.type === 'session' && event.session_id) setSid(event.session_id);
-      else if (event.type === 'step' && h.onStep) h.onStep(event.text);
+      else if (event.type === 'status' && h.onStatus) h.onStatus(event);
+      else if (event.type === 'step' && h.onStep) {
+        h.onStep(event.text, { completed: event.completed === true });
+      }
       else if (event.type === 'token' && h.onToken) {
-        await emitText(event.text, h.onToken);
+        await revealText(event.text, h.onToken);
       }
       else if (event.type === 'result') {
-        if (!event.streaming && event.text && h.onToken) {
-          await emitText(event.text, h.onToken);
-          if (h.onResult) h.onResult({ ...event, text: '' });
-        } else if (h.onResult) {
-          h.onResult(event);
-        }
+        if (h.onResult) await h.onResult(event);
       } else if (event.type === 'error' && h.onError) h.onError(event.text);
-      else if (event.type === 'done' && h.onDone) h.onDone();
+      else if (event.type === 'done' && h.onDone) await h.onDone();
     }
 
     try {

@@ -3,12 +3,16 @@
 import math
 import re
 from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
 
 from backend.services import compose, nlg, place_repo
 from backend.services import planner_service
 from backend.services import planner as pl
 from backend.services.ranker import INTEREST_QUERY, MEAL_QUERY, get_ranker
 from backend.services.slot_service import AREA_ALIASES, area_of, extract_slots, strip_accents
+from backend.services import weather_chat as wx
+from backend.services import weather_planner as wp
+from backend.services.weather_service import get_weather_forecast
 
 CATEGORY_OF = {"food": {"restaurant"}, "cafe": {"cafe"}, "attraction": {"tourist_attraction"},
                "accommodation": {"hotel", "homestay", "accommodation", "resort"}}
@@ -25,7 +29,7 @@ PERSIST = {
     "start_time", "early", "flexible", "companion", "limit_walk",
     "meal", "dish", "wants", "wish_places", "places", "zone",
     "food_query", "include_meals", "midday_rest", "cafe_requested",
-    "day_end", "stops_per_day",
+    "day_end", "stops_per_day", "travel_date",
 }
 MEAL_WINDOW = {"breakfast": ("08:00", "09:00"), "lunch": ("11:30", "13:00"), "dinner": ("18:30", "20:00")}
 FRIENDLY = {"itinerary": "lập lịch trình", "food": "tìm quán ăn", "cafe": "tìm quán cà phê",
@@ -54,6 +58,8 @@ class State:
     route_dest: object | None = None
     requested_place_ids: set = field(default_factory=set)
     starting_new_itinerary: bool = False
+    travel_date: str | None = None
+    wx_date: str | None = None
 
 
 def wants_remove(msg):
@@ -768,11 +774,110 @@ def handle_transport(st, db, msg, slots, place, steps):
     )
 
 
-def handle_weather(st, steps):
+def capture_travel_date(st, message, intent):
+    if intent != "itinerary":
+        return
+    today = datetime.now(wx.TZ).date()
+    target, explicit = wx.parse_target_date(message, today)
+    if explicit:
+        st.travel_date = target.isoformat()
+        st.wx_date = st.travel_date
+        st.slots["travel_date"] = st.travel_date
+
+
+def handle_weather(st, db=None, message=None, steps=None):
+    # Keep the original dialogue call shape for compatibility with existing routes.
+    if steps is None and isinstance(db, list):
+        steps = db
+        steps.append("Đang truy cập dự báo thời tiết từ Open-Meteo")
+        lat, lng = st.pos if st.pos is not None else (None, None)
+        return reply(planner_service.weather_text(lat, lng), steps)
+
+    steps = steps or []
+    message = message or ""
+    today = datetime.now(wx.TZ).date()
+    remembered = getattr(st, "travel_date", None)
+    if remembered:
+        try:
+            remembered = date.fromisoformat(remembered)
+        except ValueError:
+            remembered = None
+    target, explicit = wx.parse_target_date(message, today, remembered)
+    if not explicit and remembered is None and "neu" in strip_accents(message):
+        return reply(
+            "Bạn định đi vào ngày nào nhỉ? Cho mình ngày cụ thể để tra dự báo đúng nhé.",
+            steps,
+        )
+
     steps.append("Đang truy cập dự báo thời tiết từ Open-Meteo")
-    lat, lng = st.pos if st.pos is not None else (None, None)
-    text = planner_service.weather_text(lat, lng)
-    return reply(text, steps)
+    try:
+        forecast = get_weather_forecast(forecast_days=wx.FORECAST_DAYS)
+    except RuntimeError:
+        return reply(
+            "Mình đang không kết nối được nguồn dự báo và chưa có dữ liệu lưu đủ mới, "
+            "nên chưa thể xác nhận thời tiết. Bạn thử lại sau nhé.",
+            steps,
+        )
+
+    st.travel_date = target.isoformat()
+    st.wx_date = st.travel_date
+    plan_start = None
+    if st.plan and remembered:
+        plan_start = remembered
+    elif st.plan and st.slots.get("travel_date"):
+        try:
+            plan_start = date.fromisoformat(st.slots["travel_date"])
+        except (TypeError, ValueError):
+            plan_start = None
+
+    itinerary_text = None
+    if plan_start and plan_start <= target < plan_start + timedelta(days=len(st.plan)):
+        idx = (target - plan_start).days
+        ranker = get_ranker(db)
+        pool = list(getattr(ranker, "places", []))
+        report = wp.adjust_day(
+            idx=idx,
+            iso=target.isoformat(),
+            forecast=forecast,
+            get_day=lambda: st.plan[idx],
+            by_id_fn=lambda: by_id_of(db, st.plan),
+            used_ids_fn=lambda: {
+                place_id
+                for day in st.plan
+                for place_id in day.get("attr_ids", [])
+            },
+            replan=lambda old_id, new_id: replan_day(
+                db, st, idx, remove_id=old_id, add_ids=[new_id]
+            ),
+            pool=pool,
+            travel_min=pl.travel_min,
+            protected=getattr(st, "requested_place_ids", set()),
+            backups_pool=pool,
+        )
+        for day in st.plan:
+            day.setdefault("dropped", [])
+        label = f"ngày {idx + 1}"
+        itinerary_text = "\n".join(
+            [
+                f"Mình đã kiểm tra lại lịch trình cho {label} theo dự báo mới nhất.",
+                wp.day_block(label, report, forecast),
+                compose.render_plan(st.plan, [idx], by_id_of(db, st.plan), st.lang),
+            ]
+        )
+
+    if itinerary_text is not None:
+        result = reply(itinerary_text, steps)
+        result["itinerary"] = itinerary_data(st, message, by_id_of(db, st.plan))
+        result["weather"] = {
+            **wx.weather_metadata(forecast, target, report["analysis"]),
+            "max_risk": report["risk"],
+        }
+        result["_skip_llm"] = True
+        return result
+
+    result = wx.build_weather_reply(forecast, target, today, db)
+    result["steps"] = steps + result.get("steps", [])
+    return result
 
 
 def handle_detail(st, db, place, steps):
@@ -850,6 +955,7 @@ def respond(st, msg, intent, conf, db, choice=None, lat=None, lng=None, on_step=
 
 def _respond(st, msg, intent, conf, db, choice, missing_box):
     lang = st.lang = nlg.detect_lang(msg, st.lang)
+    capture_travel_date(st, msg, intent)
     slots, _ = extract_slots(msg)
     apply_choice(slots, choice)
     if st.pending_for == "transport" and re.search(
@@ -923,6 +1029,7 @@ def _respond(st, msg, intent, conf, db, choice, missing_box):
         intent = "itinerary" if "days" in slots else ("attraction" if slots.get("interests") else "unclear")
     if intent == "modify_itinerary" and not st.plan:
         intent = "itinerary"
+    capture_travel_date(st, msg, intent)
 
     is_modify = bool(st.plan) and not (intent == "itinerary" and "days" in slots) and bool(
         intent == "modify_itinerary" or wants_remove(msg) or wants_add(msg)
@@ -974,5 +1081,5 @@ def _respond(st, msg, intent, conf, db, choice, missing_box):
     if intent == "ask_detail":
         return handle_detail(st, db, place, steps)
     if intent == "weather":
-        return handle_weather(st, steps)
+        return handle_weather(st, db, msg, steps)
     return reply(nlg.say("ask_unclear", lang), steps, compose.sug_menu(lang))

@@ -44,6 +44,8 @@ class Place(Base):
     close_time = Column(String(5), nullable=True)     # "17:00"
     best_time = Column(String(20), nullable=True)     # morning | afternoon | sunset | night
     zone = Column(String(30), nullable=True)          # trung_tam | son_tra | ba_na | hoi_an ...
+    weather_profile = Column(String(20), nullable=True)  # indoor | outdoor | weather_dependent
+    
     prices = relationship(
         "PlacePrice",
         back_populates="place",

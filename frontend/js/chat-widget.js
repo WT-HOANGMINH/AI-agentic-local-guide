@@ -4,14 +4,12 @@
 */
 
 (() => {
-  // Khong hien 2 khung chat tren trang chat cu
-  if (location.pathname.endsWith("/chat.html")) return;
   if (document.getElementById("dgfw-root")) return;
 
   // Tu nap CSS cua widget
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "css/chat-widget.css?v=chat-resize-1";
+  css.href = "css/chat-widget.css?v=chat-controls-stream-2";
   document.head.appendChild(css);
 
   const root = document.createElement("div");
@@ -56,6 +54,13 @@
             Trợ lý du lịch của bạn
           </small>
         </div>
+
+        <button type="button"
+                id="dgfw-expand"
+                class="dgfw-expand"
+                aria-label="Phóng to khung chat"
+                aria-pressed="false"
+                title="Phóng to">⛶</button>
 
         <button type="button"
                 id="dgfw-close"
@@ -115,6 +120,7 @@
   const launcher = root.querySelector("#dgfw-launcher");
   const panel = root.querySelector("#dgfw-panel");
   const closeButton = root.querySelector("#dgfw-close");
+  const expandButton = root.querySelector("#dgfw-expand");
   const greeting = root.querySelector("#dgfw-greeting");
 
   // Ghi nho neu nguoi dung da tat loi chao
@@ -229,10 +235,18 @@ function limit(value, min, max) {
 function positionChatPanel() {
   if (panel.hidden) return;
 
-  const robot = launcher.getBoundingClientRect();
   const panelWidth = panel.offsetWidth;
   const panelHeight = panel.offsetHeight;
 
+  if (panel.classList.contains("dgfw-expanded")) {
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.left = Math.max(8, (window.innerWidth - panelWidth) / 2) + "px";
+    panel.style.top = Math.max(8, (window.innerHeight - panelHeight) / 2) + "px";
+    return;
+  }
+
+  const robot = launcher.getBoundingClientRect();
   const margin = 8;
   const gap = 12;
 
@@ -412,6 +426,18 @@ window.addEventListener("resize", () => {
 
   closeButton.addEventListener("click", closeChat);
 
+  expandButton.addEventListener("click", () => {
+    const expanded = panel.classList.toggle("dgfw-expanded");
+    expandButton.textContent = expanded ? "⤡" : "⛶";
+    expandButton.setAttribute("aria-pressed", String(expanded));
+    expandButton.setAttribute(
+      "aria-label",
+      expanded ? "Thu nhỏ khung chat" : "Phóng to khung chat"
+    );
+    expandButton.title = expanded ? "Thu nhỏ" : "Phóng to";
+    positionChatPanel();
+  });
+
 dismiss.addEventListener("click", () => {
   greetingDismissed = true;
   greeting.hidden = true;
@@ -441,11 +467,18 @@ dismiss.addEventListener("click", () => {
     );
     const progress = document.createElement("div");
     progress.className = "dgfw-progress";
-    progress.textContent = "Đang tìm câu trả lời cho bạn... ✨";
+    progress.textContent = "Đang gửi yêu cầu…";
+    const completedSteps = document.createElement("details");
+    completedSteps.className = "dgfw-completed-steps";
+    completedSteps.hidden = true;
+    const completedSummary = document.createElement("summary");
+    const completedList = document.createElement("div");
+    completedList.className = "dgfw-completed-list";
+    completedSteps.append(completedSummary, completedList);
     const answer = document.createElement("span");
     const responseSuggestions = document.createElement("div");
     responseSuggestions.className = "dgfw-response-suggestions";
-    typing.append(progress, answer, responseSuggestions);
+    typing.append(progress, completedSteps, answer, responseSuggestions);
 
     try {
       if (typeof API === "undefined" ||
@@ -454,20 +487,43 @@ dismiss.addEventListener("click", () => {
       }
 
       await API.chatStream(text, {
+        onStatus: status => {
+          progress.textContent = status.text;
+          messages.scrollTop = messages.scrollHeight;
+        },
         onStep: step => {
-          progress.textContent = step;
+          completedSteps.hidden = false;
+          completedSummary.textContent =
+            `Đã hoàn thành ${completedList.children.length + 1} bước xử lý`;
+          const item = document.createElement("div");
+          item.className = "dgfw-completed-step";
+          item.textContent = step;
+          completedList.appendChild(item);
           messages.scrollTop = messages.scrollHeight;
         },
         onToken: token => {
-          progress.textContent = "";
+          progress.textContent = "Đang nhận câu trả lời từ AI…";
+          answer.classList.add("dgfw-answer-streaming");
           answer.textContent += token;
           messages.scrollTop = messages.scrollHeight;
         },
-        onResult: result => {
-          progress.textContent = "";
-          if (result.text && !answer.textContent) {
-            answer.textContent = result.text;
+        onResult: async result => {
+          const finalText = String(result.text || "");
+          const visibleText = answer.textContent;
+          if (finalText && finalText !== visibleText) {
+            progress.textContent = "Đang hiển thị câu trả lời…";
+            answer.classList.add("dgfw-answer-streaming");
+            const suffix = finalText.startsWith(visibleText)
+              ? finalText.slice(visibleText.length)
+              : finalText;
+            if (suffix === finalText && visibleText) answer.textContent = "";
+            await API.revealText(suffix, character => {
+              answer.textContent += character;
+              messages.scrollTop = messages.scrollHeight;
+            });
           }
+          answer.classList.remove("dgfw-answer-streaming");
+          progress.textContent = "";
           if (result.notice) {
             const notice = document.createElement("div");
             notice.className = "dgfw-notice";
@@ -488,6 +544,7 @@ dismiss.addEventListener("click", () => {
         },
         onError: message => {
           progress.textContent = "";
+          answer.classList.remove("dgfw-answer-streaming");
           answer.textContent += answer.textContent ? `\n\n${message}` : message;
         }
       });
@@ -497,6 +554,7 @@ dismiss.addEventListener("click", () => {
       }
     } catch (error) {
       progress.textContent = "";
+      answer.classList.remove("dgfw-answer-streaming");
       answer.textContent =
         "Không thể kết nối Chat AI. " +
         (error.message || "Vui lòng thử lại.");

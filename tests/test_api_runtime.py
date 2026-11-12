@@ -168,7 +168,7 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
         ai_guide,
         "_compute",
         lambda message, state, lat=None, lng=None, on_step=None: {
-            "steps": ["Place lookup complete"],
+            "steps": ["Đang truy cập dữ liệu"],
             "text": "Suggested places",
             "intent": "attraction",
             "confidence": 1.0,
@@ -187,6 +187,23 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
     assert response.headers["content-type"].startswith("text/event-stream")
     assert '"type": "result"' in response.text
     assert '"streaming": false' in response.text
+    assert '"phase": "received"' in response.text
+    assert '"phase": "analyzing"' in response.text
+    assert '"phase": "analyzed"' in response.text
+    assert '"completed": true' in response.text
+    assert '"text": "Đã truy cập dữ liệu"' in response.text
+    assert (
+        response.text.index('"phase": "received"')
+        < response.text.index('"phase": "analyzing"')
+    )
+    assert (
+        response.text.index('"phase": "analyzing"')
+        < response.text.index('"phase": "analyzed"')
+    )
+    assert (
+        response.text.index('"phase": "analyzed"')
+        < response.text.index('"completed": true')
+    )
     assert "Gemini" not in response.text
     assert '"type": "token"' not in response.text
     assert '"type": "done"' in response.text

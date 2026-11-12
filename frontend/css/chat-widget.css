@@ -45,6 +45,7 @@
 
 .dgfw-launcher:focus-visible,
 .dgfw-close:focus-visible,
+.dgfw-expand:focus-visible,
 .dgfw-form button:focus-visible {
   outline: 3px solid #f9c74f;
   outline-offset: 3px;
@@ -185,17 +186,30 @@
   margin-right: 4px;
 }
 
-.dgfw-close {
+.dgfw-close,
+.dgfw-expand {
   border: 0;
   background: rgba(255, 255, 255, 0.15);
   color: white;
 
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 10px;
 
-  font-size: 23px;
+  font-size: 20px;
   cursor: pointer;
+}
+
+.dgfw-expand {
+  font-size: 18px;
+}
+
+.dgfw-panel.dgfw-expanded {
+  width: min(920px, calc(100vw - 32px));
+  height: min(850px, calc(100dvh - 32px));
+  min-width: min(360px, calc(100vw - 32px));
+  min-height: min(480px, calc(100dvh - 32px));
 }
 
 .dgfw-messages {
@@ -242,6 +256,54 @@
 .dgfw-notice {
   color: #788782;
   font-size: 11px;
+}
+
+.dgfw-progress:not(:empty)::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #176b60;
+  animation: dgfw-pulse 1.2s ease-in-out infinite;
+}
+
+.dgfw-answer-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #176b60;
+  animation: dgfw-blink 1s steps(2) infinite;
+}
+
+.dgfw-completed-steps {
+  margin: 4px 0 8px;
+  color: #788782;
+  font-size: 10px;
+}
+
+.dgfw-completed-steps[hidden] {
+  display: none !important;
+}
+
+.dgfw-completed-steps summary {
+  cursor: pointer;
+}
+
+.dgfw-completed-step {
+  margin: 4px 0 0 8px;
+}
+
+.dgfw-completed-step::before {
+  content: "✓";
+  margin-right: 6px;
+  color: #176b60;
+  font-weight: 700;
+}
+
+@keyframes dgfw-blink {
+  50% { opacity: 0; }
 }
 
 .dgfw-response-suggestions {
@@ -513,6 +575,14 @@
     min-height: 0;
     resize: none;
   }
+
+  .dgfw-panel.dgfw-expanded {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    min-width: 0;
+    min-height: 0;
+    resize: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -587,6 +657,11 @@
 /* Han che chuyen dong khi nguoi dung yeu cau */
 @media (prefers-reduced-motion: reduce) {
   .dgfw-bot-image {
+    animation: none;
+  }
+
+  .dgfw-progress:not(:empty)::before,
+  .dgfw-answer-streaming::after {
     animation: none;
   }
 }
