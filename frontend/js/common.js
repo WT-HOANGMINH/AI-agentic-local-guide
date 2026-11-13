@@ -20,24 +20,48 @@ const esc = s => String(s ?? '').replace(
 );
 
 
-// ===== HIEN THI THONG BAO =====
 
-function flash(message, type = 'danger', target = '#message') {
+const flashTimers = new WeakMap();
+
+function flash(
+  message,
+  type = 'danger',
+  target = '#message',
+  shouldScroll = true
+) {
   const box = $(target);
+  if (!box) return;
 
-  if (box) {
-    box.innerHTML = `
-      <div class="alert alert-${type}" role="alert">
-        ${esc(message)}
-      </div>
-    `;
+  // Huy bo dem cu neu co thong bao moi
+  const oldTimer = flashTimers.get(box);
 
+  if (oldTimer !== undefined) {
+    clearTimeout(oldTimer);
+  }
+
+  // Hien thi thong bao
+  box.innerHTML = `
+    <div class="alert alert-${type}" role="alert">
+      ${esc(message)}
+    </div>
+  `;
+  // Chi cuon trang khi can thiet
+  if (shouldScroll) {
     box.scrollIntoView({
       behavior: 'smooth',
       block: 'nearest'
     });
   }
+
+  // Tu dong an sau 3 giay
+  const timer = setTimeout(() => {
+    box.replaceChildren();
+    flashTimers.delete(box);
+  }, 3000);
+
+  flashTimers.set(box, timer);
 }
+
 
 
 // ===== KIEM TRA DANG NHAP =====
@@ -474,15 +498,16 @@ function placeCard(p, fav = false, eagerImage = false) {
 
 function markItineraryButton(button, added) {
   if (!button) return;
-
+  button.dataset.added = String(added);
   button.textContent = added
-    ? '✓ Đã thêm'
+    ? '✓ Đã thêm · Bỏ'
     : '+ Lịch trình';
 
   button.classList.toggle('btn-success', added);
   button.classList.toggle('btn-outline-secondary', !added);
 
-  button.disabled = added;
+  // Khong khoa nut sau khi them thanh cong
+  button.disabled = false;
 }
 
 // Cap nhat trang thai cac nut khi tai danh sach
@@ -512,26 +537,246 @@ async function syncItineraryButtons(container) {
     );
   }
 }
+
 async function wirePlaceActions(container) {
+  const modalElement = document.getElementById('addToItineraryModal');
+  const totalDaysSelect = document.getElementById('trip-total-days');
+  const selectedDaySelect = document.getElementById('trip-selected-day');
+  const selectedPlaceName = document.getElementById('selected-place-name');
+  const modalMessage = document.getElementById('itinerary-modal-message');
+  const confirmButton = document.getElementById('confirm-add-to-itinerary');
 
+  let pendingPlaceId = null;
+  let manualItinerary = null;
+  let saving = false;
+
+  const modal = modalElement && window.bootstrap
+    ? bootstrap.Modal.getOrCreateInstance(modalElement)
+    : null;
+
+  function showModalError(message) {
+    if (modalMessage) {
+      modalMessage.textContent = message;
+    }
+  }
+
+  function fillDaysSelect(totalDays) {
+    if (!totalDaysSelect) return;
+
+    const days = Math.max(
+      1,
+      Math.min(30, Number(totalDays) || 1)
+    );
+
+    totalDaysSelect.innerHTML = Array.from(
+      { length: 30 },
+      (_, index) => {
+        const day = index + 1;
+
+        return `
+          <option value="${day}">
+            ${day} ngày
+          </option>
+        `;
+      }
+    ).join('');
+
+    totalDaysSelect.value = String(days);
+    fillSelectedDay();
+  }
+
+  function fillSelectedDay() {
+    if (!selectedDaySelect || !totalDaysSelect) return;
+
+    const total = Number(totalDaysSelect.value);
+    const previous = Number(selectedDaySelect.value) || 1;
+
+    selectedDaySelect.innerHTML = Array.from(
+      { length: total },
+      (_, index) => {
+        const day = index + 1;
+
+        return `
+          <option value="${day}">
+            Ngày ${day}
+          </option>
+        `;
+      }
+    ).join('');
+
+    selectedDaySelect.value = String(
+      Math.min(previous, total)
+    );
+  }
+
+  function updatePlaceButtons(placeId, added) {
+    container.querySelectorAll('[data-add]').forEach(button => {
+      if (Number(button.dataset.add) === Number(placeId)) {
+        markItineraryButton(button, added);
+      }
+    });
+  }
+
+  if (totalDaysSelect) {
+    totalDaysSelect.addEventListener(
+      'change',
+      fillSelectedDay
+    );
+  }
+
+  if (modalElement) {
+    modalElement.addEventListener('hidden.bs.modal', () => {
+      pendingPlaceId = null;
+      manualItinerary = null;
+      showModalError('');
+    });
+  }
+
+  // Xu ly nut Luu trong hop thoai
+  if (confirmButton) {
+    confirmButton.addEventListener('click', async () => {
+      if (saving || pendingPlaceId === null) return;
+
+      saving = true;
+      confirmButton.disabled = true;
+      showModalError('');
+
+      try {
+        const totalDays = Number(totalDaysSelect.value);
+        const selectedDay = Number(selectedDaySelect.value);
+
+        if (
+          !Number.isInteger(totalDays) ||
+          totalDays < 1 ||
+          totalDays > 30 ||
+          !Number.isInteger(selectedDay) ||
+          selectedDay < 1 ||
+          selectedDay > totalDays
+        ) {
+          throw new Error('Số ngày du lịch không hợp lệ.');
+        }
+
+        // Tai lai du lieu moi nhat truoc khi luu
+        manualItinerary = await API.getManualItinerary();
+
+        let itineraryId;
+
+        if (manualItinerary) {
+          itineraryId = manualItinerary.id;
+
+          const existingItems = manualItinerary.items || [];
+
+          const alreadyAdded = existingItems.some(
+            item => Number(item.place_id) === pendingPlaceId
+          );
+
+          if (alreadyAdded) {
+            throw new Error(
+              'Địa điểm này đã có trong lịch trình.'
+            );
+          }
+
+          const maxUsedDay = existingItems.reduce(
+            (max, item) => Math.max(
+              max,
+              Number(item.day_number) || 1
+            ),
+            1
+          );
+
+          if (totalDays < maxUsedDay) {
+            throw new Error(
+              `Lịch trình đã có địa điểm ở Ngày ${maxUsedDay}. ` +
+              'Vui lòng chọn số ngày phù hợp.'
+            );
+          }
+
+          // Cap nhat so ngay neu nguoi dung thay doi
+          if (Number(manualItinerary.total_days) !== totalDays) {
+            await API.updateItineraryDays(
+              itineraryId,
+              totalDays
+            );
+          }
+
+          const dayItems = existingItems.filter(
+            item => Number(item.day_number) === selectedDay
+          );
+
+          const nextOrder = dayItems.reduce(
+            (max, item) => Math.max(
+              max,
+              Number(item.order_index) || 0
+            ),
+            0
+          ) + 1;
+
+          await API.addItineraryItem(
+            itineraryId,
+            pendingPlaceId,
+            selectedDay,
+            nextOrder
+          );
+
+        } else {
+          // Tao lich trinh thu cong moi
+          const created = await API.request(
+            '/itineraries/',
+            {
+              method: 'POST',
+              auth: true,
+              body: {
+                title: 'Lịch trình Đà Nẵng',
+                description: 'manual_places_v1',
+                total_days: totalDays,
+                items: [
+                  {
+                    place_id: pendingPlaceId,
+                    day_number: selectedDay,
+                    order_index: 1
+                  }
+                ]
+              }
+            }
+          );
+
+          itineraryId = created.id;
+        }
+
+        updatePlaceButtons(pendingPlaceId, true);
+
+        modal.hide();
+
+        flash(
+          `Đã thêm địa điểm vào Ngày ${selectedDay} thành công!`,
+          'success',
+          '#message',
+          false
+        );
+
+      } catch (error) {
+        showModalError(
+          error.message || 'Không thể lưu địa điểm.'
+        );
+      } finally {
+        saving = false;
+        confirmButton.disabled = false;
+      }
+    });
+  }
+
+  // Xu ly cac nut tren the dia diem
   container.addEventListener('click', async event => {
+    const favoriteButton = event.target.closest('[data-favorite]');
+    const addButton = event.target.closest('[data-add]');
 
-    const favoriteButton =
-      event.target.closest('[data-favorite]');
-
-    const addButton =
-      event.target.closest('[data-add]');
-
-    try {
-
-      if (favoriteButton) {
-
+    if (favoriteButton) {
+      try {
         const id = Number(favoriteButton.dataset.favorite);
 
         await API.toggleFavorite(id);
 
-        const wasSaved =
-          favoriteButton.textContent.includes('Đã lưu');
+        const wasSaved = favoriteButton.textContent.includes('Đã lưu');
 
         favoriteButton.textContent = wasSaved
           ? '♡ Yêu thích'
@@ -539,54 +784,93 @@ async function wirePlaceActions(container) {
 
         favoriteButton.classList.toggle('btn-primary');
         favoriteButton.classList.toggle('btn-outline-secondary');
+
+      } catch (error) {
+        flash(error.message);
       }
 
-
-if (addButton) {
-
-  if (addButton.disabled) return;
-
-  addButton.disabled = true;
-
-  try {
-    const ids = await API.itinerary();
-    const id = Number(addButton.dataset.add);
-
-    const alreadyAdded = ids.some(
-      savedId => Number(savedId) === id
-    );
-
-    if (alreadyAdded) {
-      markItineraryButton(addButton, true);
-      flash('Địa điểm đã có trong lịch trình.', 'info');
       return;
     }
 
-    await API.saveItinerary([...ids, id]);
+    if (!addButton || addButton.disabled) return;
 
-    // Doi nut sang mau xanh sau khi luu thanh cong
-    markItineraryButton(addButton, true);
+    addButton.disabled = true;
 
-    flash(
-      'Đã thêm vào lịch trình thành công!',
-      'success'
-    );
+    try {
+      const placeId = Number(addButton.dataset.add);
 
-  } catch (error) {
-    addButton.disabled = false;
+      if (!Number.isInteger(placeId) || placeId < 1) {
+        throw new Error('Địa điểm không hợp lệ.');
+      }
 
-    flash(
-      error.message || 'Không thể thêm vào lịch trình.'
-    );
-  }
-}
+      manualItinerary = await API.getManualItinerary();
+
+      const existingItems = manualItinerary?.items || [];
+
+      const matchingItems = existingItems.filter(
+        item => Number(item.place_id) === placeId
+      );
+
+      // Neu da them: xoa dung mot dia diem
+      if (matchingItems.length > 0) {
+        if (matchingItems.length !== 1) {
+          throw new Error(
+            'Địa điểm xuất hiện nhiều lần trong lịch trình. ' +
+            'Vui lòng xóa tại trang Lịch trình của tôi.'
+          );
+        }
+
+        await API.deleteItineraryItem(
+          manualItinerary.id,
+          matchingItems[0].id
+        );
+
+        updatePlaceButtons(placeId, false);
+
+        flash(
+          'Đã bỏ địa điểm khỏi lịch trình.',
+          'success',
+          '#message',
+          false
+        );
+
+        return;
+      }
+
+      // Neu chua them: mo hop thoai chon ngay
+      if (!modal || !totalDaysSelect || !selectedDaySelect) {
+        throw new Error(
+          'Không tìm thấy hộp thoại chọn ngày du lịch.'
+        );
+      }
+
+      pendingPlaceId = placeId;
+
+      const card = addButton.closest('article');
+      const nameElement = card?.querySelector('h5, h3, h2');
+
+      if (selectedPlaceName) {
+        selectedPlaceName.textContent =
+          nameElement?.textContent?.trim() || 'Địa điểm đã chọn';
+      }
+
+      fillDaysSelect(manualItinerary?.total_days || 1);
+
+      showModalError('');
+      modal.show();
 
     } catch (error) {
-      flash(error.message);
+      flash(
+        error.message || 'Không thể cập nhật lịch trình.',
+        'danger',
+        '#message',
+        false
+      );
+    } finally {
+      addButton.disabled = false;
     }
   });
 }
-
 
 // =========================================
 // KHOI TAO WEBSITE

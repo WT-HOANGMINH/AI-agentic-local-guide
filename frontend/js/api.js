@@ -947,6 +947,120 @@ async getProfile() {
     });
   },
 
+  // Tim lich trinh thu cong dang duoc su dung
+  async getManualItinerary() {
+    if (CFG.USE_MOCK) {
+      throw new Error('Chuc nang nay can Backend.');
+    }
+
+    const result = await this.request(
+      '/itineraries/?limit=50',
+      { auth: true }
+    );
+
+    const savedId = store.get(itineraryIdKey());
+
+    const manualRecords = (result.itineraries || [])
+      .filter(item =>
+        item.description === 'manual_places_v1'
+      );
+
+    const selected = manualRecords.find(item =>
+      String(item.id) === String(savedId)
+    ) || manualRecords[0];
+
+    if (!selected) {
+      return null;
+    }
+
+    store.set(itineraryIdKey(), selected.id);
+
+    return this.getItineraryDetail(selected.id);
+  },
+  async getItineraryDetail(itineraryId) {
+  if (CFG.USE_MOCK) {
+      throw new Error('Chuc nang nay can Backend.');
+    }
+
+    return this.request(
+      '/itineraries/' + encodeURIComponent(itineraryId),
+      { auth: true }
+    );
+  },
+
+  // Cap nhat tong so ngay du lich
+  async updateItineraryDays(itineraryId, totalDays) {
+    const days = Number(totalDays);
+
+    if (!Number.isInteger(days) || days < 1 || days > 30) {
+      throw new Error('So ngay du lich phai tu 1 den 30.');
+    }
+
+    if (CFG.USE_MOCK) {
+      throw new Error('Chuc nang nay can Backend.');
+    }
+
+    return this.request(
+      '/itineraries/' + encodeURIComponent(itineraryId),
+      {
+        method: 'PUT',
+        auth: true,
+        body: { total_days: days }
+      }
+    );
+  },
+
+  // Them mot dia diem vao ngay duoc chon
+  async addItineraryItem(itineraryId, placeId, dayNumber, orderIndex) {
+    const day = Number(dayNumber);
+    const order = Number(orderIndex);
+    const place = Number(placeId);
+
+    if (
+      !Number.isInteger(place) || place < 1 ||
+      !Number.isInteger(day) || day < 1 ||
+      !Number.isInteger(order) || order < 1
+    ) {
+      throw new Error('Thong tin dia diem hoac ngay khong hop le.');
+    }
+
+    if (CFG.USE_MOCK) {
+      throw new Error('Chuc nang nay can Backend.');
+    }
+
+    return this.request(
+      '/itineraries/' +
+        encodeURIComponent(itineraryId) +
+        '/items',
+      {
+        method: 'POST',
+        auth: true,
+        body: {
+          place_id: place,
+          day_number: day,
+          order_index: order
+        }
+      }
+       );
+  },
+    async deleteItineraryItem(itineraryId, itemId) {
+    if (CFG.USE_MOCK) {
+      throw new Error(
+        'Chức năng xóa từng địa điểm chưa hỗ trợ chế độ dữ liệu mẫu.'
+      );
+    }
+
+    return this.request(
+      '/itineraries/' +
+        encodeURIComponent(itineraryId) +
+        '/items/' +
+        encodeURIComponent(itemId),
+      {
+        method: 'DELETE',
+        auth: true
+      }
+    );
+  },
   async itinerary() {
 
     if (CFG.USE_MOCK) {
@@ -970,11 +1084,16 @@ async getProfile() {
 
     const records = list.itineraries || [];
 
+
+    const manualRecords = records.filter(
+      x => x.description === 'manual_places_v1'
+    );
+
     const selected =
-      records.find(x => x.id === savedId) ||
-      records.find(x =>
-        x.title === 'Lịch trình Đà Nẵng'
-      );
+      manualRecords.find(
+      x => String(x.id) === String(savedId)
+    ) || manualRecords[0];
+
 
     if (!selected) {
       return [];
@@ -1040,8 +1159,14 @@ async getProfile() {
       itineraryIdKey()
     );
 
-    const current = (records.itineraries || [])
-      .find(x => String(x.id) === String(savedId));
+
+    const manualRecords = (records.itineraries || [])
+    .filter(x => x.description === 'manual_places_v1');
+
+    const current =
+      manualRecords.find(
+      x => String(x.id) === String(savedId)
+    ) || manualRecords[0];
 
     // Nếu đã có lịch trình, kiểm tra ID
     if (current) {
@@ -1127,10 +1252,11 @@ async getProfile() {
         method: 'POST',
         auth: true,
 
-        body: {
-          title: 'Lịch trình Đà Nẵng',
+      body: {
+        title: 'Lịch trình Đà Nẵng',
+        description: 'manual_places_v1',
 
-          total_days: 1,
+      total_days: 1,
 
           items: uniqueIds.map(
             (placeId, index) => ({

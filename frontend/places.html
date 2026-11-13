@@ -121,6 +121,94 @@
 
   </main>
 
+<!-- Hop thoai them dia diem vao lich trinh -->
+<div
+  class="modal fade"
+  id="addToItineraryModal"
+  tabindex="-1"
+  aria-labelledby="addToItineraryModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2
+          class="modal-title fs-5"
+          id="addToItineraryModalLabel"
+        >
+          Thêm địa điểm vào lịch trình
+        </h2>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Đóng"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+        <p
+          id="selected-place-name"
+          class="fw-semibold mb-3"
+        ></p>
+
+        <div class="mb-3">
+          <label
+            for="trip-total-days"
+            class="form-label"
+          >
+            Tổng số ngày du lịch Đà Nẵng
+          </label>
+
+          <select
+            id="trip-total-days"
+            class="form-select"
+          ></select>
+        </div>
+
+        <div class="mb-3">
+          <label
+            for="trip-selected-day"
+            class="form-label"
+          >
+            Thêm địa điểm vào ngày
+          </label>
+
+          <select
+            id="trip-selected-day"
+            class="form-select"
+          ></select>
+        </div>
+
+        <div
+          id="itinerary-modal-message"
+          class="text-danger small"
+          role="alert"
+        ></div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
+          Hủy
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="confirm-add-to-itinerary"
+        >
+          Lưu địa điểm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
   <!-- Chân trang -->
   <div id="site-footer"></div>
 
@@ -134,10 +222,10 @@
   <script src="js/data.js"></script>
 
   <!-- Kết nối API -->
-  <script src="js/api.js?v=3"></script>
+  <script src="js/api.js?v=integration-days-1"></script>
 
   <!-- Giao diện chung -->
-  <script src="js/common.js?v=chat-controls-stream-2"></script>
+  <script src="js/common.js?v=integration-days-1"></script>
 
   <!-- Xử lý tìm kiếm và hiển thị địa điểm -->
   <script src="js/places.js?v=place-images-3"></script>

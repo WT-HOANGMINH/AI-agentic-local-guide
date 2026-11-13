@@ -1,6 +1,7 @@
 import hashlib
 import json
 from datetime import datetime, timedelta
+from copy import deepcopy
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
@@ -732,7 +733,58 @@ def delete_itinerary_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy điểm dừng chân này")
 
+    # Đồng bộ lịch trình AI trước khi xóa địa điểm
+    plan = itinerary.itinerary_data
+
+    if isinstance(plan, dict) and isinstance(plan.get("days"), list):
+        updated_plan = deepcopy(plan)
+        matching_items = []
+
+        for day in updated_plan["days"]:
+            if not isinstance(day, dict):
+                continue
+
+            if day.get("day_number") != item.day_number:
+                continue
+
+            activities = day.get("items", [])
+
+            if not isinstance(activities, list):
+                continue
+
+            for index, activity in enumerate(activities):
+                if not isinstance(activity, dict):
+                    continue
+
+                if activity.get("order") != item.order_index:
+                    continue
+
+                if activity.get("place_id") != item.place_id:
+                    continue
+
+                matching_items.append((day, index))
+
+        # Chỉ cho phép xóa khi xác định đúng một hoạt động
+        if len(matching_items) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Không thể xác định chính xác hoạt động "
+                    "trong lịch trình AI. Dữ liệu chưa bị xóa."
+                )
+            )
+
+        matched_day, matched_index = matching_items[0]
+        matched_day["items"].pop(matched_index)
+
+        # Cập nhật JSON nhưng giữ nguyên metadata khác
+        itinerary.itinerary_data = updated_plan
+
+    # Xóa bản ghi địa điểm trong Database
     db.delete(item)
     db.commit()
 
-    return {"status": "success", "message": f"Đã xóa điểm dừng chân {item_id}"}
+    return {
+        "status": "success",
+        "message": f"Đã xóa điểm dừng chân {item_id}"
+    }
