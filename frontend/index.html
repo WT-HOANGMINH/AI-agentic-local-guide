@@ -8,10 +8,11 @@
   <title>DaNang Guide | Khám phá Đà Nẵng</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="css/style.css?v=chat-ui-polish-5">
+  <link rel="stylesheet" href="css/style.css?v=arial-redesign-1">
 </head>
 
 <body>
+
   <!-- THANH MENU -->
   <div id="site-nav"></div>
 
@@ -20,22 +21,25 @@
     <!-- BANNER CHÍNH -->
     <section class="hero home-hero">
       <div class="hero-content">
-        <span class="eyebrow text-white">
-          KHÁM PHÁ THÀNH PHỐ ĐÁNG SỐNG
+
+        <span class="eyebrow hero-eyebrow">
+          ✦ KHÁM PHÁ THÀNH PHỐ ĐÁNG SỐNG
         </span>
 
         <h1 class="hero-title">
           Đà Nẵng trong<br>
-          tầm tay của bạn
+          <span>tầm tay của bạn</span>
         </h1>
 
         <p class="hero-description">
-          Tìm địa điểm thú vị, thưởng thức ẩm thực địa phương
-          và lên kế hoạch cho chuyến đi thật dễ dàng.
+          Khám phá những địa điểm tuyệt đẹp, thưởng thức
+          ẩm thực địa phương và tận hưởng hành trình
+          đáng nhớ cùng trợ lý du lịch thông minh.
         </p>
 
         <!-- THANH TÌM KIẾM -->
         <form class="travel-search" action="places.html" method="get">
+
           <div class="search-item search-destination">
             <span class="search-icon">⌕</span>
             <div>
@@ -44,7 +48,7 @@
                 type="text"
                 id="home-keyword"
                 name="q"
-                placeholder="Địa điểm, khu vui chơi..."
+                placeholder="Tìm địa điểm, khu vui chơi..."
               >
             </div>
           </div>
@@ -52,8 +56,11 @@
           <div class="search-item">
             <span class="search-icon">▦</span>
             <div>
-              <label for="home-date">Chọn ngày đi</label>
-              <input type="date" id="home-date">
+              <label for="home-date">Ngày khởi hành</label>
+              <input
+                type="date"
+                id="home-date"
+              >
             </div>
           </div>
 
@@ -72,14 +79,16 @@
           </div>
 
           <button type="submit" class="search-button">
-            Tìm kiếm →
+            Tìm kiếm <span aria-hidden="true">→</span>
           </button>
+
         </form>
       </div>
     </section>
 
-    <!-- CÁC TIỆN ÍCH -->
-    <section class="travel-features">
+    <!-- TIỆN ÍCH DU LỊCH -->
+    <section class="travel-features" aria-label="Tiện ích du lịch">
+
       <a href="places.html" class="feature">
         <span class="feature-icon">📍</span>
         <div>
@@ -92,15 +101,15 @@
         <span class="feature-icon">🍜</span>
         <div>
           <strong>Ẩm thực Đà Nẵng</strong>
-          <small>Khám phá món ngon địa phương</small>
+          <small>Thưởng thức hương vị địa phương</small>
         </div>
       </a>
 
       <a href="recommendations.html" class="feature">
-        <span class="feature-icon">📷</span>
+        <span class="feature-icon">✨</span>
         <div>
-          <strong>Gợi ý trải nghiệm</strong>
-          <small>Lựa chọn phù hợp với sở thích</small>
+          <strong>Gợi ý thông minh</strong>
+          <small>Trải nghiệm phù hợp với sở thích</small>
         </div>
       </a>
 
@@ -108,19 +117,24 @@
         <span class="feature-icon">🗺️</span>
         <div>
           <strong>Bản đồ du lịch</strong>
-          <small>Dễ tìm địa điểm, dễ di chuyển</small>
+          <small>Dễ dàng tìm đường và di chuyển</small>
         </div>
       </a>
+
     </section>
 
     <!-- ĐỊA ĐIỂM NỔI BẬT -->
     <section class="featured-section">
+
       <div class="section-head">
         <div>
           <div class="eyebrow">KHÁM PHÁ ĐÀ NẴNG</div>
-          <h2 class="mb-0">Gợi ý dành cho bạn</h2>
+
+          <h2 class="mb-0">Điểm đến dành cho bạn</h2>
+
           <p class="muted mt-2 mb-0">
-            Những địa điểm thú vị dành cho chuyến đi của bạn.
+            Khám phá những địa điểm thú vị và đáng trải nghiệm
+            trong chuyến du lịch của bạn.
           </p>
         </div>
 
@@ -130,61 +144,92 @@
       </div>
 
       <div id="message"></div>
+
+      <!-- DỮ LIỆU ĐỊA ĐIỂM TỪ JAVASCRIPT -->
       <div id="featured" class="row g-4"></div>
+
     </section>
 
     <!-- KHÁM PHÁ THÊM -->
     <section class="explore-section">
+
       <div class="section-head">
         <div>
           <div class="eyebrow">ĐỒNG HÀNH CÙNG BẠN</div>
+
           <h2>Khám phá theo cách của bạn</h2>
+
+          <p class="muted mt-2 mb-0">
+            Mọi công cụ cần thiết cho hành trình khám phá Đà Nẵng.
+          </p>
         </div>
       </div>
 
       <div class="row g-4">
+
         <div class="col-md-4">
           <a href="places.html" class="explore-card">
             <span class="explore-icon">📍</span>
+
             <h5>Khám phá địa điểm</h5>
+
             <p>
               Tìm kiếm các điểm tham quan, bãi biển,
-              địa điểm ăn uống và vui chơi.
+              nhà hàng và những địa điểm vui chơi
+              nổi tiếng tại Đà Nẵng.
             </p>
-            <span class="explore-link">Khám phá ngay →</span>
+
+            <span class="explore-link">
+              Khám phá ngay →
+            </span>
           </a>
         </div>
 
         <div class="col-md-4">
           <a href="chat.html" class="explore-card">
             <span class="explore-icon">✦</span>
+
             <h5>Trợ lý du lịch AI</h5>
+
             <p>
-              Hỏi đáp, tìm hiểu thông tin và nhận
-              hỗ trợ lên kế hoạch cho chuyến đi.
+              Trò chuyện với trợ lý AI, nhận tư vấn
+              địa điểm và hỗ trợ lên kế hoạch
+              cho chuyến đi của bạn.
             </p>
-            <span class="explore-link">Bắt đầu trò chuyện →</span>
+
+            <span class="explore-link">
+              Bắt đầu trò chuyện →
+            </span>
           </a>
         </div>
 
         <div class="col-md-4">
           <a href="map.html" class="explore-card">
             <span class="explore-icon">🗺️</span>
+
             <h5>Bản đồ & lịch trình</h5>
+
             <p>
-              Xem vị trí các điểm đến và sắp xếp
-              hành trình thuận tiện hơn.
+              Xem vị trí các địa điểm du lịch,
+              khám phá khu vực xung quanh và
+              lựa chọn hành trình thuận tiện.
             </p>
-            <span class="explore-link">Xem bản đồ →</span>
+
+            <span class="explore-link">
+              Xem bản đồ →
+            </span>
           </a>
         </div>
+
       </div>
     </section>
 
   </main>
 
+  <!-- FOOTER -->
   <div id="site-footer"></div>
 
+  <!-- JAVASCRIPT GỐC -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/config.js?v=2"></script>
   <script src="js/data.js"></script>
@@ -192,5 +237,6 @@
   <script src="js/common.js?v=chat-ui-polish-5"></script>
   <script src="js/home.js?v=place-images-3"></script>
   <script src="js/oauth-ui.js"></script>
+
 </body>
 </html>
