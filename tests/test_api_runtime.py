@@ -150,6 +150,18 @@ def test_production_csrf_allows_configured_frontend_origin(monkeypatch):
     assert response.status_code == 204
 
 
+def test_production_csrf_allows_configured_frontend_origin_with_path(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("FRONTEND_URL", "https://guide.example/app")
+    monkeypatch.setenv("PUBLIC_ORIGIN", "https://api.example")
+    response = TestClient(app).post(
+        "/auth/logout",
+        headers={"Origin": "https://guide.example"},
+        cookies={"danang_session": "test-session"},
+    )
+    assert response.status_code == 204
+
+
 def test_production_csrf_rejects_unconfigured_origin(monkeypatch):
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("FRONTEND_URL", "https://guide.example")
@@ -207,6 +219,31 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
     assert "Gemini" not in response.text
     assert '"type": "token"' not in response.text
     assert '"type": "done"' in response.text
+
+
+def test_chat_stream_hides_place_count_in_progress_step(monkeypatch):
+    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(
+        ai_guide,
+        "_compute",
+        lambda message, state, lat=None, lng=None, on_step=None: {
+            "steps": ["Đang truy cập cơ sở dữ liệu địa điểm (49 địa điểm)"],
+            "text": "Suggested places",
+            "intent": "attraction",
+            "confidence": 1.0,
+            "status": "completed",
+            "suggestions": [],
+        },
+    )
+
+    response = TestClient(app).post(
+        "/api/ai-guide/chat-stream",
+        json={"message": "places", "session_id": "stream-place-count-test"},
+    )
+
+    assert response.status_code == 200
+    assert '"text": "Đã truy cập cơ sở dữ liệu địa điểm"' in response.text
+    assert "(49 địa điểm)" not in response.text
 
 
 def test_google_oauth_reports_missing_configuration(monkeypatch):

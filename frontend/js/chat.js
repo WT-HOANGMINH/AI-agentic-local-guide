@@ -63,6 +63,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderBotText(element, text);
   }
 
+  async function revealStepText(element, text) {
+    const characters = typeof Intl.Segmenter === 'function'
+      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
+          .map(part => part.segment)
+      : Array.from(text);
+
+    for (let index = 0; index < characters.length; index += 3) {
+      element.appendChild(
+        document.createTextNode(characters.slice(index, index + 3).join(''))
+      );
+      messages.scrollTop = messages.scrollHeight;
+      if (index + 3 < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, 40));
+      }
+    }
+  }
+
   // =====================================
   // HIEN THI TIN NHAN
   // =====================================
@@ -163,12 +180,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             messages.scrollTop = messages.scrollHeight;
           },
 
-          onStep: step => {
+          onStep: async step => {
             const line = document.createElement('div');
-            line.className = 'dg-step done';
-            line.textContent = step;
+            line.className = 'dg-step active';
             stepsEl.appendChild(line);
+            await revealStepText(line, step);
+            line.classList.remove('active');
+            line.classList.add('done');
             messages.scrollTop = messages.scrollHeight;
+            await new Promise(resolve => setTimeout(resolve, 250));
           },
 
           onToken: token => {

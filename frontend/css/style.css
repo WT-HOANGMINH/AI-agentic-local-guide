@@ -3,6 +3,8 @@
    DA NANG GUIDE - WEBSITE STYLES
 ========================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+
 :root {
   --primary: #176b60;
   --primary-dark: #105348;
@@ -15,7 +17,9 @@
 body {
   background: #ffffff;
   color: var(--heading);
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Trebuchet MS', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .page {
@@ -120,8 +124,8 @@ body {
 #site-nav .travel-links .nav-link {
   position: relative;
   color: #52615d !important;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   padding: 10px 0 !important;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -152,7 +156,7 @@ body {
 #site-nav .travel-login {
   display: inline-flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #35514a !important;
   text-decoration: none !important;
@@ -164,8 +168,8 @@ body {
 }
 
 #site-nav .travel-account .btn {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   padding: 10px 18px;
   border-radius: 6px;
   box-shadow: none !important;
@@ -233,16 +237,16 @@ body {
 }
 
 .hero-title {
-  font-size: clamp(36px, 4vw, 58px);
+  font-size: clamp(38px, 4.2vw, 60px);
   line-height: 1.15;
   font-weight: 800;
   color: #ffffff;
   margin-top: 15px;
-  letter-spacing: -1.5px;
+  letter-spacing: -0.8px;
 }
 
 .hero-description {
-  font-size: 17px;
+  font-size: 18px;
   max-width: 520px;
   line-height: 1.8;
   color: #f0f5f5;
@@ -355,13 +359,14 @@ body {
 
 .feature strong {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
 .feature small {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: #718094;
   line-height: 1.5;
 }
@@ -422,6 +427,23 @@ body {
   padding: 18px;
 }
 
+.place-card .card-body h5 {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.place-card .card-body p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.place-card .tag {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* ==========================================
    KHAM PHA THEM
 ========================================== */
@@ -456,12 +478,12 @@ body {
 
 .explore-card h5 {
   font-weight: 700;
-  font-size: 19px;
+  font-size: 20px;
 }
 
 .explore-card p {
   color: #708092;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.8;
   min-height: 70px;
 }
@@ -586,11 +608,11 @@ body {
   }
 
   .feature strong {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .feature small {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .featured-section h2,
