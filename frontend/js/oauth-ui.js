@@ -9,7 +9,7 @@
   const CFG = window.LOCAL_GUIDE_CONFIG || {};
 
   const BACKEND_URL = (
-    CFG.API_BASE || "http://127.0.0.1:8000"
+    CFG.API_BASE || "http://localhost:8000"
   ).replace(/\/$/, "");
 
   const TOKEN_KEY = CFG.TOKEN_KEY || "localguide_token";

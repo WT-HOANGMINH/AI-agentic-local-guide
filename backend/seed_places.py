@@ -18,7 +18,7 @@ from backend.models.favorite import Favorite
 
 
 def ensure_place_detail_columns():
-    """Bo sung cot chi tiet, giu nguyen du lieu cu."""
+    """Add nullable detail fields; existing place rows and values are preserved."""
 
     existing = {
         column["name"]
@@ -34,6 +34,7 @@ def ensure_place_detail_columns():
         "close_time": "VARCHAR(5)",
         "best_time": "VARCHAR(20)",
         "zone": "VARCHAR(30)",
+        "weather_profile": "VARCHAR(20)",
     }
 
     with engine.begin() as conn:

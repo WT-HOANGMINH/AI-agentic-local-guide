@@ -2,8 +2,7 @@
  *
  * Hiển thị:
  *  - các bước xử lý THẬT do backend báo ("Đang truy cập cơ sở dữ liệu...", "Đang truy cập dữ liệu thời tiết...")
- *  - chữ hiện dần (stream thật từ Gemini nếu có key; nếu không, câu trả lời từ dữ liệu địa phương
- *    được hiện dần phía trình duyệt - đây là hiệu ứng, không phải stream thật)
+ *  - chữ hiện dần chỉ khi backend thực sự stream token từ Gemini
  *  - gợi ý bấm/tick chọn: 1 lựa chọn -> gửi ngay; nhiều lựa chọn -> tick rồi bấm "Gửi lựa chọn"
  *  - nút bản đồ Google Maps, nút "Dùng vị trí của tôi", nút Dừng, nút Thử lại
  *
@@ -13,24 +12,102 @@
  */
 (function () {
   const SID_KEY = "dg_session_id";
+  const TOKEN_DELAY_MS = 24;
+  const CHARACTERS_PER_TICK = 3;
+  const REQUEST_TIMEOUT_MS = 45000;
+  const REQUEST_RETRIES = 1;
   const state = { pos: null, controller: null, busy: false, cfg: null };
+  const graphemes = text => {
+    if (typeof Intl.Segmenter === "function") {
+      return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
+        .map(part => part.segment);
+    }
+    return Array.from(text);
+  };
+  async function revealText(text, onCharacter, signal) {
+    const characters = graphemes(String(text || ""));
+    for (let index = 0; index < characters.length; index += CHARACTERS_PER_TICK) {
+      if (signal && signal.aborted) break;
+      onCharacter(characters.slice(index, index + CHARACTERS_PER_TICK).join(""));
+      if (index + CHARACTERS_PER_TICK < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, TOKEN_DELAY_MS));
+      }
+    }
+  }
+
+  async function fetchWithRetry(url, init, signal = null, timeoutMs = REQUEST_TIMEOUT_MS, retries = REQUEST_RETRIES) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      if (signal && signal.aborted) {
+        throw new DOMException("Request aborted.", "AbortError");
+      }
+      const controller = signal || new AbortController();
+      const timer = setTimeout(() => {
+        if (!controller.signal.aborted) controller.abort();
+      }, timeoutMs);
+      try {
+        const response = await fetch(url, { ...init, signal: controller.signal, credentials: "include" });
+        return response;
+      } catch (error) {
+        if (signal && signal.aborted) throw error;
+        lastError = error;
+        if (attempt >= retries) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    throw lastError;
+  }
+
+  function getSessionId() {
+    try {
+      return sessionStorage.getItem(SID_KEY);
+    } catch (error) {
+      console.warn("Không thể đọc phiên chat trong trình duyệt.", error);
+      return null;
+    }
+  }
+  function setSessionId(value) {
+    try {
+      sessionStorage.setItem(SID_KEY, value);
+    } catch (error) {
+      console.warn("Không thể lưu phiên chat trong trình duyệt.", error);
+    }
+  }
 
   function defaultApiBase() {
     if (window.API_BASE_URL) return String(window.API_BASE_URL).replace(/\/$/, "");
     if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) return String(window.APP_CONFIG.API_BASE_URL).replace(/\/$/, "");
     const h = location.hostname;
     // chạy local (frontend :5500) -> backend :8000; chạy thật (frontend do backend phục vụ ở /app) -> cùng origin
-    return h === "localhost" || h === "127.0.0.1" ? "http://127.0.0.1:8000" : "";
+    return h === "localhost" || h === "127.0.0.1" ? "http://localhost:8000" : "";
   }
 
   const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
+  function parseFrame(frame) {
+    const data = frame.split(/\r\n|\r|\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""))
+      .join("\n");
+    if (!data) return null;
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      throw new Error("Phản hồi streaming từ máy chủ không hợp lệ.");
+    }
+    if (!event || typeof event !== "object" || Array.isArray(event)) {
+      throw new Error("Phản hồi streaming từ máy chủ không hợp lệ.");
+    }
+    return event;
+  }
   function fmt(raw) {
     return esc(raw)
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
       .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   }
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
   function el(tag, cls, html) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -62,24 +139,43 @@
   // ---------- bước xử lý ----------
   function makeSteps(box) {
     const wrap = el("div", "dg-steps");
+    const status = el("div", "dg-status");
+    const completed = el("div", "dg-completed-steps");
+    wrap.append(status, completed);
     box.appendChild(wrap);
-    let active = null;
+    let count = 0;
+    let finished = false;
     return {
-      add(text) {
-        if (active) { active.classList.remove("active"); active.classList.add("done"); }
-        active = el("div", "dg-step active");
-        active.textContent = text;
-        wrap.appendChild(active);
+      status(text) {
+        status.hidden = !text;
+        status.textContent = text || "";
         toBottom(box);
       },
+      async add(text) {
+        const step = el("div", "dg-step active");
+        completed.appendChild(step);
+        count += 1;
+        const characters = graphemes(String(text || ""));
+        const chunkSize = 3;
+        for (let index = 0; index < characters.length; index += chunkSize) {
+          step.textContent += characters.slice(index, index + chunkSize).join("");
+          toBottom(box);
+          if (index + chunkSize < characters.length) {
+            await new Promise(resolve => setTimeout(resolve, 40));
+          }
+        }
+        step.classList.remove("active");
+        step.classList.add("done");
+        await new Promise(resolve => setTimeout(resolve, 250));
+      },
       finish() {
-        if (active) { active.classList.remove("active"); active.classList.add("done"); }
-        const n = wrap.children.length;
-        if (!n) { wrap.remove(); return; }
-        const d = el("details", "dg-steps-done");
-        d.appendChild(el("summary", "", "Đã thực hiện " + n + " bước"));
-        while (wrap.firstChild) d.appendChild(wrap.firstChild);
-        wrap.replaceWith(d);
+        if (finished) return;
+        finished = true;
+        status.remove();
+        if (!count) { wrap.remove(); return; }
+        const done = el("div", "dg-steps-done");
+        done.appendChild(completed);
+        wrap.replaceWith(done);
       },
       remove() { wrap.remove(); },
     };
@@ -128,16 +224,57 @@
     toBottom(box, true);
   }
 
-  // ---------- hiện chữ dần cho câu trả lời có sẵn ----------
-  async function reveal(node, text, signal) {
-    const step = Math.max(2, Math.ceil(text.length / 140));
-    for (let i = 0; i < text.length; i += step) {
-      if (signal.aborted) break;
-      node.innerHTML = fmt(text.slice(0, i + step)) + '<span class="dg-cursor"></span>';
-      toBottom(node.parentElement);
-      await sleep(14);
-    }
-    node.innerHTML = fmt(text);
+  function renderItineraryAction(box, itinerary) {
+    if (!itinerary || !Array.isArray(itinerary.days)) return;
+
+    const wrap = el("div", "dg-itinerary-save");
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const text = document.createElement("span");
+    const status = document.createElement("span");
+
+    checkbox.type = "checkbox";
+    text.textContent = "Lưu lịch trình này";
+    status.className = "dg-itinerary-status";
+    label.append(checkbox, text);
+    wrap.append(label, status);
+
+    checkbox.addEventListener("change", async () => {
+      if (!checkbox.checked) return;
+      checkbox.disabled = true;
+      status.textContent = "Đang lưu…";
+
+      try {
+        if (!window.API || typeof window.API.saveChatItinerary !== "function") {
+          throw new Error("Chức năng lưu lịch trình chưa sẵn sàng.");
+        }
+        const saved = await window.API.saveChatItinerary(itinerary);
+        status.textContent = "Đã lưu. Mở lịch trình trong mục Lịch trình của tôi:";
+        const link = document.createElement("a");
+        link.className = "dg-itinerary-open";
+        link.href = `itinerary.html?id=${encodeURIComponent(saved.id)}`;
+        link.textContent = "Mở lịch trình đã lưu";
+        wrap.appendChild(link);
+      } catch (error) {
+        checkbox.checked = false;
+        checkbox.disabled = false;
+        if (/chưa đăng nhập|đăng nhập/i.test(error.message || "")) {
+          status.textContent = "Đăng nhập để lưu lịch trình; sau đó quay lại và chọn lại ô này. ";
+          const loginLink = document.createElement("a");
+          loginLink.className = "dg-itinerary-open";
+          loginLink.href = "login.html";
+          loginLink.target = "_blank";
+          loginLink.rel = "noopener noreferrer";
+          loginLink.textContent = "Đăng nhập";
+          status.appendChild(loginLink);
+        } else {
+          status.textContent = error.message || "Không thể lưu lịch trình.";
+        }
+      }
+      toBottom(box, true);
+    });
+
+    box.appendChild(wrap);
   }
 
   // ---------- gửi tin ----------
@@ -162,71 +299,122 @@
     addMsg(box, "user", esc(showText));
     c.input.value = "";
 
-    const body = { message: text, session_id: sessionStorage.getItem(SID_KEY) || undefined };
+    const body = { message: text, session_id: getSessionId() || undefined };
     if (state.pos) Object.assign(body, state.pos);
 
     setBusy(true);
     const steps = makeSteps(box);
-    steps.add("Đang phân tích yêu cầu của bạn...");
-    let bot = null, raw = "", gotResult = false, failed = false;
+    steps.status("Đang gửi yêu cầu…");
+    let bot = null, raw = "", failed = false, gotResult = false;
     state.controller = new AbortController();
     const signal = state.controller.signal;
 
     try {
-      const res = await fetch(c.apiBase + c.endpoint, {
+      const res = await fetchWithRetry(c.apiBase + c.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(body),
-        signal,
-      });
+      }, signal, REQUEST_TIMEOUT_MS, REQUEST_RETRIES);
       if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
 
       const reader = res.body.getReader();
       const dec = new TextDecoder("utf-8");
       let buf = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let i;
-        while ((i = buf.indexOf("\n\n")) >= 0) {
-          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-          if (!chunk.startsWith("data: ")) continue;
-          const ev = JSON.parse(chunk.slice(6));
-          if (ev.type === "session") sessionStorage.setItem(SID_KEY, ev.session_id);
-          else if (ev.type === "step") steps.add(ev.text);
-          else if (ev.type === "token") {
-            if (!bot) { steps.finish(); bot = addMsg(box, "bot", ""); }
-            raw += ev.text;
-            bot.innerHTML = fmt(raw) + '<span class="dg-cursor"></span>';
-            toBottom(box);
-          } else if (ev.type === "result") {
-            gotResult = true;
-            steps.finish();
-            if (ev.text) {
-              bot = bot || addMsg(box, "bot", "");
-              raw = ev.text;
-              if (c.revealLocal) await reveal(bot, raw, signal); else bot.innerHTML = fmt(raw);
-            } else if (bot) bot.innerHTML = fmt(raw);
-            renderSuggestions(box, ev);
-          } else if (ev.type === "error") {
-            failed = true;
-            if (bot) bot.innerHTML = fmt(raw);
-            showError(box, text, showText, ev.text);
+      async function dispatchFrame(frame) {
+        const ev = parseFrame(frame);
+        if (!ev) return;
+        if (ev.type === "session" && ev.session_id) setSessionId(ev.session_id);
+        else if (ev.type === "status") steps.status(ev.text);
+        else if (ev.type === "step") await steps.add(ev.text);
+        else if (ev.type === "token") {
+          steps.status("Đang nhận câu trả lời từ mô hình AI…");
+          if (!bot) {
+            bot = addMsg(box, "bot", "");
           }
+          raw += ev.text;
+          bot.classList.add("dg-streaming-text");
+          await revealText(ev.text, character => {
+            bot.textContent += character;
+            toBottom(box);
+          }, signal);
+        } else if (ev.type === "result") {
+          if (ev.text) {
+            bot = bot || addMsg(box, "bot", "");
+            const finalText = String(ev.text);
+            if (finalText !== raw) {
+              steps.status("Đang hiển thị câu trả lời…");
+              const suffix = finalText.startsWith(raw)
+                ? finalText.slice(raw.length)
+                : finalText;
+              if (suffix === finalText && raw) bot.textContent = "";
+              raw = finalText;
+              bot.classList.add("dg-streaming-text");
+              if (!signal.aborted) {
+                await revealText(suffix, character => {
+                  bot.textContent += character;
+                  toBottom(box);
+                }, signal);
+              }
+            }
+            bot.classList.remove("dg-streaming-text");
+            if (!signal.aborted) bot.innerHTML = fmt(raw);
+            if (signal.aborted) return;
+          } else if (bot) bot.innerHTML = fmt(raw);
+          steps.finish();
+          renderItineraryAction(box, ev.itinerary);
+          renderSuggestions(box, ev);
+          gotResult = true;
+        } else if (ev.type === "error") {
+          failed = true;
+          steps.status("");
+          if (bot) {
+            bot.classList.remove("dg-streaming-text");
+            bot.innerHTML = fmt(raw);
+          }
+          showError(box, text, showText, ev.text);
         }
       }
+
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let boundary;
+          while ((boundary = frameBoundary.exec(buf)) !== null) {
+            await dispatchFrame(buf.slice(0, boundary.index));
+            buf = buf.slice(boundary.index + boundary[0].length);
+          }
+        }
+        buf += dec.decode();
+        if (buf.trim()) await dispatchFrame(buf);
+      } finally {
+        reader.releaseLock();
+      }
     } catch (e) {
-      if (e.name === "AbortError") {
-        if (bot) bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+      if (gotResult) {
+        if (e.name !== "AbortError") {
+          console.warn("Chat stream closed after delivering its final result.", e);
+        }
+        if (bot) {
+          bot.classList.remove("dg-streaming-text");
+          bot.innerHTML = fmt(raw);
+        }
+      } else if (e.name === "AbortError") {
+        if (bot) {
+          bot.classList.remove("dg-streaming-text");
+          bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+        }
       } else {
         failed = true;
+        steps.status("");
         showError(box, text, showText, "Mình gặp sự cố kết nối. ");
       }
     } finally {
-      if (!gotResult) steps.finish();
-      if (bot && !failed) bot.innerHTML = fmt(raw);
+      steps.finish();
+      if (bot) bot.classList.remove("dg-streaming-text");
+      if (bot && signal.aborted) bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";
+      else if (bot && !failed && gotResult) bot.innerHTML = fmt(raw);
       state.controller = null;
       setBusy(false);
     }
@@ -260,7 +448,7 @@
   function init(opts) {
     const q = (s) => (typeof s === "string" ? document.querySelector(s) : s);
     const cfg = Object.assign({
-      endpoint: "/api/ai-guide/chat-stream", apiBase: defaultApiBase(), revealLocal: true,
+      endpoint: "/api/ai-guide/chat-stream", apiBase: defaultApiBase(),
       userClass: "", botClass: "", replaceExisting: true,
     }, opts);
     cfg.box = q(opts.messages); cfg.input = q(opts.input); cfg.send = q(opts.send);

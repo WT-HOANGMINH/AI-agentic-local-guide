@@ -1,6 +1,6 @@
 /* =====================================
    DA NANG GUIDE - CHAT AI
-   Hien thi tung buoc "suy nghi" that cua AI, roi hien cau tra loi tung chu.
+   Hien thi trang thai xu ly tu backend va hien cau tra loi tung chu.
 ===================================== */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -52,6 +52,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         element.appendChild(document.createTextNode('\n'));
       }
     });
+  }
+
+  async function revealBotText(element, text, append = false) {
+    if (!append) element.textContent = '';
+    await API.revealText(text, character => {
+      element.append(character);
+      messages.scrollTop = messages.scrollHeight;
+    });
+    renderBotText(element, text);
+  }
+
+  async function revealStepText(element, text) {
+    const characters = typeof Intl.Segmenter === 'function'
+      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
+          .map(part => part.segment)
+      : Array.from(text);
+
+    for (let index = 0; index < characters.length; index += 3) {
+      element.appendChild(
+        document.createTextNode(characters.slice(index, index + 3).join(''))
+      );
+      messages.scrollTop = messages.scrollHeight;
+      if (index + 3 < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, 40));
+      }
+    }
   }
 
   // =====================================
@@ -131,12 +157,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bubble = appendMessage('bot', '');
     const stepsEl = document.createElement('div');
     const textEl = document.createElement('span');
+    const replyText = document.createTextNode('');
+    textEl.appendChild(replyText);
     const suggestionsEl = document.createElement('div');
     suggestionsEl.className = 'dg-chat-suggestions';
 
     const waiting = document.createElement('div');
-    waiting.className = 'dg-step';
-    waiting.textContent = 'Đang suy nghĩ…';
+    waiting.className = 'dg-chat-progress active';
+    waiting.textContent = 'Đang gửi yêu cầu…';
     stepsEl.appendChild(waiting);
 
     bubble.append(stepsEl, textEl, suggestionsEl);
@@ -147,27 +175,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof API.chatStream === 'function') {
 
         await API.chatStream(text, {
-
-          onStep: step => {
-            if (waiting.parentNode) waiting.remove();
-            const line = document.createElement('div');
-            line.className = 'dg-step';
-            line.textContent = '• ' + step;
-            stepsEl.appendChild(line);
+          onStatus: status => {
+            waiting.textContent = status.text;
             messages.scrollTop = messages.scrollHeight;
+          },
+
+          onStep: async step => {
+            const line = document.createElement('div');
+            line.className = 'dg-step active';
+            stepsEl.appendChild(line);
+            await revealStepText(line, step);
+            line.classList.remove('active');
+            line.classList.add('done');
+            messages.scrollTop = messages.scrollHeight;
+            await new Promise(resolve => setTimeout(resolve, 250));
           },
 
           onToken: token => {
-            if (waiting.parentNode) waiting.remove();
-            textEl.textContent += token;
+            waiting.textContent = 'Đang nhận câu trả lời từ AI…';
+            textEl.classList.add('dg-streaming-text');
+            replyText.appendData(token);
             messages.scrollTop = messages.scrollHeight;
           },
 
-          onResult: result => {
-            if (waiting.parentNode) waiting.remove();
-            if (result.text && !textEl.textContent) {
-              textEl.textContent = result.text;
+          onResult: async result => {
+            const finalText = String(result.text || '');
+            const visibleText = textEl.textContent;
+            if (finalText && finalText !== visibleText) {
+              waiting.textContent = 'Đang hiển thị câu trả lời…';
+              textEl.classList.add('dg-streaming-text');
+              const suffix = finalText.startsWith(visibleText)
+                ? finalText.slice(visibleText.length)
+                : finalText;
+              if (suffix === finalText && visibleText) textEl.textContent = '';
+              await revealBotText(textEl, suffix, true);
+              renderBotText(textEl, finalText);
             }
+            textEl.classList.remove('dg-streaming-text');
+            if (textEl.textContent) {
+              renderBotText(textEl, finalText || textEl.textContent);
+            }
+            if (waiting.parentNode) waiting.remove();
             (result.links || []).forEach(link => {
               const anchor = document.createElement('a');
               anchor.className = 'dg-chat-link';
@@ -177,6 +225,34 @@ document.addEventListener('DOMContentLoaded', async () => {
               anchor.textContent = `🗺️ ${link.label}`;
               bubble.insertBefore(anchor, suggestionsEl);
             });
+            if (result.itinerary && Array.isArray(result.itinerary.days)) {
+              const saveWrap = document.createElement('div');
+              saveWrap.className = 'dg-chat-itinerary-action';
+              const saveButton = document.createElement('button');
+              saveButton.type = 'button';
+              saveButton.className = 'dg-chat-suggestion';
+              saveButton.textContent = 'Lưu lịch trình này';
+              const saveStatus = document.createElement('span');
+              saveStatus.className = 'muted';
+              saveButton.addEventListener('click', async () => {
+                saveButton.disabled = true;
+                saveStatus.textContent = 'Đang lưu…';
+                try {
+                  const saved = await API.saveChatItinerary(result.itinerary);
+                  saveStatus.textContent = 'Đã lưu lịch trình.';
+                  const savedLink = document.createElement('a');
+                  savedLink.href = `itinerary.html?id=${encodeURIComponent(saved.id)}`;
+                  savedLink.textContent = 'Mở lịch trình đã lưu';
+                  savedLink.className = 'dg-chat-link';
+                  saveWrap.appendChild(savedLink);
+                } catch (error) {
+                  saveStatus.textContent = error.message || 'Không thể lưu lịch trình.';
+                  saveButton.disabled = false;
+                }
+              });
+              saveWrap.append(saveButton, saveStatus);
+              bubble.insertBefore(saveWrap, suggestionsEl);
+            }
             const multi = result.suggestion_mode === 'multi';
             const picked = new Map();
             const choices = result.suggestions || [];
@@ -230,6 +306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           onError: message => {
             if (waiting.parentNode) waiting.remove();
+            textEl.classList.remove('dg-streaming-text');
             if (textEl.textContent) {
               textEl.textContent += `\n\n${message}`;
             } else {
@@ -242,8 +319,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Du phong: khong streaming
         const reply = await API.chat(text);
+        waiting.textContent = 'Đang hiển thị câu trả lời…';
+        textEl.classList.add('dg-streaming-text');
+        await revealBotText(textEl, reply || 'AI chưa trả về nội dung.');
+        textEl.classList.remove('dg-streaming-text');
         if (waiting.parentNode) waiting.remove();
-        textEl.textContent = reply || 'AI chưa trả về nội dung.';
       }
 
       if (!textEl.textContent) {
@@ -253,12 +333,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
 
       if (waiting.parentNode) waiting.remove();
+      textEl.classList.remove('dg-streaming-text');
       textEl.textContent =
         'Không thể kết nối Chat AI: ' +
         (error.message || 'Có lỗi xảy ra.');
 
     } finally {
 
+      if (waiting.parentNode) waiting.remove();
+      textEl.classList.remove('dg-streaming-text');
       if (textEl.textContent) {
         renderBotText(textEl, textEl.textContent);
       }

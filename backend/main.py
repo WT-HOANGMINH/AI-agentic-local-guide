@@ -16,6 +16,7 @@ from backend.models.place import Place
 from backend.models.preference import UserPreference
 from backend.models.itinerary import Itinerary, ItineraryItem
 from backend.models.favorite import Favorite
+from backend.services.itinerary_migration import ensure_itinerary_data_column
 
 from backend.routes.auth import router as auth_router
 from backend.routes.users import router as users_router
@@ -50,18 +51,17 @@ app = FastAPI(
 
 def _configured_https_origins():
     origins = set()
-    for variable in ("FRONTEND_URL", "PUBLIC_ORIGIN"):
+    for variable in ("FRONTEND_URL", "PUBLIC_ORIGIN", "APP_URL", "API_BASE_URL"):
         configured_url = os.getenv(variable, "").strip()
         if not configured_url:
             continue
 
         parsed = urlsplit(configured_url)
         if (
-            parsed.scheme != "https"
+            parsed.scheme not in {"http", "https"}
             or not parsed.hostname
             or parsed.username
             or parsed.password
-            or parsed.path not in {"", "/"}
             or parsed.query
             or parsed.fragment
         ):
@@ -70,11 +70,15 @@ def _configured_https_origins():
         hostname = parsed.hostname.lower()
         if ":" in hostname:
             hostname = f"[{hostname}]"
+
+        scheme = parsed.scheme.lower()
         port = parsed.port
-        origins.add(
-            f"https://{hostname}"
-            + (f":{port}" if port and port != 443 else "")
+        default_port = 443 if scheme == "https" else 80
+        origin = (
+            f"{scheme}://{hostname}"
+            + (f":{port}" if port and port != default_port else "")
         )
+        origins.add(origin)
     return origins
 
 
@@ -289,6 +293,7 @@ if os.path.isdir(frontend_dir):
 def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_itinerary_data_column(engine)
         print("Database tables initialized successfully.")
 
         from backend.seed_places import (

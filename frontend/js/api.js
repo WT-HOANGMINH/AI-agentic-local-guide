@@ -8,7 +8,7 @@
 
 const CFG = window.LOCAL_GUIDE_CONFIG || {
   USE_MOCK: false,
-  API_BASE: 'http://127.0.0.1:8000',
+  API_BASE: 'http://localhost:8000',
   TOKEN_KEY: 'localguide_token'
 };
 
@@ -247,7 +247,8 @@ const API = {
     {
       method = 'GET',
       body,
-      auth = false
+      auth = false,
+      headers: extraHeaders = {}
     } = {}
   ) {
     const token = localStorage.getItem(
@@ -265,6 +266,7 @@ const API = {
     if (auth && validLocalToken(token)) {
       headers.Authorization = `Bearer ${token}`;
     }
+    Object.assign(headers, extraHeaders);
 
     let response;
 
@@ -889,6 +891,62 @@ async getProfile() {
   // LẤY LỊCH TRÌNH
   // ==============================
 
+  async savedItineraries() {
+    if (CFG.USE_MOCK) {
+      return store.get(
+        'lg_saved_itineraries_' + (this.user()?.email || 'guest'),
+        []
+      );
+    }
+
+    const result = await this.request('/itineraries/?limit=50', {
+      auth: true
+    });
+    return Promise.all((result.itineraries || []).map(async itinerary => {
+      const detail = await this.request('/itineraries/' + itinerary.id, {
+        auth: true
+      });
+      return detail;
+    }));
+  },
+
+  async saveChatItinerary(itinerary) {
+    if (CFG.USE_MOCK) {
+      const key = 'lg_saved_itineraries_' + (this.user()?.email || 'guest');
+      const saved = store.get(key, []);
+      const record = {
+        id: Date.now(),
+        title: itinerary.title,
+        description: itinerary.description,
+        total_days: itinerary.duration_days,
+        itinerary_data: itinerary,
+        items: []
+      };
+      store.set(key, [record, ...saved]);
+      return record;
+    }
+
+    return this.request('/itineraries/from-chat', {
+      method: 'POST',
+      auth: true,
+      body: { itinerary }
+    });
+  },
+
+  async deleteSavedItinerary(id) {
+    if (CFG.USE_MOCK) {
+      const key = 'lg_saved_itineraries_' + (this.user()?.email || 'guest');
+      const saved = store.get(key, []);
+      store.set(key, saved.filter(item => String(item.id) !== String(id)));
+      return { status: 'success' };
+    }
+
+    return this.request('/itineraries/' + id, {
+      method: 'DELETE',
+      auth: true
+    });
+  },
+
   async itinerary() {
 
     if (CFG.USE_MOCK) {
@@ -982,16 +1040,8 @@ async getProfile() {
       itineraryIdKey()
     );
 
-    const current =
-      (
-        records.itineraries || []
-      ).find(x => x.id === savedId) ||
-
-      (
-        records.itineraries || []
-      ).find(x =>
-        x.title === 'Lịch trình Đà Nẵng'
-      );
+    const current = (records.itineraries || [])
+      .find(x => String(x.id) === String(savedId));
 
     // Nếu đã có lịch trình, kiểm tra ID
     if (current) {
@@ -1022,6 +1072,28 @@ async getProfile() {
       ) {
         return {
           ids: uniqueIds
+        };
+      }
+
+      if (uniqueIds.length > 0) {
+        await this.request(
+          `/itineraries/${current.id}/items`,
+          {
+            method: 'PUT',
+            auth: true,
+            body: {
+              items: uniqueIds.map((placeId, index) => ({
+                place_id: placeId,
+                day_number: 1,
+                order_index: index + 1
+              }))
+            }
+          }
+        );
+        store.set(itineraryIdKey(), current.id);
+        return {
+          ids: uniqueIds,
+          id: current.id
         };
       }
     }
@@ -1075,31 +1147,6 @@ async getProfile() {
       itineraryIdKey(),
       created.id
     );
-
-    // Chỉ xóa lịch trình cũ sau khi
-    // tạo lịch trình mới thành công
-    if (
-      current &&
-      current.id !== created.id
-    ) {
-      try {
-
-        await this.request(
-          '/itineraries/' + current.id,
-          {
-            method: 'DELETE',
-            auth: true
-          }
-        );
-
-      } catch (error) {
-        console.warn(
-          'Đã lưu lịch trình mới nhưng ' +
-          'chưa xóa được bản cũ:',
-          error
-        );
-      }
-    }
 
     return {
       ids: uniqueIds,

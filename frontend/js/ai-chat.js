@@ -3,6 +3,44 @@
 (function () {
   window.API = window.API || {};
 
+  const TYPE_DELAY_MS = 24;
+  const CHARACTERS_PER_TICK = 3;
+  const graphemes = text => {
+    if (typeof Intl.Segmenter === 'function') {
+      return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
+        .map(part => part.segment);
+    }
+    return Array.from(text);
+  };
+  const revealText = async (text, onCharacter) => {
+    const characters = graphemes(String(text || ''));
+    for (let index = 0; index < characters.length; index += CHARACTERS_PER_TICK) {
+      onCharacter(characters.slice(index, index + CHARACTERS_PER_TICK).join(''));
+      if (index + CHARACTERS_PER_TICK < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS));
+      }
+    }
+  };
+  window.API.revealText = revealText;
+  const frameBoundary = /\r\n\r\n|\n\n|\r\r/;
+  const parseFrame = frame => {
+    const data = frame.split(/\r\n|\r|\n/)
+      .filter(line => line.startsWith('data:'))
+      .map(line => line.slice(5).replace(/^ /, ''))
+      .join('\n');
+    if (!data) return null;
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
+    }
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
+    }
+    return event;
+  };
+
   let userPosition = {};
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -76,32 +114,25 @@
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let resultReceived = false;
 
     async function dispatchFrame(frame) {
-      if (!frame.startsWith('data: ')) return;
-      let event;
-      try {
-        event = JSON.parse(frame.slice(6));
-      } catch {
-        throw new Error('Phản hồi streaming từ máy chủ không hợp lệ.');
-      }
+      const event = parseFrame(frame);
+      if (!event) return;
 
-      if (event.type === 'session') setSid(event.session_id);
-      else if (event.type === 'step' && h.onStep) h.onStep(event.text);
-      else if (event.type === 'token' && h.onToken) h.onToken(event.text);
+      if (event.type === 'session' && event.session_id) setSid(event.session_id);
+      else if (event.type === 'status' && h.onStatus) h.onStatus(event);
+      else if (event.type === 'step' && h.onStep) {
+        await h.onStep(event.text, { completed: event.completed === true });
+      }
+      else if (event.type === 'token' && h.onToken) {
+        await revealText(event.text, h.onToken);
+      }
       else if (event.type === 'result') {
-        if (!event.streaming && event.text && h.onToken) {
-          const characters = Array.from(event.text);
-          for (let index = 0; index < characters.length; index += 5) {
-            h.onToken(characters.slice(index, index + 5).join(''));
-            await new Promise(resolve => setTimeout(resolve, 12));
-          }
-          if (h.onResult) h.onResult({ ...event, text: '' });
-        } else if (h.onResult) {
-          h.onResult(event);
-        }
+        if (h.onResult) await h.onResult(event);
+        resultReceived = true;
       } else if (event.type === 'error' && h.onError) h.onError(event.text);
-      else if (event.type === 'done' && h.onDone) h.onDone();
+      else if (event.type === 'done' && h.onDone) await h.onDone();
     }
 
     try {
@@ -110,15 +141,18 @@
         if (chunk.done) break;
         buffer += decoder.decode(chunk.value, { stream: true });
 
-        let index;
-        while ((index = buffer.indexOf('\n\n')) >= 0) {
-          await dispatchFrame(buffer.slice(0, index));
-          buffer = buffer.slice(index + 2);
+        let boundary;
+        while ((boundary = frameBoundary.exec(buffer)) !== null) {
+          await dispatchFrame(buffer.slice(0, boundary.index));
+          buffer = buffer.slice(boundary.index + boundary[0].length);
         }
       }
 
       buffer += decoder.decode();
       if (buffer.trim()) await dispatchFrame(buffer.trim());
+    } catch (error) {
+      if (!resultReceived) throw error;
+      console.warn('Chat stream closed after delivering its final result.', error);
     } finally {
       reader.releaseLock();
     }

@@ -5,6 +5,74 @@ from backend.routes import ai_guide, auth
 from backend.services import llm_service
 
 
+def test_request_analysis_uses_validated_json_and_conversation_history(monkeypatch):
+    from types import SimpleNamespace
+
+    request = {}
+
+    def generate_content(**kwargs):
+        request.update(kwargs)
+        return SimpleNamespace(
+            text='{"intent":"general","confidence":0.97,"requires_local_data":false}'
+        )
+
+    client = SimpleNamespace(
+        models=SimpleNamespace(generate_content=generate_content)
+    )
+    monkeypatch.setattr(llm_service, "get_gemini_client", lambda: client)
+
+    result = llm_service.analyze_request(
+        "Mặc gì cho chuyến đi?",
+        history=[
+            {"role": "user", "content": "Tôi đi Đà Nẵng 3 ngày"},
+            {"role": "assistant", "content": "Mình có thể giúp bạn chuẩn bị."},
+        ],
+    )
+
+    assert result.intent == "general"
+    assert result.requires_local_data is False
+    assert request["config"]["response_mime_type"] == "application/json"
+    assert request["config"]["response_schema"] is llm_service.RequestAnalysis
+    assert "Tôi đi Đà Nẵng 3 ngày" in request["contents"]
+    assert "Mặc gì cho chuyến đi?" in request["contents"]
+
+
+def test_general_chat_uses_llm_analysis_without_intent_classifier(monkeypatch):
+    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: True)
+    monkeypatch.setattr(
+        ai_guide,
+        "analyze_request",
+        lambda message, history: llm_service.RequestAnalysis(
+            intent="general",
+            confidence=0.97,
+            requires_local_data=False,
+        ),
+    )
+    monkeypatch.setattr(
+        ai_guide,
+        "predict_intent",
+        lambda message: (_ for _ in ()).throw(
+            AssertionError("classifier should not route LLM-analyzed requests")
+        ),
+    )
+    monkeypatch.setattr(
+        ai_guide,
+        "ask_llm",
+        lambda message, history=None, grounded_answer=None: (
+            "Bạn nên chuẩn bị trang phục thoải mái."
+        ),
+    )
+
+    response = TestClient(app).post(
+        "/api/ai-guide/chat",
+        json={"message": "Tôi nên mặc gì khi đi du lịch?"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["intent"] == "general"
+    assert response.json()["reply"] == "Bạn nên chuẩn bị trang phục thoải mái."
+
+
 def test_gemini_stream_yields_only_user_facing_model_output(monkeypatch):
     from types import SimpleNamespace
 
@@ -82,6 +150,18 @@ def test_production_csrf_allows_configured_frontend_origin(monkeypatch):
     assert response.status_code == 204
 
 
+def test_production_csrf_allows_configured_frontend_origin_with_path(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("FRONTEND_URL", "https://guide.example/app")
+    monkeypatch.setenv("PUBLIC_ORIGIN", "https://api.example")
+    response = TestClient(app).post(
+        "/auth/logout",
+        headers={"Origin": "https://guide.example"},
+        cookies={"danang_session": "test-session"},
+    )
+    assert response.status_code == 204
+
+
 def test_production_csrf_rejects_unconfigured_origin(monkeypatch):
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("FRONTEND_URL", "https://guide.example")
@@ -100,7 +180,7 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
         ai_guide,
         "_compute",
         lambda message, state, lat=None, lng=None, on_step=None: {
-            "steps": ["Place lookup complete"],
+            "steps": ["Đang truy cập dữ liệu"],
             "text": "Suggested places",
             "intent": "attraction",
             "confidence": 1.0,
@@ -119,9 +199,51 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
     assert response.headers["content-type"].startswith("text/event-stream")
     assert '"type": "result"' in response.text
     assert '"streaming": false' in response.text
+    assert '"phase": "received"' in response.text
+    assert '"phase": "analyzing"' in response.text
+    assert '"phase": "analyzed"' in response.text
+    assert '"completed": true' in response.text
+    assert '"text": "Đã truy cập dữ liệu"' in response.text
+    assert (
+        response.text.index('"phase": "received"')
+        < response.text.index('"phase": "analyzing"')
+    )
+    assert (
+        response.text.index('"phase": "analyzing"')
+        < response.text.index('"phase": "analyzed"')
+    )
+    assert (
+        response.text.index('"phase": "analyzed"')
+        < response.text.index('"completed": true')
+    )
     assert "Gemini" not in response.text
     assert '"type": "token"' not in response.text
     assert '"type": "done"' in response.text
+
+
+def test_chat_stream_hides_place_count_in_progress_step(monkeypatch):
+    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(
+        ai_guide,
+        "_compute",
+        lambda message, state, lat=None, lng=None, on_step=None: {
+            "steps": ["Đang truy cập cơ sở dữ liệu địa điểm (49 địa điểm)"],
+            "text": "Suggested places",
+            "intent": "attraction",
+            "confidence": 1.0,
+            "status": "completed",
+            "suggestions": [],
+        },
+    )
+
+    response = TestClient(app).post(
+        "/api/ai-guide/chat-stream",
+        json={"message": "places", "session_id": "stream-place-count-test"},
+    )
+
+    assert response.status_code == 200
+    assert '"text": "Đã truy cập cơ sở dữ liệu địa điểm"' in response.text
+    assert "(49 địa điểm)" not in response.text
 
 
 def test_google_oauth_reports_missing_configuration(monkeypatch):

@@ -4,7 +4,9 @@
 #dgfw-root {
   --dgfw-primary: #176b60;
   --dgfw-dark: #105348;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Trebuchet MS', Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .dgfw-launcher {
@@ -45,6 +47,7 @@
 
 .dgfw-launcher:focus-visible,
 .dgfw-close:focus-visible,
+.dgfw-expand:focus-visible,
 .dgfw-form button:focus-visible {
   outline: 3px solid #f9c74f;
   outline-offset: 3px;
@@ -118,6 +121,11 @@
 
   width: min(390px, calc(100vw - 24px));
   height: min(570px, calc(100dvh - 135px));
+  min-width: min(300px, calc(100vw - 24px));
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  resize: both;
 
   display: flex;
   flex-direction: column;
@@ -163,11 +171,12 @@
 }
 
 .dgfw-heading strong {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .dgfw-heading small {
-  font-size: 11px;
+  font-size: 12px;
   color: #e6fcf3;
 }
 
@@ -180,17 +189,30 @@
   margin-right: 4px;
 }
 
-.dgfw-close {
+.dgfw-close,
+.dgfw-expand {
   border: 0;
   background: rgba(255, 255, 255, 0.15);
   color: white;
 
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 10px;
 
-  font-size: 23px;
+  font-size: 20px;
   cursor: pointer;
+}
+
+.dgfw-expand {
+  font-size: 18px;
+}
+
+.dgfw-panel.dgfw-expanded {
+  width: min(920px, calc(100vw - 32px));
+  height: min(850px, calc(100dvh - 32px));
+  min-width: min(360px, calc(100vw - 32px));
+  min-height: min(480px, calc(100dvh - 32px));
 }
 
 .dgfw-messages {
@@ -211,8 +233,9 @@
   padding: 12px 14px;
 
   border-radius: 16px;
-  line-height: 1.55;
-  font-size: 13px;
+  line-height: 1.65;
+  font-size: 15px;
+  font-weight: 500;
 
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -236,7 +259,64 @@
 .dgfw-progress,
 .dgfw-notice {
   color: #788782;
-  font-size: 11px;
+  font-size: 12px;
+}
+
+.dgfw-progress:not(:empty)::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #176b60;
+  animation: dgfw-pulse 1.2s ease-in-out infinite;
+}
+
+.dgfw-answer-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #176b60;
+  animation: dgfw-blink 1s steps(2) infinite;
+}
+
+.dgfw-completed-steps {
+  margin: 4px 0 8px;
+  color: #788782;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.dgfw-completed-steps[hidden] {
+  display: none !important;
+}
+
+.dgfw-completed-step {
+  margin: 4px 0 0 8px;
+}
+
+.dgfw-completed-step.is-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #176b60;
+  animation: dgfw-blink 1s steps(2) infinite;
+}
+
+.dgfw-completed-step::before {
+  content: "✓";
+  margin-right: 6px;
+  color: #176b60;
+  font-weight: 700;
+}
+
+.dgfw-completed-step.is-streaming::before {
+  content: "…";
+}
+
+@keyframes dgfw-blink {
+  50% { opacity: 0; }
 }
 
 .dgfw-response-suggestions {
@@ -292,9 +372,23 @@
   color: #176b60;
   padding: 7px 10px;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
   text-decoration: none;
+}
+
+.dg-links .dg-linkbtn {
+  border-color: #176b60;
+  background: #176b60;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.dg-links .dg-linkbtn:hover,
+.dg-links .dg-linkbtn:focus-visible {
+  border-color: #105348;
+  background: #105348;
+  color: #fff !important;
 }
 
 .dg-chip.on {
@@ -353,7 +447,8 @@
   color: #176b60;
 
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -380,7 +475,7 @@
   border-radius: 25px;
 
   background: #f8fbf9;
-  font-size: 13px;
+  font-size: 15px;
   outline: none;
 }
 
@@ -411,9 +506,44 @@
   background: white;
   padding: 0 12px 11px;
 
-  font-size: 10px;
+  font-size: 11px;
   color: #91a19b;
   text-align: center;
+}
+
+.dg-itinerary-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #d6e7e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #28423b;
+  font-size: 12px;
+}
+
+.dg-itinerary-save label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.dg-itinerary-save input {
+  accent-color: #176b60;
+}
+
+.dg-itinerary-status {
+  flex-basis: 100%;
+  color: #667771;
+}
+
+.dg-itinerary-open {
+  color: #176b60;
+  font-weight: 600;
 }
 
 @keyframes dgfw-pulse {
@@ -448,6 +578,10 @@
 }
 
 @media (max-width: 600px) {
+  .dgfw-resize-note {
+    display: none;
+  }
+
   .dgfw-launcher {
     right: 16px;
     bottom: 16px;
@@ -465,6 +599,17 @@
     bottom: 85px;
     width: calc(100vw - 20px);
     height: min(600px, calc(100dvh - 105px));
+    min-width: 0;
+    min-height: 0;
+    resize: none;
+  }
+
+  .dgfw-panel.dgfw-expanded {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    min-width: 0;
+    min-height: 0;
+    resize: none;
   }
 }
 
@@ -540,6 +685,11 @@
 /* Han che chuyen dong khi nguoi dung yeu cau */
 @media (prefers-reduced-motion: reduce) {
   .dgfw-bot-image {
+    animation: none;
+  }
+
+  .dgfw-progress:not(:empty)::before,
+  .dgfw-answer-streaming::after {
     animation: none;
   }
 }

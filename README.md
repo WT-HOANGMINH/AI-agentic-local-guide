@@ -149,7 +149,7 @@ SECRET_KEY=agentic-ai-local-guide-secret-key-2026
 ```
 
 > [!NOTE]
-> Chat `/agent/chat` dùng dữ liệu địa phương và không cần **Gemini API Key**. Key chỉ cần cho API tích hợp cũ `/api/ai-guide/ask`. Nếu **MySQL chưa bật**, backend sẽ thử dùng SQLite cục bộ.
+> Chat chính `/api/ai-guide/chat-stream` dùng hội thoại và dữ liệu địa phương; khi có `GEMINI_API_KEY`, Gemini giúp hiểu ngữ cảnh và diễn đạt câu trả lời tự nhiên hơn. Không có key, hệ thống vẫn dùng dialogue/planner cục bộ. Địa điểm, giá và dữ kiện địa phương chỉ được khẳng định khi có dữ liệu xác minh. Lịch trình do chat tạo có thể lưu vào trang **Lịch trình của tôi**.
 
 #### Đăng nhập Google / Facebook (tùy chọn)
 
@@ -158,11 +158,11 @@ Tạo OAuth app ở Google Cloud Console và Meta for Developers, sau đó cấu
 ```ini
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
 FACEBOOK_APP_ID=
 FACEBOOK_APP_SECRET=
-FACEBOOK_REDIRECT_URI=http://127.0.0.1:8000/auth/facebook/callback
-FRONTEND_URL=http://127.0.0.1:5500
+FACEBOOK_REDIRECT_URI=http://localhost:8000/auth/facebook/callback
+FRONTEND_URL=http://localhost:5500
 ```
 
 Đăng ký đúng từng callback URL ở trang cấu hình của nhà cung cấp. Trên môi trường deploy, thay các URL localhost bằng URL HTTPS thực tế; `FRONTEND_URL` chỉ là origin, không kèm đường dẫn. Giữ các secret trong biến môi trường, không đưa vào frontend hay commit vào Git. Nếu thiếu cấu hình, endpoint OAuth sẽ báo lỗi cấu hình rõ ràng thay vì giả lập đăng nhập.
@@ -173,7 +173,7 @@ FRONTEND_URL=http://127.0.0.1:5500
 
 Chạy máy chủ Uvicorn:
 ```bash
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn backend.main:app --host localhost --port 8000 --reload
 ```
 
 ### Huấn luyện lại model chat
@@ -187,9 +187,19 @@ python training/src/train_intent_v2.py --final
 
 Lệnh này huấn luyện đủ tám intent; không cần Gemini API Key để trả lời trong giao diện chat.
 
+### Nhập giá có nguồn xác minh
+
+`backend/data/place_prices.csv` là mẫu chỉ có header; không điền giá ước đoán. Mỗi dòng cần có tên địa điểm khớp duy nhất với database, loại giá, khoảng giá VND, đơn vị, URL nguồn HTTP(S) và ngày kiểm chứng (`YYYY-MM-DD`). Sau khi thêm dữ liệu có nguồn vào CSV, từ thư mục gốc chạy:
+
+```bash
+python -m backend.services.place_price_import
+```
+
+Có thể truyền đường dẫn CSV riêng làm tham số. Importer kiểm tra toàn bộ file trước khi lưu và cập nhật cùng một mặt hàng/đơn vị thay vì tạo bản ghi trùng. Chi tiết địa điểm và API địa điểm trả về giá kèm nguồn/ngày kiểm chứng; khi chưa có giá đã xác minh, chatbot sẽ nói rõ thay vì suy đoán.
+
 Khi khởi động thành công, màn hình terminal sẽ hiển thị:
 ```text
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://localhost:8000 (Press CTRL+C to quit)
 Database tables initialized successfully.
 [Seeder] Da khoi tao tai khoan mau va du lieu dia diem Da Nang!
 ```
@@ -205,11 +215,11 @@ Mở một cửa sổ Terminal mới và chạy:
 ```bash
 python -m http.server 5500 --directory frontend
 ```
-Sau đó mở trình duyệt và truy cập: **`http://127.0.0.1:5500/`**
+Sau đó mở trình duyệt và truy cập: **`http://localhost:5500/`**
 
 #### Cách 2: Truy cập trực tiếp qua Backend static mount
 Do Backend đã tích hợp sẵn thư mục frontend, bạn có thể truy cập thẳng vào:
-👉 **`http://127.0.0.1:8000/app/index.html`**
+👉 **`http://localhost:8000/app/index.html`**
 
 #### Cách 3: Sử dụng VS Code Live Server
 Mở file `frontend/index.html` trong VS Code, nhấp chuột phải chọn **"Open with Live Server"** (Port mặc định `5500`).
@@ -233,8 +243,8 @@ Hệ thống đã tự động gieo sẵn (auto-seed) tài khoản Quản trị 
 
 ### 1. Swagger UI & ReDoc
 Backend cung cấp tài liệu API tương tác trực tiếp:
-* **Interactive Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-* **ReDoc Format**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+* **Interactive Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **ReDoc Format**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ### 2. Sử dụng Postman Collection
 Dự án đi kèm file **`postman_collection.json`** với 27 API endpoints đã được cấu hình sẵn biến môi trường:
@@ -261,7 +271,7 @@ python -X utf8 training\src\generate_slots.py
 python -X utf8 training\src\train_slots.py
 ```
 
-CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để diễn đạt câu trả lời đã được kiểm chứng và gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả địa phương qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý.
+CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để xử lý câu hỏi tự do hoặc diễn đạt câu trả lời dựa trên dữ liệu đã kiểm chứng, đồng thời gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả dialogue cục bộ qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý. Lịch trình có cấu trúc được lưu qua `/itineraries/from-chat` và hiển thị lại sau khi tải trang.
 
 ---
 

@@ -597,11 +597,16 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFooter();
 
   if (!location.pathname.endsWith('/chat.html')) {
+    const streamStyles = document.createElement('link');
+    streamStyles.rel = 'stylesheet';
+    streamStyles.href = 'css/chat-stream.css?v=chat-ui-polish-5';
+    document.head.appendChild(streamStyles);
+
     const streamScript = document.createElement('script');
-    streamScript.src = 'js/chat-stream.js';
+    streamScript.src = 'js/chat-stream.js?v=chat-ui-polish-5';
     streamScript.onload = () => {
       const chatScript = document.createElement('script');
-      chatScript.src = 'js/chat-widget.js';
+      chatScript.src = 'js/chat-widget.js?v=chat-ui-polish-5';
       chatScript.onload = () => {
         if (!window.DGChat) {
           console.error('Không khởi tạo được chat streaming.');

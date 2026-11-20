@@ -5,7 +5,12 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-  // 1. Lấy các thành phần giao diện
+  // 1. Kiểm tra đăng nhập Google OAuth hoặc Email Demo
+  if (!(await protect())) {
+    return;
+  }
+
+  // 2. Lấy các thành phần giao diện
   const host = $('#recommend-grid');
   const sel = $('#recommend-category');
 
@@ -13,13 +18,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!host || !sel) {
     return;
   }
-
-  // 2. Kiểm tra phiên đăng nhập (nếu có)
-  try {
-    await API.getProfile();
-  } catch (error) {
-    console.warn('Khong the xac thuc phien:', error);
-  }
+  // Kiem tra phien dang nhap Facebook truoc khi hien thi goi y
+try {
+  await API.getProfile();
+} catch (error) {
+  console.warn('Khong the xac thuc phien:', error);
+}
 
   // 3. Hàm tải danh sách địa điểm gợi ý
   async function load() {
@@ -31,8 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Lấy danh sách địa điểm gợi ý
       const places = await API.recommend(sel.value);
 
-      // Lấy danh sách địa điểm yêu thích nếu đã đăng nhập
-      const favorites = API.isLogged() ? await API.favorites() : [];
+      // Lấy danh sách địa điểm yêu thích
+      const favorites = await API.favorites();
 
       // Hiển thị danh sách địa điểm
       host.innerHTML = places.map(place => {
@@ -46,8 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
 
       }).join('') || '<div class="empty">Chưa có gợi ý.</div>';
-
-      // Cập nhật nút Đã thêm vào lịch trình
+      // Cap nhat nut Da them vao lich trinh
       await syncItineraryButtons(host);
 
     } catch (error) {

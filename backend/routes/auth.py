@@ -181,14 +181,14 @@ def read_current_user(
 def google_callback_url():
     return os.getenv(
         "GOOGLE_REDIRECT_URI",
-        "http://127.0.0.1:8000/auth/google/callback"
+        "http://localhost:8000/auth/google/callback"
     )
 
 
 def facebook_callback_url():
     return os.getenv(
         "FACEBOOK_REDIRECT_URI",
-        "http://127.0.0.1:8000/auth/facebook/callback"
+        "http://localhost:8000/auth/facebook/callback"
     )
 
 
@@ -219,7 +219,7 @@ def _oauth_redirect_url(provider, success):
         if success
         else f"?auth=error&provider={provider}"
     )
-    return f"{frontend_url}/{page}{query}"
+    return f"{frontend_url}/app/{page}{query}"
 
 
 def _oauth_user(db, email, name, provider):

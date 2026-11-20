@@ -4,14 +4,12 @@
 */
 
 (() => {
-  // Khong hien 2 khung chat tren trang chat cu
-  if (location.pathname.endsWith("/chat.html")) return;
   if (document.getElementById("dgfw-root")) return;
 
   // Tu nap CSS cua widget
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "css/chat-widget.css";
+  css.href = "css/chat-widget.css?v=chat-ui-polish-5";
   document.head.appendChild(css);
 
   const root = document.createElement("div");
@@ -56,6 +54,13 @@
             Trợ lý du lịch của bạn
           </small>
         </div>
+
+        <button type="button"
+                id="dgfw-expand"
+                class="dgfw-expand"
+                aria-label="Phóng to khung chat"
+                aria-pressed="false"
+                title="Phóng to">⛶</button>
 
         <button type="button"
                 id="dgfw-close"
@@ -105,6 +110,7 @@
 
       <div class="dgfw-note">
         ✨ Khám phá Đà Nẵng cùng trợ lý AI
+        <span class="dgfw-resize-note"> · Kéo góc dưới bên phải để đổi kích thước</span>
       </div>
     </section>
   `;
@@ -114,6 +120,7 @@
   const launcher = root.querySelector("#dgfw-launcher");
   const panel = root.querySelector("#dgfw-panel");
   const closeButton = root.querySelector("#dgfw-close");
+  const expandButton = root.querySelector("#dgfw-expand");
   const greeting = root.querySelector("#dgfw-greeting");
 
   // Ghi nho neu nguoi dung da tat loi chao
@@ -186,6 +193,22 @@
     return bubble;
   }
 
+  async function revealStepText(text, onChunk) {
+    const value = String(text || "");
+    const characters = typeof Intl.Segmenter === "function"
+      ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)]
+          .map(part => part.segment)
+      : Array.from(value);
+    const charactersPerTick = 3;
+
+    for (let index = 0; index < characters.length; index += charactersPerTick) {
+      onChunk(characters.slice(index, index + charactersPerTick).join(""));
+      if (index + charactersPerTick < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, 40));
+      }
+    }
+  }
+
   addMessage(
     "assistant",
     "Xin chào! 👋 Mình là trợ lý AI của DaNang Guide. " +
@@ -228,10 +251,18 @@ function limit(value, min, max) {
 function positionChatPanel() {
   if (panel.hidden) return;
 
-  const robot = launcher.getBoundingClientRect();
   const panelWidth = panel.offsetWidth;
   const panelHeight = panel.offsetHeight;
 
+  if (panel.classList.contains("dgfw-expanded")) {
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.left = Math.max(8, (window.innerWidth - panelWidth) / 2) + "px";
+    panel.style.top = Math.max(8, (window.innerHeight - panelHeight) / 2) + "px";
+    return;
+  }
+
+  const robot = launcher.getBoundingClientRect();
   const margin = 8;
   const gap = 12;
 
@@ -266,6 +297,26 @@ function positionChatPanel() {
   panel.style.left = left + "px";
   panel.style.top = top + "px";
 }
+
+const panelResizeObserver = new ResizeObserver(() => {
+  if (panel.hidden) return;
+
+  const rect = panel.getBoundingClientRect();
+  const left = limit(
+    rect.left,
+    8,
+    Math.max(8, window.innerWidth - rect.width - 8)
+  );
+  const top = limit(
+    rect.top,
+    8,
+    Math.max(8, window.innerHeight - rect.height - 8)
+  );
+
+  if (Math.abs(rect.left - left) > 1) panel.style.left = left + "px";
+  if (Math.abs(rect.top - top) > 1) panel.style.top = top + "px";
+});
+panelResizeObserver.observe(panel);
 
 // Bat dau giu chuot vao robot
 launcher.addEventListener("pointerdown", (event) => {
@@ -391,6 +442,18 @@ window.addEventListener("resize", () => {
 
   closeButton.addEventListener("click", closeChat);
 
+  expandButton.addEventListener("click", () => {
+    const expanded = panel.classList.toggle("dgfw-expanded");
+    expandButton.textContent = expanded ? "⤡" : "⛶";
+    expandButton.setAttribute("aria-pressed", String(expanded));
+    expandButton.setAttribute(
+      "aria-label",
+      expanded ? "Thu nhỏ khung chat" : "Phóng to khung chat"
+    );
+    expandButton.title = expanded ? "Thu nhỏ" : "Phóng to";
+    positionChatPanel();
+  });
+
 dismiss.addEventListener("click", () => {
   greetingDismissed = true;
   greeting.hidden = true;
@@ -420,11 +483,17 @@ dismiss.addEventListener("click", () => {
     );
     const progress = document.createElement("div");
     progress.className = "dgfw-progress";
-    progress.textContent = "Đang tìm câu trả lời cho bạn... ✨";
+    progress.textContent = "Đang gửi yêu cầu…";
+    const completedSteps = document.createElement("div");
+    completedSteps.className = "dgfw-completed-steps";
+    completedSteps.hidden = true;
+    const completedList = document.createElement("div");
+    completedList.className = "dgfw-completed-list";
+    completedSteps.append(completedList);
     const answer = document.createElement("span");
     const responseSuggestions = document.createElement("div");
     responseSuggestions.className = "dgfw-response-suggestions";
-    typing.append(progress, answer, responseSuggestions);
+    typing.append(progress, completedSteps, answer, responseSuggestions);
 
     try {
       if (typeof API === "undefined" ||
@@ -433,20 +502,46 @@ dismiss.addEventListener("click", () => {
       }
 
       await API.chatStream(text, {
-        onStep: step => {
-          progress.textContent = step;
+        onStatus: status => {
+          progress.textContent = status.text;
           messages.scrollTop = messages.scrollHeight;
         },
+        onStep: async step => {
+          completedSteps.hidden = false;
+          const item = document.createElement("div");
+          item.className = "dgfw-completed-step is-streaming";
+          completedList.appendChild(item);
+          await revealStepText(step, chunk => {
+            item.appendChild(document.createTextNode(chunk));
+            messages.scrollTop = messages.scrollHeight;
+          });
+          item.classList.remove("is-streaming");
+          messages.scrollTop = messages.scrollHeight;
+          await new Promise(resolve => setTimeout(resolve, 250));
+        },
         onToken: token => {
-          progress.textContent = "";
+          progress.textContent = "Đang nhận câu trả lời từ AI…";
+          answer.classList.add("dgfw-answer-streaming");
           answer.textContent += token;
           messages.scrollTop = messages.scrollHeight;
         },
-        onResult: result => {
-          progress.textContent = "";
-          if (result.text && !answer.textContent) {
-            answer.textContent = result.text;
+        onResult: async result => {
+          const finalText = String(result.text || "");
+          const visibleText = answer.textContent;
+          if (finalText && finalText !== visibleText) {
+            progress.textContent = "Đang hiển thị câu trả lời…";
+            answer.classList.add("dgfw-answer-streaming");
+            const suffix = finalText.startsWith(visibleText)
+              ? finalText.slice(visibleText.length)
+              : finalText;
+            if (suffix === finalText && visibleText) answer.textContent = "";
+            await API.revealText(suffix, character => {
+              answer.textContent += character;
+              messages.scrollTop = messages.scrollHeight;
+            });
           }
+          answer.classList.remove("dgfw-answer-streaming");
+          progress.textContent = "";
           if (result.notice) {
             const notice = document.createElement("div");
             notice.className = "dgfw-notice";
@@ -467,6 +562,7 @@ dismiss.addEventListener("click", () => {
         },
         onError: message => {
           progress.textContent = "";
+          answer.classList.remove("dgfw-answer-streaming");
           answer.textContent += answer.textContent ? `\n\n${message}` : message;
         }
       });
@@ -476,6 +572,7 @@ dismiss.addEventListener("click", () => {
       }
     } catch (error) {
       progress.textContent = "";
+      answer.classList.remove("dgfw-answer-streaming");
       answer.textContent =
         "Không thể kết nối Chat AI. " +
         (error.message || "Vui lòng thử lại.");

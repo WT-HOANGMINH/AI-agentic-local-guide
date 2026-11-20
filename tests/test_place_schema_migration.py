@@ -33,11 +33,12 @@ def test_ensure_place_detail_columns_migrates_legacy_schema(monkeypatch, tmp_pat
         "close_time",
         "best_time",
         "zone",
+        "weather_profile",
     }.issubset(columns)
 
     with database_engine.connect() as connection:
         row = connection.execute(
-            text("SELECT id, name FROM places WHERE id = 1")
+            text("SELECT id, name, weather_profile FROM places WHERE id = 1")
         ).one()
-    assert row == (1, "Cầu Rồng")
+    assert row == (1, "Cầu Rồng", None)
     database_engine.dispose()
