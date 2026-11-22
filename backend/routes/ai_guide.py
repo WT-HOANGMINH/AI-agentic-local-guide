@@ -12,6 +12,7 @@ from backend.services.weather_chat import looks_like_weather, maybe_weather_repl
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from collections import OrderedDict
@@ -364,8 +365,8 @@ def _sse(event: dict[str, Any]) -> str:
 def _completed_step_text(step: Any) -> str:
     text = str(step)
     if text.startswith("Đang "):
-        return "Đã " + text[len("Đang "):]
-    return text
+        text = "Đã " + text[len("Đang "):]
+    return re.sub(r"\s+\(\d+ địa điểm\)$", "", text)
 
 
 @router.post("/chat-stream")

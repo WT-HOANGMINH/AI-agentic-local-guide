@@ -12,7 +12,10 @@
  */
 (function () {
   const SID_KEY = "dg_session_id";
-  const TOKEN_DELAY_MS = 40;
+  const TOKEN_DELAY_MS = 24;
+  const CHARACTERS_PER_TICK = 3;
+  const REQUEST_TIMEOUT_MS = 45000;
+  const REQUEST_RETRIES = 1;
   const state = { pos: null, controller: null, busy: false, cfg: null };
   const graphemes = text => {
     if (typeof Intl.Segmenter === "function") {
@@ -23,13 +26,38 @@
   };
   async function revealText(text, onCharacter, signal) {
     const characters = graphemes(String(text || ""));
-    for (let index = 0; index < characters.length; index += 1) {
+    for (let index = 0; index < characters.length; index += CHARACTERS_PER_TICK) {
       if (signal && signal.aborted) break;
-      onCharacter(characters[index]);
-      if (index < characters.length - 1) {
+      onCharacter(characters.slice(index, index + CHARACTERS_PER_TICK).join(""));
+      if (index + CHARACTERS_PER_TICK < characters.length) {
         await new Promise(resolve => setTimeout(resolve, TOKEN_DELAY_MS));
       }
     }
+  }
+
+  async function fetchWithRetry(url, init, signal = null, timeoutMs = REQUEST_TIMEOUT_MS, retries = REQUEST_RETRIES) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      if (signal && signal.aborted) {
+        throw new DOMException("Request aborted.", "AbortError");
+      }
+      const controller = signal || new AbortController();
+      const timer = setTimeout(() => {
+        if (!controller.signal.aborted) controller.abort();
+      }, timeoutMs);
+      try {
+        const response = await fetch(url, { ...init, signal: controller.signal, credentials: "include" });
+        return response;
+      } catch (error) {
+        if (signal && signal.aborted) throw error;
+        lastError = error;
+        if (attempt >= retries) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    throw lastError;
   }
 
   function getSessionId() {
@@ -123,22 +151,31 @@
         status.textContent = text || "";
         toBottom(box);
       },
-      add(text) {
-        const step = el("div", "dg-step done");
-        step.textContent = text;
+      async add(text) {
+        const step = el("div", "dg-step active");
         completed.appendChild(step);
         count += 1;
-        toBottom(box);
+        const characters = graphemes(String(text || ""));
+        const chunkSize = 3;
+        for (let index = 0; index < characters.length; index += chunkSize) {
+          step.textContent += characters.slice(index, index + chunkSize).join("");
+          toBottom(box);
+          if (index + chunkSize < characters.length) {
+            await new Promise(resolve => setTimeout(resolve, 40));
+          }
+        }
+        step.classList.remove("active");
+        step.classList.add("done");
+        await new Promise(resolve => setTimeout(resolve, 250));
       },
       finish() {
         if (finished) return;
         finished = true;
         status.remove();
         if (!count) { wrap.remove(); return; }
-        const d = el("details", "dg-steps-done");
-        d.appendChild(el("summary", "", "Đã hoàn thành " + count + " bước xử lý"));
-        d.appendChild(completed);
-        wrap.replaceWith(d);
+        const done = el("div", "dg-steps-done");
+        done.appendChild(completed);
+        wrap.replaceWith(done);
       },
       remove() { wrap.remove(); },
     };
@@ -273,13 +310,11 @@
     const signal = state.controller.signal;
 
     try {
-      const res = await fetch(c.apiBase + c.endpoint, {
+      const res = await fetchWithRetry(c.apiBase + c.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(body),
-        signal,
-      });
+      }, signal, REQUEST_TIMEOUT_MS, REQUEST_RETRIES);
       if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
 
       const reader = res.body.getReader();
@@ -290,7 +325,7 @@
         if (!ev) return;
         if (ev.type === "session" && ev.session_id) setSessionId(ev.session_id);
         else if (ev.type === "status") steps.status(ev.text);
-        else if (ev.type === "step") steps.add(ev.text);
+        else if (ev.type === "step") await steps.add(ev.text);
         else if (ev.type === "token") {
           steps.status("Đang nhận câu trả lời từ mô hình AI…");
           if (!bot) {
@@ -303,7 +338,6 @@
             toBottom(box);
           }, signal);
         } else if (ev.type === "result") {
-          gotResult = true;
           if (ev.text) {
             bot = bot || addMsg(box, "bot", "");
             const finalText = String(ev.text);
@@ -329,6 +363,7 @@
           steps.finish();
           renderItineraryAction(box, ev.itinerary);
           renderSuggestions(box, ev);
+          gotResult = true;
         } else if (ev.type === "error") {
           failed = true;
           steps.status("");
@@ -357,7 +392,15 @@
         reader.releaseLock();
       }
     } catch (e) {
-      if (e.name === "AbortError") {
+      if (gotResult) {
+        if (e.name !== "AbortError") {
+          console.warn("Chat stream closed after delivering its final result.", e);
+        }
+        if (bot) {
+          bot.classList.remove("dg-streaming-text");
+          bot.innerHTML = fmt(raw);
+        }
+      } else if (e.name === "AbortError") {
         if (bot) {
           bot.classList.remove("dg-streaming-text");
           bot.innerHTML = fmt(raw) + " <i>(đã dừng)</i>";

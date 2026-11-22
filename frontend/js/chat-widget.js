@@ -9,7 +9,7 @@
   // Tu nap CSS cua widget
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "css/chat-widget.css?v=chat-controls-stream-2";
+  css.href = "css/chat-widget.css?v=chat-ui-polish-5";
   document.head.appendChild(css);
 
   const root = document.createElement("div");
@@ -191,6 +191,22 @@
     messages.scrollTop = messages.scrollHeight;
 
     return bubble;
+  }
+
+  async function revealStepText(text, onChunk) {
+    const value = String(text || "");
+    const characters = typeof Intl.Segmenter === "function"
+      ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)]
+          .map(part => part.segment)
+      : Array.from(value);
+    const charactersPerTick = 3;
+
+    for (let index = 0; index < characters.length; index += charactersPerTick) {
+      onChunk(characters.slice(index, index + charactersPerTick).join(""));
+      if (index + charactersPerTick < characters.length) {
+        await new Promise(resolve => setTimeout(resolve, 40));
+      }
+    }
   }
 
   addMessage(
@@ -468,13 +484,12 @@ dismiss.addEventListener("click", () => {
     const progress = document.createElement("div");
     progress.className = "dgfw-progress";
     progress.textContent = "Đang gửi yêu cầu…";
-    const completedSteps = document.createElement("details");
+    const completedSteps = document.createElement("div");
     completedSteps.className = "dgfw-completed-steps";
     completedSteps.hidden = true;
-    const completedSummary = document.createElement("summary");
     const completedList = document.createElement("div");
     completedList.className = "dgfw-completed-list";
-    completedSteps.append(completedSummary, completedList);
+    completedSteps.append(completedList);
     const answer = document.createElement("span");
     const responseSuggestions = document.createElement("div");
     responseSuggestions.className = "dgfw-response-suggestions";
@@ -491,15 +506,18 @@ dismiss.addEventListener("click", () => {
           progress.textContent = status.text;
           messages.scrollTop = messages.scrollHeight;
         },
-        onStep: step => {
+        onStep: async step => {
           completedSteps.hidden = false;
-          completedSummary.textContent =
-            `Đã hoàn thành ${completedList.children.length + 1} bước xử lý`;
           const item = document.createElement("div");
-          item.className = "dgfw-completed-step";
-          item.textContent = step;
+          item.className = "dgfw-completed-step is-streaming";
           completedList.appendChild(item);
+          await revealStepText(step, chunk => {
+            item.appendChild(document.createTextNode(chunk));
+            messages.scrollTop = messages.scrollHeight;
+          });
+          item.classList.remove("is-streaming");
           messages.scrollTop = messages.scrollHeight;
+          await new Promise(resolve => setTimeout(resolve, 250));
         },
         onToken: token => {
           progress.textContent = "Đang nhận câu trả lời từ AI…";

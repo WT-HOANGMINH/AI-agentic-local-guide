@@ -249,7 +249,7 @@ def handle_search(st, db, intent, msg, slots, place, steps):
             (p.latitude - lat) ** 2 + (p.longitude - lng) ** 2
         ))
         nearby = nearby[:5]
-        steps.append(f"Đang tìm trong dữ liệu địa điểm ({len(rk.places)} địa điểm)")
+        steps.append("Đang tìm trong dữ liệu địa điểm")
         if not nearby:
             return reply(nlg.say("no_result", lang), steps, compose.sug_menu(lang))
         lines = [
@@ -278,7 +278,7 @@ def handle_search(st, db, intent, msg, slots, place, steps):
     st.pending = st.pending_for = None
     st.asked.discard(intent)
     rk = get_ranker(db)
-    steps.append(f"Đang truy cập cơ sở dữ liệu địa điểm ({len(rk.places)} địa điểm)")
+    steps.append("Đang truy cập cơ sở dữ liệu địa điểm")
     interests = slots.get("interests", [])
     famous = intent == "attraction" and not interests and not place
     query = " ".join([msg] + [INTEREST_QUERY[i] for i in interests] + [MEAL_QUERY.get(meal, "")]
@@ -463,7 +463,7 @@ def handle_itinerary(st, db, place, steps, msg):
 
     st.pending = st.pending_for = None
     rk = get_ranker(db)
-    steps.append(f"Đang truy cập cơ sở dữ liệu địa điểm ({len(rk.places)} địa điểm)")
+    steps.append("Đang truy cập cơ sở dữ liệu địa điểm")
     interests = s.get("interests", [])
     scores = rk.score_map(" ".join(INTEREST_QUERY[i] for i in interests) or "noi tieng pho bien")
     attrs = [p for p in rk.places if is_attraction(p)]

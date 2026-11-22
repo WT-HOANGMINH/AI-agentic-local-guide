@@ -3,7 +3,8 @@
 (function () {
   window.API = window.API || {};
 
-  const TYPE_DELAY_MS = 40;
+  const TYPE_DELAY_MS = 24;
+  const CHARACTERS_PER_TICK = 3;
   const graphemes = text => {
     if (typeof Intl.Segmenter === 'function') {
       return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)]
@@ -13,9 +14,9 @@
   };
   const revealText = async (text, onCharacter) => {
     const characters = graphemes(String(text || ''));
-    for (let index = 0; index < characters.length; index += 1) {
-      onCharacter(characters[index]);
-      if (index < characters.length - 1) {
+    for (let index = 0; index < characters.length; index += CHARACTERS_PER_TICK) {
+      onCharacter(characters.slice(index, index + CHARACTERS_PER_TICK).join(''));
+      if (index + CHARACTERS_PER_TICK < characters.length) {
         await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS));
       }
     }
@@ -113,6 +114,7 @@
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let resultReceived = false;
 
     async function dispatchFrame(frame) {
       const event = parseFrame(frame);
@@ -121,13 +123,14 @@
       if (event.type === 'session' && event.session_id) setSid(event.session_id);
       else if (event.type === 'status' && h.onStatus) h.onStatus(event);
       else if (event.type === 'step' && h.onStep) {
-        h.onStep(event.text, { completed: event.completed === true });
+        await h.onStep(event.text, { completed: event.completed === true });
       }
       else if (event.type === 'token' && h.onToken) {
         await revealText(event.text, h.onToken);
       }
       else if (event.type === 'result') {
         if (h.onResult) await h.onResult(event);
+        resultReceived = true;
       } else if (event.type === 'error' && h.onError) h.onError(event.text);
       else if (event.type === 'done' && h.onDone) await h.onDone();
     }
@@ -147,6 +150,9 @@
 
       buffer += decoder.decode();
       if (buffer.trim()) await dispatchFrame(buffer.trim());
+    } catch (error) {
+      if (!resultReceived) throw error;
+      console.warn('Chat stream closed after delivering its final result.', error);
     } finally {
       reader.releaseLock();
     }

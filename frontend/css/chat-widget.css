@@ -4,7 +4,9 @@
 #dgfw-root {
   --dgfw-primary: #176b60;
   --dgfw-dark: #105348;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Trebuchet MS', Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .dgfw-launcher {
@@ -169,11 +171,12 @@
 }
 
 .dgfw-heading strong {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .dgfw-heading small {
-  font-size: 11px;
+  font-size: 12px;
   color: #e6fcf3;
 }
 
@@ -230,8 +233,9 @@
   padding: 12px 14px;
 
   border-radius: 16px;
-  line-height: 1.55;
-  font-size: 13px;
+  line-height: 1.65;
+  font-size: 15px;
+  font-weight: 500;
 
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -255,7 +259,7 @@
 .dgfw-progress,
 .dgfw-notice {
   color: #788782;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .dgfw-progress:not(:empty)::before {
@@ -280,19 +284,24 @@
 .dgfw-completed-steps {
   margin: 4px 0 8px;
   color: #788782;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .dgfw-completed-steps[hidden] {
   display: none !important;
 }
 
-.dgfw-completed-steps summary {
-  cursor: pointer;
-}
-
 .dgfw-completed-step {
   margin: 4px 0 0 8px;
+}
+
+.dgfw-completed-step.is-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #176b60;
+  animation: dgfw-blink 1s steps(2) infinite;
 }
 
 .dgfw-completed-step::before {
@@ -300,6 +309,10 @@
   margin-right: 6px;
   color: #176b60;
   font-weight: 700;
+}
+
+.dgfw-completed-step.is-streaming::before {
+  content: "…";
 }
 
 @keyframes dgfw-blink {
@@ -359,9 +372,23 @@
   color: #176b60;
   padding: 7px 10px;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
   text-decoration: none;
+}
+
+.dg-links .dg-linkbtn {
+  border-color: #176b60;
+  background: #176b60;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.dg-links .dg-linkbtn:hover,
+.dg-links .dg-linkbtn:focus-visible {
+  border-color: #105348;
+  background: #105348;
+  color: #fff !important;
 }
 
 .dg-chip.on {
@@ -420,7 +447,8 @@
   color: #176b60;
 
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -447,7 +475,7 @@
   border-radius: 25px;
 
   background: #f8fbf9;
-  font-size: 13px;
+  font-size: 15px;
   outline: none;
 }
 
@@ -478,7 +506,7 @@
   background: white;
   padding: 0 12px 11px;
 
-  font-size: 10px;
+  font-size: 11px;
   color: #91a19b;
   text-align: center;
 }
