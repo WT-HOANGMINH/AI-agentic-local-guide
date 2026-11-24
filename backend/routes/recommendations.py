@@ -42,7 +42,7 @@ def _find_matching_places_in_db(db: Session, text: str, limit: int = 5) -> list[
 @router.post(
     "/chat",
     response_model=ChatRecommendationResponse,
-    summary="Hỏi đáp & Nhận gợi ý du lịch từ AI Agent (LangGraph ReAct + Gemini)"
+    summary="Hỏi đáp & Nhận gợi ý du lịch từ AI Agent hybrid (Scikit-learn + Ollama)"
 )
 def chat_with_recommendation_agent(
     req: ChatRecommendationRequest,
@@ -52,8 +52,8 @@ def chat_with_recommendation_agent(
     """
     Endpoint tương tác trực tiếp với AI Local Guide Agent.
     - Tự động tích hợp thông tin sở thích người dùng (nếu đã đăng nhập).
-    - Sử dụng mô hình AI Agent (LangGraph + Gemini) để suy luận, tra cứu địa điểm và thời tiết.
-    - Tự động kích hoạt cơ chế Smart Engine dự phòng nếu chưa cấu hình GEMINI_API_KEY hoặc mất kết nối.
+    - Sử dụng mô hình hybrid cục bộ (Scikit-learn + LangGraph/Ollama) để suy luận, tra cứu địa điểm và thời tiết.
+    - Tự động kích hoạt cơ chế Smart Engine dự phòng nếu Ollama không khả dụng.
     """
     user_prompt = req.message.strip()
     user_context = ""
@@ -84,11 +84,11 @@ def chat_with_recommendation_agent(
         return {
             "reply": agent_reply,
             "suggested_places": suggested_places,
-            "source": "gemini_agent"
+            "source": "ollama_agent"
         }
 
     except Exception as agent_error:
-        # Co che Smart Recommendation Engine du phong khi Gemini API chua co key hoac loi mang
+        # Smart Recommendation Engine dự phòng khi Ollama không chạy hoặc mô hình không phản hồi.
         clean_err = str(agent_error).encode("ascii", "replace").decode("ascii")
         print(f"[Recommendation] AI Agent fallback activated: {clean_err[:120]}")
 

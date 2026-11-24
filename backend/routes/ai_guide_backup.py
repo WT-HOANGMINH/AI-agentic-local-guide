@@ -90,7 +90,7 @@ def ask_ai_guide(request: GuideRequest):
             max_price=request.max_price,
         )
 
-        # Buoc 3: Gui cau hoi va du lieu truy xuat duoc cho Gemini.
+        # Buoc 3: Gui cau hoi va du lieu truy xuat duoc cho Ollama.
         context = json.dumps(
             places,
             ensure_ascii=False,

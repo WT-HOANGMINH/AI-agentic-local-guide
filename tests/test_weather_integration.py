@@ -9,7 +9,7 @@ class FakeSession:
 
 def test_standalone_weather_phrase_overrides_classifier_and_uses_weather_service(monkeypatch):
     calls = {}
-    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: False)
     monkeypatch.setattr(
         ai_guide,
         "predict_intent",
@@ -46,7 +46,7 @@ def test_standalone_weather_phrase_overrides_classifier_and_uses_weather_service
 
 def test_itinerary_bound_weather_uses_dialogue_planner_without_duplicate_fetch(monkeypatch):
     calls = {"weather_helper": 0, "dialogue": 0}
-    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: False)
     monkeypatch.setattr(
         ai_guide,
         "predict_intent",

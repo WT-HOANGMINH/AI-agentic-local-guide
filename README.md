@@ -1,6 +1,6 @@
 # 🌴 Agentic AI Local Guide - Khám Phá Đà Nẵng
 
-> Hệ thống trợ lý du lịch địa phương thông minh cho thành phố Đà Nẵng, dùng mô hình phân loại ý định tự huấn luyện cho chat, tìm kiếm điểm đến (POI), dự báo thời tiết và lập lịch trình tự động. Một API Gemini riêng vẫn có thể dùng cho tích hợp cũ.
+> Hệ thống trợ lý du lịch địa phương thông minh cho thành phố Đà Nẵng, kết hợp mô hình phân loại và xếp hạng Scikit-learn với Ollama cục bộ cho chat, tìm kiếm điểm đến (POI), dự báo thời tiết và lập lịch trình tự động.
 
 ---
 
@@ -21,7 +21,8 @@
 * **Bản đồ tương tác thời gian thực**: Sử dụng **Leaflet.js**, ghim vị trí (Pin SVG màu theo danh mục), đồng bộ 2 chiều giữa danh sách thẻ địa điểm và điểm ghim trên bản đồ, tích hợp GPS định vị và liên kết chỉ đường Google Maps.
 * **Tìm kiếm & Bộ lọc linh hoạt**: Tìm kiếm theo tên/mô tả, lọc danh mục (*Điểm tham quan, Ẩm thực, Quán cà phê, Mua sắm*), mức giá (₫ - ₫₫₫₫₫).
 * **Xác thực người dùng an toàn**: Đăng nhập/Đăng ký modal HTML5 native, cấp phát **JWT Bearer Token**, băm mật khẩu bảo mật cao bằng **Bcrypt**.
-* **Chat AI dùng model đã huấn luyện**: `POST /agent/chat` nạp `training/models/intent_classifier.joblib`, tra cứu địa điểm trong database và tạo lịch trình bằng planner nội bộ; luồng này không gọi Gemini.
+* **Chat AI hybrid cục bộ**: mô hình Scikit-learn phân loại ý định, TF-IDF xếp hạng địa điểm và Ollama diễn đạt câu trả lời; luồng này không gọi API AI bên ngoài.
+* **Địa điểm gần vị trí hiện tại**: Chat chỉ xin quyền GPS khi câu hỏi cần tìm quanh người dùng; các POI có tọa độ hợp lệ được xếp theo khoảng cách Haversine, tối đa 5 kết quả trong bán kính mặc định 5 km (mở rộng tới 10 km). Nếu quyền bị từ chối, có thể nhập tên khu vực để tìm thủ công. Có thể chỉnh bán kính ban đầu bằng `NEARBY_SEARCH_RADIUS_KM` trong `.env`.
 * **Dự báo thời tiết**: Planner lấy dữ liệu dự báo từ Open-Meteo để tư vấn lịch trình, giờ nghỉ và hoạt động ngoài trời.
 * **Lập lịch trình chuyến đi (Trip Itinerary API)**:
   * Lập kế hoạch du lịch chi tiết theo từng ngày (sáng, trưa, chiều, tối).
@@ -37,7 +38,7 @@
 | Thành phần | Công nghệ sử dụng |
 | :--- | :--- |
 | **Backend** | Python 3.10+, FastAPI, Uvicorn, SQLAlchemy 2.0 |
-| **AI / Agent** | Mô hình intent scikit-learn đã huấn luyện, planner nội bộ; Gemini chỉ dùng bởi API tích hợp cũ `/api/ai-guide/ask` |
+| **AI / Agent** | Mô hình intent Scikit-learn đã huấn luyện, TF-IDF ranker, Ollama cục bộ và planner nội bộ |
 | **Bảo mật** | JWT (python-jose), Bcrypt |
 | **Cơ sở dữ liệu** | MySQL (Chính) / Tự động chuyển đổi sang SQLite (Dự phòng) |
 | **Frontend** | Vanilla HTML5/CSS3, JavaScript ES Modules (Kiến trúc Module hóa) |
@@ -137,9 +138,9 @@ cp .env.example .env
 
 Mở file `.env` và cập nhật các thông số (nếu có):
 ```ini
-# Google Gemini API Key (Lấy miễn phí tại: https://aistudio.google.com/app/apikey)
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.8-flash
+# Ollama (không cần API key)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3:1.7b
 
 # Cấu hình kết nối MySQL (Nếu MySQL không bật, Backend sẽ tự động dùng SQLite: local_guide.db)
 DATABASE_URL=mysql+pymysql://root:1234@localhost:3306/agentic_local_guide
@@ -149,7 +150,7 @@ SECRET_KEY=agentic-ai-local-guide-secret-key-2026
 ```
 
 > [!NOTE]
-> Chat chính `/api/ai-guide/chat-stream` dùng hội thoại và dữ liệu địa phương; khi có `GEMINI_API_KEY`, Gemini giúp hiểu ngữ cảnh và diễn đạt câu trả lời tự nhiên hơn. Không có key, hệ thống vẫn dùng dialogue/planner cục bộ. Địa điểm, giá và dữ kiện địa phương chỉ được khẳng định khi có dữ liệu xác minh. Lịch trình do chat tạo có thể lưu vào trang **Lịch trình của tôi**.
+> Chat chính `/api/ai-guide/chat-stream` dùng mô hình Scikit-learn để định tuyến ý định và xếp hạng địa điểm, Ollama để hiểu ngữ cảnh/bổ sung diễn đạt, và dialogue/planner cục bộ để tạo dữ liệu đã xác minh. Khi Ollama không khả dụng, hệ thống dùng kết quả dialogue cục bộ. Địa điểm, giá và dữ kiện địa phương chỉ được khẳng định khi có dữ liệu xác minh. Lịch trình do chat tạo có thể lưu vào trang **Lịch trình của tôi**.
 
 #### Đăng nhập Google / Facebook (tùy chọn)
 
@@ -173,7 +174,7 @@ FRONTEND_URL=http://127.0.0.1:5500
 
 Chạy máy chủ Uvicorn:
 ```bash
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn backend.main:app --host localhost --port 8000 --reload
 ```
 
 ### Huấn luyện lại model chat
@@ -185,7 +186,7 @@ Chat sử dụng bộ dữ liệu trong `training/data/` và lưu model tại
 python training/src/train_intent_v2.py --final
 ```
 
-Lệnh này huấn luyện đủ tám intent; không cần Gemini API Key để trả lời trong giao diện chat.
+Lệnh này huấn luyện đủ tám intent; Ollama có thể dùng tùy chọn để hiểu ngữ cảnh và diễn đạt, không bắt buộc để trả lời bằng dữ liệu cục bộ.
 
 ### Nhập giá có nguồn xác minh
 
@@ -199,7 +200,7 @@ Có thể truyền đường dẫn CSV riêng làm tham số. Importer kiểm tr
 
 Khi khởi động thành công, màn hình terminal sẽ hiển thị:
 ```text
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://localhost:8000 (Press CTRL+C to quit)
 Database tables initialized successfully.
 [Seeder] Da khoi tao tai khoan mau va du lieu dia diem Da Nang!
 ```
@@ -215,11 +216,11 @@ Mở một cửa sổ Terminal mới và chạy:
 ```bash
 python -m http.server 5500 --directory frontend
 ```
-Sau đó mở trình duyệt và truy cập: **`http://127.0.0.1:5500/`**
+Sau đó mở trình duyệt và truy cập: **`http://localhost:5500/`**
 
 #### Cách 2: Truy cập trực tiếp qua Backend static mount
 Do Backend đã tích hợp sẵn thư mục frontend, bạn có thể truy cập thẳng vào:
-👉 **`http://127.0.0.1:8000/app/index.html`**
+👉 **`http://localhost:8000/app/index.html`**
 
 #### Cách 3: Sử dụng VS Code Live Server
 Mở file `frontend/index.html` trong VS Code, nhấp chuột phải chọn **"Open with Live Server"** (Port mặc định `5500`).
@@ -243,8 +244,8 @@ Hệ thống đã tự động gieo sẵn (auto-seed) tài khoản Quản trị 
 
 ### 1. Swagger UI & ReDoc
 Backend cung cấp tài liệu API tương tác trực tiếp:
-* **Interactive Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-* **ReDoc Format**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+* **Interactive Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **ReDoc Format**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ### 2. Sử dụng Postman Collection
 Dự án đi kèm file **`postman_collection.json`** với 27 API endpoints đã được cấu hình sẵn biến môi trường:
@@ -271,7 +272,7 @@ python -X utf8 training\src\generate_slots.py
 python -X utf8 training\src\train_slots.py
 ```
 
-CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại, trích thông tin, truy vấn địa điểm và lập lịch trình chạy cục bộ. Khi được cấu hình `GEMINI_API_KEY`, endpoint SSE dùng Gemini để xử lý câu hỏi tự do hoặc diễn đạt câu trả lời dựa trên dữ liệu đã kiểm chứng, đồng thời gửi từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Không có key, hoặc khi cần hỏi làm rõ, ứng dụng trả kết quả dialogue cục bộ qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý. Lịch trình có cấu trúc được lưu qua `/itineraries/from-chat` và hiển thị lại sau khi tải trang.
+CI và Render cũng sinh hai mô hình AI trong quá trình build. Bộ phân loại Scikit-learn, trích thông tin, truy vấn địa điểm, TF-IDF ranker và lập lịch trình chạy cục bộ. Khi Ollama khả dụng, endpoint SSE có thể xử lý câu hỏi tự do hoặc diễn đạt câu trả lời dựa trên dữ liệu đã kiểm chứng và stream từng token; các bước suy nghĩ nội bộ không được gửi ra giao diện. Khi Ollama không khả dụng hoặc cần hỏi làm rõ, ứng dụng trả kết quả dialogue cục bộ qua sự kiện `result` và UI vẫn hiển thị các lựa chọn gợi ý. Lịch trình có cấu trúc được lưu qua `/itineraries/from-chat` và hiển thị lại sau khi tải trang.
 
 ---
 
@@ -282,7 +283,7 @@ Hệ thống được thiết kế theo tiêu chuẩn công nghiệp với khả
 1. **Database Fallback**:
    Nếu máy chưa cài đặt hoặc chưa khởi động dịch vụ MySQL trên cổng `3306`, [`backend/database.py`](backend/database.py) sẽ tự động kích hoạt cơ sở dữ liệu nhúng **SQLite** (`sqlite:///./local_guide.db`) để ứng dụng không bị gián đoạn.
 2. **Chat AI nội bộ**:
-   [`backend/routes/agent.py`](backend/routes/agent.py) dùng model đã huấn luyện và planner cục bộ; không phụ thuộc Gemini. API tích hợp cũ `/api/ai-guide/ask` là luồng riêng.
+   [`backend/routes/agent.py`](backend/routes/agent.py) dùng LangGraph ReAct với Ollama cục bộ. Luồng chat chính kết hợp Scikit-learn, Ollama và planner cục bộ.
 3. **Frontend Mock Fallback**:
    Nếu Backend tạm thời ngắt kết nối, [`frontend/js/places.js`](frontend/js/places.js) sẽ tự động nạp danh sách 10 địa điểm nổi tiếng Đà Nẵng từ mock data để bản đồ và giao diện vẫn hiển thị sinh động.
 4. **Bảo vệ mã hóa Console Windows**:

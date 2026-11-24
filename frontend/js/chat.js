@@ -334,9 +334,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (waiting.parentNode) waiting.remove();
       textEl.classList.remove('dg-streaming-text');
-      textEl.textContent =
-        'Không thể kết nối Chat AI: ' +
-        (error.message || 'Có lỗi xảy ra.');
+      textEl.textContent = typeof error.code === 'string' &&
+        error.code.startsWith('LOCATION_')
+        ? error.message
+        : 'Không thể kết nối Chat AI: ' +
+          (error.message || 'Có lỗi xảy ra.');
 
     } finally {
 

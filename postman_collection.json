@@ -8,7 +8,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://127.0.0.1:8000",
+      "value": "http://localhost:8000",
       "type": "string"
     },
     {
@@ -299,7 +299,7 @@
       "name": "5. AI Recommendations",
       "item": [
         {
-          "name": "Hỏi đáp & Gợi ý với AI Agent (LangGraph + Gemini)",
+          "name": "Hỏi đáp & Gợi ý với AI Agent hybrid (Scikit-learn + Ollama)",
           "request": {
             "method": "POST",
             "header": [

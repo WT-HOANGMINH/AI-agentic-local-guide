@@ -1,17 +1,21 @@
 """
 DanangGuide AI Guide API
 - Compatible with the V2 dialogue service: respond(..., choice=...)
-- Keeps the existing endpoints: /chat, /ask, /chat-stream, /reset
+- Keeps the existing endpoints: /chat, /ask, /chat-stream, /reset, /health
 - Keeps optional GPS coordinates and legacy max_price field
-- Uses Gemini when configured, with local dialogue as a no-key fallback
+- Hybrid routing: the trained local models (LinearSVC intent + slot tagger) run first; the local
+  Ollama LLM is only consulted when the local classifier is unsure or the message is a short
+  follow-up, and to phrase answers naturally from verified data
+- If Ollama is unavailable, slow or returns something unsafe, the verified local answer is used
 - Does not fabricate tool/progress events
 """
 
 from __future__ import annotations
-from backend.services.weather_chat import looks_like_weather, maybe_weather_reply
+
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -21,19 +25,26 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from starlette.concurrency import iterate_in_threadpool, run_in_threadpool
 
 from backend.database import SessionLocal
+from backend.services import nlg
+from backend.services import dialogue
 from backend.services.dialogue import State, respond
 from backend.services.intent_service import predict_intent
 from backend.services.llm_service import (
+    OllamaError,
     analyze_request,
     ask_llm,
-    is_gemini_configured,
+    check_ollama_connection,
+    is_ollama_available,
+    stream_general_answer,
     stream_grounded_answer,
 )
+from backend.services.llm_text import contains_unexpected_script, grounded_output_is_safe
 from backend.services.slot_service import model_ready, strip_accents
+from backend.services.weather_chat import looks_like_weather, maybe_weather_reply
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +56,35 @@ MAX_SESSIONS = 500
 SESSION_TTL_SECONDS = 60 * 60 * 6
 SESSIONS: OrderedDict[str, tuple[State, float]] = OrderedDict()
 _SESSIONS_LOCK = RLock()
+
+# --- LLM routing / rewriting policy (xem .env.example) ---------------------------------
+def _env_number(name: str, default, cast):
+    try:
+        return cast(os.getenv(name) or default)
+    except ValueError:
+        logger.warning("Giá trị %s không hợp lệ; dùng mặc định %s.", name, default)
+        return default
+
+
+# Chỉ hỏi Ollama phân tích ý định khi mô hình ML cục bộ có độ tin cậy dưới ngưỡng này.
+ROUTER_CONFIDENCE_THRESHOLD = _env_number("OLLAMA_ROUTER_THRESHOLD", 0.7, float)
+# Tin nhắn ngắn (<= số từ này) trong hội thoại đang diễn ra có thể là câu nối tiếp ("còn chỗ nào khác không?").
+SHORT_FOLLOWUP_WORDS = 5
+# Dữ liệu đã xác minh dài hơn ngưỡng này được giữ nguyên văn thay vì nhờ mô hình nhỏ viết lại.
+REWRITE_MAX_CHARS = _env_number("OLLAMA_REWRITE_MAX_CHARS", 1500, int)
+
+GENERAL_INTENTS = {"general", "out_of_scope", "unclear"}
+
+_GENERAL_FALLBACK = {
+    "vi": (
+        "Mình chưa trả lời được câu này vì trợ lý AI đang không khả dụng. "
+        "Bạn thử hỏi về địa điểm, quán ăn, quán cà phê, lịch trình hoặc thời tiết ở Đà Nẵng nhé."
+    ),
+    "en": (
+        "I can't answer that right now because the AI assistant is unavailable. "
+        "Try asking about places, food, cafes, itineraries or the weather in Da Nang."
+    ),
+}
 
 
 class ChatRequest(BaseModel):
@@ -58,6 +98,12 @@ class ChatRequest(BaseModel):
     # V2 interactive clarification payload, e.g.
     # {"slot": "days", "values": [2]}
     choice: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def validate_coordinate_pair(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be provided together")
+        return self
 
 
 class GuideRequest(ChatRequest):
@@ -144,6 +190,62 @@ def _normalise_reply(reply: Any) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Định tuyến ý định: ML cục bộ trước, Ollama bổ trợ
+# ---------------------------------------------------------------------------
+
+def _local_intent(message: str) -> tuple[str | None, float]:
+    """Mô hình ML đã huấn luyện (LinearSVC + TF-IDF). Trả (None, 0) nếu mô hình không dùng được."""
+    try:
+        prediction = predict_intent(message)
+        if not isinstance(prediction, dict):
+            raise TypeError("predict_intent() must return a dictionary")
+        return (
+            str(prediction.get("intent") or "unclear"),
+            float(prediction.get("confidence", 0.0) or 0.0),
+        )
+    except Exception as exc:
+        logger.warning("Local intent classifier unavailable (%s: %s).", type(exc).__name__, exc)
+        return None, 0.0
+
+
+def _should_route_with_llm(
+    message: str, state: State, local_intent: str | None, local_conf: float
+) -> bool:
+    """Chỉ tốn một lần gọi LLM khi nó thật sự giúp được."""
+    if not is_ollama_available():
+        return False
+    if local_intent is None:
+        return True
+    words = len(message.split())
+    # Dialogue manager tự hiểu câu trả lời cho câu hỏi nó vừa đặt (số ngày, sở thích...).
+    if state.pending_for and words <= 8:
+        return False
+    if local_conf < ROUTER_CONFIDENCE_THRESHOLD:
+        return True
+    return bool(state.history) and words <= SHORT_FOLLOWUP_WORDS and local_conf < 0.9
+
+
+def _route(message: str, state: State) -> tuple[str, float, str]:
+    """Trả về (intent, confidence, nguồn: 'local' | 'ollama')."""
+    local_intent, local_conf = _local_intent(message)
+
+    if _should_route_with_llm(message, state, local_intent, local_conf):
+        try:
+            analysis = analyze_request(message, history=state.history)
+        except Exception as exc:
+            logger.warning(
+                "Ollama request analysis failed (%s: %s); using local classifier.",
+                type(exc).__name__, exc,
+            )
+        else:
+            # Ý định khác 'general' luôn là khả năng cục bộ (kể cả khi mô hình nhỏ quên đặt
+            # requires_local_data) để dữ liệu địa điểm vẫn do backend cung cấp, không do LLM bịa.
+            return analysis.intent, analysis.confidence, "ollama"
+
+    return local_intent or "unclear", local_conf, "local"
+
+
 def _compute(
     message: str,
     state: State,
@@ -152,8 +254,8 @@ def _compute(
     choice: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Let Gemini route requests when configured; otherwise use the local classifier,
-    then execute only the existing dialogue capabilities.
+    Route the request (local ML first, Ollama when needed), then execute only the existing
+    dialogue capabilities.
 
     In V2, dialogue.respond signature is:
         respond(st, msg, intent, conf, db, choice=None)
@@ -164,41 +266,21 @@ def _compute(
     if latitude is not None and longitude is not None:
         state.pos = (latitude, longitude)
 
-    analysis_failed = False
-    if is_gemini_configured():
-        try:
-            analysis = analyze_request(message, history=state.history)
-        except Exception as exc:
-            analysis_failed = True
-            logger.warning(
-                "LLM request analysis failed (%s); using local intent classifier.",
-                type(exc).__name__,
-            )
-            analysis = None
-    else:
-        analysis = None
-
-    if analysis is None:
-        prediction = predict_intent(message)
-        if not isinstance(prediction, dict):
-            raise TypeError("predict_intent() must return a dictionary")
-        intent = prediction.get("intent", "unclear")
-        confidence = float(prediction.get("confidence", 0.0) or 0.0)
-    else:
-        intent = (
-            analysis.intent
-            if analysis.requires_local_data
-            else "general"
-        )
-        confidence = analysis.confidence
+    intent, confidence, router_source = _route(message, state)
 
     weather_requested = intent == "weather" or looks_like_weather(message)
+    if not weather_requested and dialogue.is_current_location_request(message):
+        intent = dialogue.current_location_intent(message, intent)
+        confidence = max(confidence, 0.95)
+        router_source = "local"
     if weather_requested:
         intent = "weather"
 
     if intent == "general" and not weather_requested:
+        # Không cần dữ liệu địa phương: Ollama sẽ trả lời; nếu không dùng được thì giữ câu dự phòng này.
+        lang = nlg.detect_lang(message, state.lang)
         reply = _normalise_reply({
-            "text": "",
+            "text": _GENERAL_FALLBACK.get(lang, _GENERAL_FALLBACK["vi"]),
             "steps": [],
             "suggestions": [],
             "links": [],
@@ -206,6 +288,7 @@ def _compute(
         })
         reply["intent"] = intent
         reply["confidence"] = confidence
+        reply["router"] = router_source
         return reply
 
     db = SessionLocal()
@@ -235,24 +318,61 @@ def _compute(
 
     reply["intent"] = intent
     reply["confidence"] = confidence
-    if analysis_failed:
-        reply["_skip_llm"] = True
+    reply["router"] = router_source
     return reply
 
 
+# ---------------------------------------------------------------------------
+# Diễn đạt câu trả lời bằng Ollama (có kiểm tra an toàn và dự phòng)
+# ---------------------------------------------------------------------------
+
+def _llm_mode(reply: dict[str, Any]) -> str:
+    """'skip' = giữ nguyên câu trả lời cục bộ; 'general' = LLM trả lời tự do; 'grounded' = LLM diễn đạt dữ liệu."""
+    if (
+        reply.get("_skip_llm")
+        or reply.get("status") == "needs_clarification"
+        or reply.get("intent") == "greeting"
+    ):
+        return "skip"
+    if not is_ollama_available():
+        return "skip"
+    if reply.get("intent") in GENERAL_INTENTS:
+        return "general"
+    if len(reply.get("text") or "") > REWRITE_MAX_CHARS:
+        return "skip"  # dữ liệu dài (lịch trình...): giữ nguyên văn đã xác minh
+    return "grounded"
+
+
+def _check_generated(mode: str, local_text: str, generated: str, message: str, history) -> None:
+    """Ném OllamaError nếu câu trả lời của mô hình không đáng tin; khi đó dùng bản cục bộ."""
+    if not generated.strip():
+        raise OllamaError("Mô hình không trả về nội dung.")
+    if mode == "grounded":
+        if not grounded_output_is_safe(local_text, generated, message, history):
+            raise OllamaError("Câu trả lời của mô hình không giữ đúng dữ liệu đã xác minh.")
+    elif contains_unexpected_script(generated, message):
+        raise OllamaError("Câu trả lời của mô hình lẫn ký tự ngoài ngôn ngữ mong đợi.")
+
+
 def _apply_llm(message: str, state: State, reply: dict[str, Any]) -> str:
-    if reply.get("_skip_llm") or not is_gemini_configured():
+    mode = _llm_mode(reply)
+    if mode == "skip":
         return reply["text"]
-    if reply.get("status") == "needs_clarification" or reply.get("intent") == "greeting":
-        return reply["text"]
-    if reply.get("intent") in {"general", "out_of_scope", "unclear"}:
-        answer = ask_llm(message, history=state.history)
-    else:
-        answer = ask_llm(
-            message,
-            history=state.history,
-            grounded_answer=reply["text"],
+
+    local_text = reply["text"]
+    try:
+        if mode == "general":
+            answer = ask_llm(message, history=state.history)
+        else:
+            answer = ask_llm(message, history=state.history, grounded_answer=local_text)
+        _check_generated(mode, local_text, answer, message, state.history)
+    except Exception as exc:
+        logger.warning(
+            "Ollama answer not used (%s: %s); returning the local verified answer.",
+            type(exc).__name__, exc,
         )
+        return local_text
+
     reply["text"] = answer
     return answer
 
@@ -299,6 +419,7 @@ def _response_payload(reply: dict[str, Any], session_id: str) -> dict[str, Any]:
         "steps": reply["steps"],
         "intent": reply["intent"],
         "confidence": reply["confidence"],
+        "router": reply.get("router", "local"),
         "session_id": session_id,
         "places": reply.get("places", []),
         **_meta(reply),
@@ -372,11 +493,14 @@ def _completed_step_text(step: Any) -> str:
 @router.post("/chat-stream")
 async def chat_stream(req: ChatRequest):
     """
-    SSE-compatible endpoint.
+    SSE-compatible endpoint (giao thức không đổi: session, status, step, token, links,
+    suggestions, result, error, done).
 
     Request/analysis statuses are emitted before their work starts. Completed
-    dialogue steps are sent only after the dialogue has returned; local answer
-    text is never marked as model-token streaming.
+    dialogue steps are sent only after the dialogue has returned. Token events are only
+    sent for text really produced by the local LLM; if that text is rejected or the LLM
+    fails midway, the final `result` event carries the verified local answer and the
+    frontend replaces what was streamed.
     """
     message = _clean_message(req.message)
     sid, state = _get_state(req.session_id)
@@ -415,42 +539,37 @@ async def chat_stream(req: ChatRequest):
                     "completed": True,
                 })
 
-            answer_parts = []
             streamed_model = False
-            if is_gemini_configured():
-                if (
-                    reply.get("_skip_llm")
-                    or reply.get("status") == "needs_clarification"
-                    or reply.get("intent") == "greeting"
-                ):
-                    answer_parts.append(reply["text"])
-                elif reply.get("intent") in {"general", "out_of_scope", "unclear"}:
-                    yield _sse({
-                        "type": "status",
-                        "phase": "generating",
-                        "text": "Đang tạo câu trả lời bằng mô hình AI…",
-                    })
-                    answer_parts.append(await run_in_threadpool(
-                        ask_llm, message, state.history
-                    ))
-                else:
-                    yield _sse({
-                        "type": "status",
-                        "phase": "generating",
-                        "text": "Đang nhận câu trả lời từ mô hình AI…",
-                    })
-                    stream = stream_grounded_answer(
-                        message,
-                        reply["text"],
-                        history=state.history,
-                    )
+            mode = await run_in_threadpool(_llm_mode, reply)
+            if mode != "skip":
+                local_text = reply["text"]
+                yield _sse({
+                    "type": "status",
+                    "phase": "generating",
+                    "text": "Đang tạo câu trả lời bằng mô hình AI cục bộ…",
+                })
+                parts: list[str] = []
+                try:
+                    if mode == "general":
+                        stream = stream_general_answer(message, history=state.history)
+                    else:
+                        stream = stream_grounded_answer(message, local_text, history=state.history)
                     async for part in iterate_in_threadpool(stream):
-                        answer_parts.append(part)
+                        parts.append(part)
                         streamed_model = True
                         yield _sse({"type": "token", "text": part, "streaming": True})
-                reply["text"] = "".join(answer_parts).strip()
-                if not reply["text"]:
-                    raise RuntimeError("LLM không tạo được câu trả lời.")
+
+                    generated = "".join(parts).strip()
+                    _check_generated(mode, local_text, generated, message, state.history)
+                    reply["text"] = generated
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning(
+                        "Ollama streaming not used (%s: %s); returning the local verified answer.",
+                        type(exc).__name__, exc,
+                    )
+                    # reply["text"] vẫn là câu trả lời cục bộ đã xác minh.
 
             if reply.get("links"):
                 yield _sse({"type": "links", "items": reply["links"]})
@@ -472,6 +591,7 @@ async def chat_stream(req: ChatRequest):
                 "streaming": streamed_model,
                 "intent": reply.get("intent"),
                 "confidence": reply.get("confidence"),
+                "router": reply.get("router", "local"),
                 **_meta(reply),
             })
             _record_turn(state, message, answer)
@@ -514,13 +634,23 @@ async def health():
     except Exception:
         logger.exception("Could not check slot model readiness")
 
+    llm = await run_in_threadpool(check_ollama_connection)
+
     return {
         "success": True,
         "service": "ai-guide",
         "slot_model_ready": ready,
         "session_storage": "memory",
-        "llm_enabled": is_gemini_configured(),
-        "note": "LLM contextualizes replies when configured; local data and planning remain the source of verified travel facts.",
+        "llm_provider": "ollama",
+        "llm_enabled": llm["available"],
+        "llm_model": llm["model"],
+        "llm_base_url": llm["base_url"],
+        "llm_error": llm["error"],
+        "note": (
+            "Local ML models route requests first; the local Ollama LLM only helps with "
+            "ambiguous requests and natural phrasing. Verified travel facts always come "
+            "from the database and weather service."
+        ),
     }
 
 

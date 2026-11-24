@@ -292,6 +292,11 @@ if os.path.isdir(frontend_dir):
 @app.on_event("startup")
 def startup_event():
     try:
+        import threading
+        from backend.services.llm_service import warmup_ollama
+
+        threading.Thread(target=warmup_ollama, daemon=True).start()
+
         Base.metadata.create_all(bind=engine)
         ensure_itinerary_data_column(engine)
         print("Database tables initialized successfully.")

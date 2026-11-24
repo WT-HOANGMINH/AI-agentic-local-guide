@@ -597,17 +597,28 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFooter();
 
   if (!location.pathname.endsWith('/chat.html')) {
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src^="${src.split('?')[0]}"]`);
+      if (existing) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = `${src}?v=nearby-gps-1`;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Không tải được ${src}`));
+      document.body.appendChild(script);
+    });
+
     const streamStyles = document.createElement('link');
     streamStyles.rel = 'stylesheet';
-    streamStyles.href = 'css/chat-stream.css?v=chat-ui-polish-5';
+    streamStyles.href = 'css/chat-stream.css?v=nearby-gps-1';
     document.head.appendChild(streamStyles);
 
-    const streamScript = document.createElement('script');
-    streamScript.src = 'js/chat-stream.js?v=chat-ui-polish-5';
-    streamScript.onload = () => {
-      const chatScript = document.createElement('script');
-      chatScript.src = 'js/chat-widget.js?v=chat-ui-polish-5';
-      chatScript.onload = () => {
+    loadScript('js/ai-chat.js')
+      .then(() => loadScript('js/chat-stream.js'))
+      .then(() => loadScript('js/chat-widget.js'))
+      .then(() => {
         if (!window.DGChat) {
           console.error('Không khởi tạo được chat streaming.');
           return;
@@ -620,12 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
           userClass: 'dgfw-message dgfw-user',
           botClass: 'dgfw-message dgfw-assistant',
         });
-      };
-      document.body.appendChild(chatScript);
-    };
-    streamScript.onerror = () => {
-      console.error('Không tải được bộ điều khiển chat streaming.');
-    };
-    document.body.appendChild(streamScript);
+      })
+      .catch(error => console.error(error.message));
   }
 });

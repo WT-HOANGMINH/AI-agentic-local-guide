@@ -1,1 +1,1 @@
-currency,item_name,place_name,price_max_vnd,price_min_vnd,source_url,unit,verified_at
+place_name,item_name,price_min_vnd,price_max_vnd,currency,unit,source_url,verified_at

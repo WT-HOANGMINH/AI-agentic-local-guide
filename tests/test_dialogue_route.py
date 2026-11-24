@@ -3,6 +3,7 @@ Chạy:  python -m pytest tests/test_dialogue_route.py -q   (từ thư mục g�
 Không cần MySQL: địa điểm giả được nạp vào place_repo."""
 import sys
 import types
+from types import SimpleNamespace
 
 # Nếu môi trường thiếu thư viện nặng (sqlalchemy/httpx) thì dùng bản giả để test logic thuần.
 for name in ("sqlalchemy", "sqlalchemy.orm", "httpx", "backend.models.place"):
@@ -86,6 +87,68 @@ def test_route_unknown_origin_uses_typed_text():
     assert r["status"] == "completed"
     assert "sân bay Đà Nẵng" in r["text"]
     assert "origin=" in r["links"][0]["url"]
+
+
+def test_nearby_search_ranks_all_categories_by_haversine_and_shares_poi_details(monkeypatch):
+    places = [
+        P(10, "Gần nhất", "tourist_attraction", 16.0612, 108.2273, "Mô tả địa điểm"),
+        P(11, "Quán ăn", "restaurant", 16.0680, 108.2150, "Món địa phương"),
+        P(12, "Không có tọa độ", "cafe", None, None),
+    ]
+    monkeypatch.setattr(dlg, "get_ranker", lambda _db: SimpleNamespace(places=places))
+    state = dlg.State(pos=(16.06, 108.22))
+
+    answer = dlg.handle_search(
+        state, None, "attraction", "Tìm địa điểm gần chỗ tôi", {}, None, []
+    )
+
+    assert answer["text"].index("Gần nhất") < answer["text"].index("Quán ăn")
+    assert "Quán ăn" in answer["text"]
+    assert "Mô tả địa điểm" in answer["text"]
+    assert "0.8 km" in answer["text"]
+    assert "16.06,108.22" not in answer["text"]
+    assert answer["links"]
+    assert answer["_skip_llm"] is True
+
+
+def test_nearby_food_query_filters_to_restaurants_and_expands_radius(monkeypatch):
+    places = [
+        P(20, "Nhà hàng gần", "restaurant", 16.0680, 108.2150, "Mì Quảng"),
+        P(21, "Nhà hàng xa hơn", "restaurant", 16.12, 108.25, "Hải sản"),
+        P(22, "Điểm tham quan", "tourist_attraction", 16.0612, 108.2273),
+    ]
+    monkeypatch.setattr(dlg, "get_ranker", lambda _db: SimpleNamespace(places=places))
+    monkeypatch.setenv("NEARBY_SEARCH_RADIUS_KM", "1")
+    state = dlg.State(pos=(16.06, 108.22))
+
+    answer = dlg.handle_search(
+        state, None, "food", "Tìm quán ăn gần đây", {}, None, []
+    )
+
+    assert "Nhà hàng gần" in answer["text"]
+    assert "Nhà hàng xa hơn" in answer["text"]
+    assert "Điểm tham quan" not in answer["text"]
+    assert "mở rộng tới 10 km" in answer["text"]
+
+
+def test_nearby_location_phrase_is_not_reported_as_an_unknown_place(monkeypatch):
+    monkeypatch.setattr(dlg, "extract_slots", lambda _message: ({"places": ["chỗ"]}, []))
+    monkeypatch.setattr(dlg, "get_ranker", lambda _db: SimpleNamespace(places=[PLACES[1]]))
+
+    answer = dlg.respond(
+        dlg.State(pos=(16.06, 108.22)),
+        "Tìm địa điểm gần chỗ tôi",
+        "attraction",
+        0.9,
+        None,
+    )
+
+    assert "chưa tìm thấy" not in answer["text"]
+    assert "Cầu Rồng" in answer["text"]
+
+
+def test_explicit_place_nearby_phrase_is_not_treated_as_current_location():
+    assert not dlg.is_current_location_request("Tìm quán ăn gần Cầu Rồng")
 
 
 def test_thanks_ends_politely_without_pending():

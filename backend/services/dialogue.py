@@ -1,6 +1,7 @@
 """Bộ điều phối hội thoại v2: hiểu (intent + slot) -> hỏi lại nếu thiếu -> chọn địa điểm / lập lịch / chỉnh lịch
 -> diễn đạt có 'hồn' + gợi ý bấm chọn + liên kết bản đồ. Không dùng LLM/API bên ngoài."""
 import math
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -24,6 +25,37 @@ WALK_RE = re.compile(r"(khong|it|han che|tranh|duoi|toi da).{0,25}di bo|di bo.{0
 DAY_RE = re.compile(r"\b(?:ngay|day)\s*(\d)\b")
 FLEX_RE = re.compile(r"(tuy ban|gi cung duoc|bat ky|up to you|you decide|anything)")
 THANKS_RE = re.compile(r"\b(cam on|thanks|thank you|tam biet|bye|het roi|vay la du|du roi|khong can nua)\b")
+NEARBY_RE = re.compile(
+    r"\b(?:gan\s+(?:toi|cho toi|day|vi tri hien tai|vi tri cua toi)|"
+    r"quanh (?:day|toi)|xung quanh (?:day|toi)|vi tri (?:hien tai|cua toi)|"
+    r"near me|nearby|near here|near my location|around me|around here|my location|current location)\b"
+)
+NEARBY_SLOT_RE = re.compile(
+    r"^(?:cho(?: toi)?|toi|day|vi tri(?: hien tai| cua toi)?|"
+    r"near me|nearby|near here|my location|current location)$"
+)
+NEARBY_CATEGORY_CUES = {
+    "food": re.compile(r"\b(?:quan an|nha hang|restaurant|food|an gi|mon an)\b"),
+    "cafe": re.compile(r"\b(?:quan ca phe|cafe|coffee|milk tea|tra sua)\b"),
+    "accommodation": re.compile(r"\b(?:khach san|homestay|resort|hotel|accommodation)\b"),
+    "attraction": re.compile(
+        r"\b(?:tham quan|du lich|diem den|danh lam|thang canh|tourist attraction|sightseeing)\b"
+    ),
+}
+
+
+def is_current_location_request(message):
+    return bool(NEARBY_RE.search(strip_accents(message)))
+
+
+def current_location_intent(message, fallback="attraction"):
+    cue = strip_accents(message)
+    for intent, pattern in NEARBY_CATEGORY_CUES.items():
+        if pattern.search(cue):
+            return intent
+    return fallback if fallback in CATEGORY_OF else "attraction"
+
+
 PERSIST = {
     "days", "interests", "budget_vnd", "budget_level", "people",
     "start_time", "early", "flexible", "companion", "limit_walk",
@@ -220,7 +252,7 @@ def brief(p):
 def handle_search(st, db, intent, msg, slots, place, steps):
     lang, meal = st.lang, slots.get("meal")
     cue = strip_accents(msg)
-    if re.search(r"\b(gan toi|gan day|near me|nearby)\b", cue):
+    if NEARBY_RE.search(cue):
         if st.pos is None:
             st.pending = st.pending_for = intent
             option = compose.opt(
@@ -240,34 +272,93 @@ def handle_search(st, db, intent, msg, slots, place, steps):
 
         rk = get_ranker(db)
         lat, lng = st.pos
-        nearby = [
-            p for p in rk.places
-            if p.latitude is not None and p.longitude is not None
-            and p.category in CATEGORY_OF[intent]
-        ]
-        nearby.sort(key=lambda p: (
-            (p.latitude - lat) ** 2 + (p.longitude - lng) ** 2
-        ))
+        category_intent = next(
+            (key for key, pattern in NEARBY_CATEGORY_CUES.items() if pattern.search(cue)),
+            None,
+        )
+        categories = (
+            CATEGORY_OF[category_intent]
+            if category_intent else
+            set().union(*CATEGORY_OF.values(), {"shopping"})
+        )
+        candidates, seen = [], set()
+        for p in rk.places:
+            if p.id in seen or p.category not in categories:
+                continue
+            if p.latitude is None or p.longitude is None:
+                continue
+            if not (-90 <= p.latitude <= 90 and -180 <= p.longitude <= 180):
+                continue
+            seen.add(p.id)
+            distance = planner_service.haversine((lat, lng), (p.latitude, p.longitude))
+            candidates.append((distance, p))
+
+        candidates.sort(key=lambda item: (item[0], -(item[1].rating or 0)))
+        try:
+            radius_km = min(10.0, max(0.1, float(os.getenv("NEARBY_SEARCH_RADIUS_KM", "5"))))
+        except ValueError:
+            radius_km = 5.0
+        max_radius_km = 10.0
+        nearby = [(distance, p) for distance, p in candidates if distance <= radius_km]
+        if len(nearby) < 5:
+            nearby = [(distance, p) for distance, p in candidates if distance <= max_radius_km]
         nearby = nearby[:5]
         steps.append("Đang tìm trong dữ liệu địa điểm")
         if not nearby:
-            return reply(nlg.say("no_result", lang), steps, compose.sug_menu(lang))
-        lines = [
-            f"{i}. {p.name} – khoảng cách đường chim bay "
-            f"{math.hypot((p.latitude - lat) * 111, (p.longitude - lng) * 105):.1f} km"
-            for i, p in enumerate(nearby, 1)
-        ]
-        return reply(
-            "Các địa điểm gần vị trí bạn chia sẻ (khoảng cách đường chim bay, không phải tuyến đường):\n\n"
+            if lang == "vi":
+                text = (
+                    f"Mình chưa có địa điểm phù hợp trong phạm vi {max_radius_km:g} km từ vị trí bạn chia sẻ. "
+                    "Dữ liệu hiện tập trung ở Đà Nẵng; bạn có thể cho mình biết khu vực ở Đà Nẵng "
+                    "hoặc thử danh mục khác."
+                )
+            else:
+                text = (
+                    f"I couldn't find a matching place within {max_radius_km:g} km of the shared location. "
+                    "Our data focuses on Da Nang; tell me an area in Da Nang or try another category."
+                )
+            result = reply(text, steps, compose.sug_menu(lang))
+            result["_skip_llm"] = True
+            return result
+
+        category_labels = {
+            "restaurant": "Quán ăn" if lang == "vi" else "Restaurant",
+            "cafe": "Quán cà phê" if lang == "vi" else "Cafe",
+            "tourist_attraction": "Điểm tham quan" if lang == "vi" else "Attraction",
+            "hotel": "Khách sạn" if lang == "vi" else "Hotel",
+            "homestay": "Homestay",
+            "accommodation": "Lưu trú" if lang == "vi" else "Accommodation",
+            "resort": "Resort",
+            "shopping": "Mua sắm" if lang == "vi" else "Shopping",
+        }
+        lines = []
+        for i, (distance, p) in enumerate(nearby, 1):
+            details = [category_labels.get(p.category, p.category), f"{distance:.1f} km"]
+            if p.address:
+                details.append(p.address)
+            description = (p.description or "").strip()
+            if description:
+                details.append(description[:220].rstrip())
+            lines.append(f"{i}. {p.name} — " + " · ".join(details))
+        max_distance = max(distance for distance, _ in nearby)
+        radius_note = (
+            f" (mở rộng tới {max_radius_km:g} km)" if max_distance > radius_km else ""
+        )
+        listed_places = [p for _, p in nearby]
+        result = reply(
+            "Các địa điểm gần vị trí bạn chia sẻ"
+            + radius_note
+            + " (xếp theo khoảng cách đường chim bay, không phải tuyến đường):\n\n"
             + "\n".join(lines),
             steps,
-            compose.sug_after_search(nearby[0].name, lang),
+            compose.sug_after_search(nearby[0][1].name, lang),
             compose.maps_links(
-                [{"stops": [{"id": p.id, "kind": "visit"}]} for p in nearby],
-                {p.id: p for p in nearby},
+                [{"stops": [{"id": p.id, "kind": "visit"}]} for p in listed_places],
+                {p.id: p for p in listed_places},
                 lang,
             ),
         )
+        result["_skip_llm"] = True
+        return result
 
     if len(msg.split()) <= 3 and not slots and intent not in st.asked:
         st.asked.add(intent)
@@ -972,6 +1063,13 @@ def _respond(st, msg, intent, conf, db, choice, missing_box):
         key in slots for key in ("dish", "wants", "places", "interests")
     ):
         intent = "itinerary"
+    if is_current_location_request(msg) and slots.get("places"):
+        slots["places"] = [
+            place for place in slots["places"]
+            if not NEARBY_SLOT_RE.fullmatch(strip_accents(place).strip())
+        ]
+        if not slots["places"]:
+            slots.pop("places")
     if intent == "itinerary" and st.plan and not slots:
         st.slots.clear()
         st.starting_new_itinerary = True

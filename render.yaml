@@ -61,11 +61,11 @@ services:
       - key: FACEBOOK_GRAPH_VERSION
         value: v24.0
 
-      - key: GEMINI_API_KEY
+      - key: OLLAMA_BASE_URL
         sync: false
 
-      - key: GEMINI_MODEL
-        value: gemini-3.8-flash
+      - key: OLLAMA_MODEL
+        value: qwen3:1.7b
 
       - key: PUBLIC_ORIGIN
         sync: false

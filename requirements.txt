@@ -21,17 +21,18 @@ python-dotenv>=1.0.0
 httpx>=0.27.0
 
 # AI & Agentic Stack
+# LLM cục bộ: Ollama được gọi trực tiếp qua httpx (backend/services/llm_service.py), không cần SDK riêng.
 langchain>=0.2.0
 langchain-core>=0.2.0
 langgraph>=0.1.0
-langchain-google-genai>=1.0.0
+# Chỉ cần cho backend/agent.py (ReAct agent). Có thể bỏ cùng langchain*/langgraph nếu xóa agent.py và place_tool.py.
+langchain-ollama>=0.3.4
 joblib>=1.3.0
 scikit-learn>=1.8.0,<1.9
 pandas>=2.0.0
 
 psycopg[binary]>=3.2,<4
 google-auth>=2.0,<3
-google-genai>=1.0.0
 requests>=2.31,<3
 
 # Kiem thu

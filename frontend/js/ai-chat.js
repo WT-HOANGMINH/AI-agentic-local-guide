@@ -41,19 +41,79 @@
     return event;
   };
 
-  let userPosition = {};
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        userPosition = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        };
-      },
-      () => {},
-      { timeout: 8000 }
-    );
+  let userPosition = null;
+  let positionAt = 0;
+  const LOCATION_CACHE_MS = 60_000;
+  const nearbyRequest = /\b(?:gan\s+(?:toi|cho toi|day|vi tri hien tai|vi tri cua toi)|quanh\s+(?:day|toi)|xung quanh\s+(?:day|toi)|vi tri\s+(?:hien tai|cua toi)|near me|nearby|near here|near my location|around me|around here|my location|current location)\b/;
+
+  function isNearbyRequest(message) {
+    const normalized = String(message || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .toLowerCase();
+    return nearbyRequest.test(normalized);
   }
+
+  function locationError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+  }
+
+  function getCurrentPosition(onStatus) {
+    if (userPosition && Date.now() - positionAt < LOCATION_CACHE_MS) {
+      return Promise.resolve(userPosition);
+    }
+    if (!navigator.geolocation) {
+      return Promise.reject(locationError(
+        'LOCATION_UNAVAILABLE',
+        'Trình duyệt không hỗ trợ xác định vị trí. Hãy nhập tên khu vực bạn muốn tìm.'
+      ));
+    }
+
+    if (onStatus) onStatus('Đang xin quyền truy cập vị trí của bạn…');
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+              latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            reject(locationError(
+              'LOCATION_INVALID',
+              'Vị trí nhận được không hợp lệ. Hãy thử lại hoặc nhập khu vực bạn muốn tìm.'
+            ));
+            return;
+          }
+          userPosition = { latitude, longitude };
+          positionAt = Date.now();
+          resolve(userPosition);
+        },
+        error => {
+          if (error.code === 1) {
+            reject(locationError(
+              'LOCATION_PERMISSION_DENIED',
+              'Bạn chưa cấp quyền vị trí. Hãy bật quyền vị trí cho trang này hoặc nhập tên khu vực bạn muốn tìm.'
+            ));
+          } else if (error.code === 3) {
+            reject(locationError(
+              'LOCATION_TIMEOUT',
+              'Chưa lấy được vị trí vì quá thời gian chờ. Hãy thử lại hoặc nhập tên khu vực bạn muốn tìm.'
+            ));
+          } else {
+            reject(locationError(
+              'LOCATION_UNAVAILABLE',
+              'Thiết bị hiện không xác định được vị trí. Hãy thử lại hoặc nhập tên khu vực bạn muốn tìm.'
+            ));
+          }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: LOCATION_CACHE_MS }
+      );
+    });
+  }
+
+  window.LOCAL_GUIDE_LOCATION = { isNearbyRequest, getCurrentPosition };
 
   // Cho phep API_BASE co hoac khong co hau to /api
   function base() {
@@ -69,12 +129,10 @@
     try { sessionStorage.setItem('dg_sid', v); } catch (e) { /* bo qua */ }
   }
 
-  function chatPayload(message) {
-    return {
-      message,
-      session_id: getSid(),
-      ...userPosition
-    };
+  function chatPayload(message, position) {
+    const payload = { message, session_id: getSid() };
+    if (position) Object.assign(payload, position);
+    return payload;
   }
 
   async function post(path, body) {
@@ -93,7 +151,8 @@
 
   // Ban khong streaming (du phong): tra ve toan bo cau tra loi
   window.API.chat = async function (message) {
-    const response = await post('/api/ai-guide/chat', chatPayload(message));
+    const position = isNearbyRequest(message) ? await getCurrentPosition() : null;
+    const response = await post('/api/ai-guide/chat', chatPayload(message, position));
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(result.error || result.detail || `Lỗi HTTP ${response.status}`);
@@ -105,7 +164,12 @@
   // Nhận token và metadata từ backend cho giao diện chat.
   window.API.chatStream = async function (message, handlers) {
     const h = handlers || {};
-    const response = await post('/api/ai-guide/chat-stream', chatPayload(message));
+    const position = isNearbyRequest(message)
+      ? await getCurrentPosition(text => {
+        if (h.onStatus) h.onStatus({ type: 'status', text });
+      })
+      : null;
+    const response = await post('/api/ai-guide/chat-stream', chatPayload(message, position));
     if (!response.ok || !response.body) {
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || result.detail || `Lỗi HTTP ${response.status}`);

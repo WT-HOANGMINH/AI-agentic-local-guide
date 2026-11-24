@@ -573,9 +573,11 @@ dismiss.addEventListener("click", () => {
     } catch (error) {
       progress.textContent = "";
       answer.classList.remove("dgfw-answer-streaming");
-      answer.textContent =
-        "Không thể kết nối Chat AI. " +
-        (error.message || "Vui lòng thử lại.");
+      answer.textContent = typeof error.code === "string" &&
+        error.code.startsWith("LOCATION_")
+        ? error.message
+        : "Không thể kết nối Chat AI. " +
+          (error.message || "Vui lòng thử lại.");
     } finally {
       sending = false;
       input.disabled = false;

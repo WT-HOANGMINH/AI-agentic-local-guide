@@ -1,25 +1,21 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.routes import ai_guide, auth
+from backend.routes.ai_guide import ChatRequest
 from backend.services import llm_service
 
 
 def test_request_analysis_uses_validated_json_and_conversation_history(monkeypatch):
-    from types import SimpleNamespace
-
     request = {}
 
-    def generate_content(**kwargs):
-        request.update(kwargs)
-        return SimpleNamespace(
-            text='{"intent":"general","confidence":0.97,"requires_local_data":false}'
-        )
+    def chat_once(messages, **kwargs):
+        request["messages"] = messages
+        request["kwargs"] = kwargs
+        return '{"intent":"general","confidence":0.97,"requires_local_data":false}'
 
-    client = SimpleNamespace(
-        models=SimpleNamespace(generate_content=generate_content)
-    )
-    monkeypatch.setattr(llm_service, "get_gemini_client", lambda: client)
+    monkeypatch.setattr(llm_service, "_chat_once", chat_once)
 
     result = llm_service.analyze_request(
         "Mặc gì cho chuyến đi?",
@@ -31,14 +27,54 @@ def test_request_analysis_uses_validated_json_and_conversation_history(monkeypat
 
     assert result.intent == "general"
     assert result.requires_local_data is False
-    assert request["config"]["response_mime_type"] == "application/json"
-    assert request["config"]["response_schema"] is llm_service.RequestAnalysis
-    assert "Tôi đi Đà Nẵng 3 ngày" in request["contents"]
-    assert "Mặc gì cho chuyến đi?" in request["contents"]
+    assert request["kwargs"]["schema"]["title"] == "RequestAnalysis"
+    prompt = str(request["messages"])
+    assert "Tôi đi Đà Nẵng 3 ngày" in prompt
+    assert "Mặc gì cho chuyến đi?" in prompt
+
+
+def test_chat_request_requires_latitude_and_longitude_as_a_pair():
+    assert ChatRequest(message="Tìm quán gần tôi").latitude is None
+    with pytest.raises(ValueError):
+        ChatRequest(message="Tìm quán gần tôi", latitude=16.0)
+    with pytest.raises(ValueError):
+        ChatRequest(message="Tìm quán gần tôi", longitude=108.0)
+
+
+def test_nearby_query_forces_local_route_when_classifier_says_general(monkeypatch):
+    observed = {}
+
+    class FakeDatabase:
+        def close(self):
+            pass
+
+    def respond(state, message, intent, confidence, db, **kwargs):
+        observed.update(intent=intent, pos=state.pos, lat=kwargs["lat"], lng=kwargs["lng"])
+        return {"text": "Verified nearby places", "steps": []}
+
+    monkeypatch.setattr(ai_guide, "_route", lambda message, state: ("general", 0.9, "ollama"))
+    monkeypatch.setattr(ai_guide, "SessionLocal", FakeDatabase)
+    monkeypatch.setattr(ai_guide, "respond", respond)
+
+    result = ai_guide._compute(
+        "Find places near here",
+        ai_guide.State(),
+        16.06,
+        108.22,
+    )
+
+    assert result["intent"] == "attraction"
+    assert result["router"] == "local"
+    assert observed == {
+        "intent": "attraction",
+        "pos": (16.06, 108.22),
+        "lat": 16.06,
+        "lng": 108.22,
+    }
 
 
 def test_general_chat_uses_llm_analysis_without_intent_classifier(monkeypatch):
-    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: True)
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: True)
     monkeypatch.setattr(
         ai_guide,
         "analyze_request",
@@ -73,49 +109,33 @@ def test_general_chat_uses_llm_analysis_without_intent_classifier(monkeypatch):
     assert response.json()["reply"] == "Bạn nên chuẩn bị trang phục thoải mái."
 
 
-def test_gemini_stream_yields_only_user_facing_model_output(monkeypatch):
-    from types import SimpleNamespace
+def test_verified_nearby_results_skip_llm_rewriting(monkeypatch):
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: True)
 
-    events = [
-        SimpleNamespace(
-            event_type="step.start",
-            index=0,
-            step=SimpleNamespace(type="thought"),
-        ),
-        SimpleNamespace(
-            event_type="step.delta",
-            index=0,
-            delta=SimpleNamespace(type="text", text="private thought"),
-        ),
-        SimpleNamespace(
-            event_type="step.start",
-            index=1,
-            step=SimpleNamespace(type="model_output"),
-        ),
-        SimpleNamespace(
-            event_type="step.delta",
-            index=1,
-            delta=SimpleNamespace(type="text", text="Câu trả lời"),
-        ),
-        SimpleNamespace(
-            event_type="step.delta",
-            index=1,
-            delta=SimpleNamespace(type="text", text=" đã xác minh"),
-        ),
-    ]
+    mode = ai_guide._llm_mode({
+        "_skip_llm": True,
+        "status": "completed",
+        "intent": "attraction",
+        "text": "Khoảng cách Haversine và thứ tự POI",
+    })
+
+    assert mode == "skip"
+
+
+def test_ollama_stream_yields_only_user_facing_model_output(monkeypatch):
     request = {}
-    client = SimpleNamespace(
-        interactions=SimpleNamespace(
-            create=lambda **kwargs: (request.update(kwargs) or events)
-        )
-    )
-    monkeypatch.setattr(llm_service, "get_gemini_client", lambda: client)
+
+    def stream_chat(messages, **kwargs):
+        request["messages"] = messages
+        yield "Câu trả lời"
+        yield " đã xác minh"
+
+    monkeypatch.setattr(llm_service, "_stream_chat", stream_chat)
 
     result = list(llm_service.stream_grounded_answer("Câu hỏi", "Dữ liệu thật"))
 
     assert result == ["Câu trả lời", " đã xác minh"]
-    assert request["stream"] is True
-    assert request["input"].endswith("Dữ liệu thật")
+    assert "Dữ liệu thật" in str(request["messages"])
 
 
 def test_local_frontend_origin_can_use_session_cookie():
@@ -175,7 +195,7 @@ def test_production_csrf_rejects_unconfigured_origin(monkeypatch):
 
 
 def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
-    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: False)
     monkeypatch.setattr(
         ai_guide,
         "_compute",
@@ -222,7 +242,7 @@ def test_chat_stream_marks_non_streaming_fallback(monkeypatch):
 
 
 def test_chat_stream_hides_place_count_in_progress_step(monkeypatch):
-    monkeypatch.setattr(ai_guide, "is_gemini_configured", lambda: False)
+    monkeypatch.setattr(ai_guide, "is_ollama_available", lambda: False)
     monkeypatch.setattr(
         ai_guide,
         "_compute",

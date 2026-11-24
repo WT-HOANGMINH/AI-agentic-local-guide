@@ -2,7 +2,7 @@
  *
  * Hiển thị:
  *  - các bước xử lý THẬT do backend báo ("Đang truy cập cơ sở dữ liệu...", "Đang truy cập dữ liệu thời tiết...")
- *  - chữ hiện dần chỉ khi backend thực sự stream token từ Gemini
+ *  - chữ hiện dần chỉ khi backend thực sự stream token từ Ollama
  *  - gợi ý bấm/tick chọn: 1 lựa chọn -> gửi ngay; nhiều lựa chọn -> tick rồi bấm "Gửi lựa chọn"
  *  - nút bản đồ Google Maps, nút "Dùng vị trí của tôi", nút Dừng, nút Thử lại
  *
@@ -126,14 +126,12 @@
   function clearSuggest(box) { box.querySelectorAll(".dg-suggest,.dg-links").forEach((e) => e.remove()); }
 
   function getGeo() {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      navigator.geolocation.getCurrentPosition(
-        (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-        () => resolve(null),
-        { timeout: 8000, maximumAge: 60000 }
-      );
-    });
+    if (window.LOCAL_GUIDE_LOCATION) {
+      return window.LOCAL_GUIDE_LOCATION.getCurrentPosition();
+    }
+    return Promise.reject(new Error(
+      "Trình duyệt không hỗ trợ xác định vị trí. Hãy nhập tên khu vực bạn muốn tìm."
+    ));
   }
 
   // ---------- bước xử lý ----------
@@ -286,13 +284,21 @@
 
     clearSuggest(box);
     let showText = shown || text;
-    if (text === "__geo__") {
-      const g = await getGeo();
-      if (!g) {
-        addMsg(box, "bot", "Mình chưa lấy được vị trí của bạn (trình duyệt chưa cho phép). Bạn chọn một điểm xuất phát bên dưới giúp mình nhé.");
+    const explicitGeoRequest = text === "__geo__";
+    const needsLocation = explicitGeoRequest ||
+      Boolean(window.LOCAL_GUIDE_LOCATION &&
+        window.LOCAL_GUIDE_LOCATION.isNearbyRequest(text));
+    if (needsLocation) {
+      try {
+        state.pos = await getGeo();
+      } catch (error) {
+        addMsg(box, "user", esc(showText));
+        c.input.value = "";
+        addMsg(box, "bot", esc(error.message || "Không thể xác định vị trí. Hãy nhập tên khu vực bạn muốn tìm."));
         return;
       }
-      state.pos = g;
+    }
+    if (explicitGeoRequest) {
       text = "Dùng vị trí hiện tại của tôi";
       showText = "📍 Dùng vị trí của tôi";
     }
@@ -300,7 +306,7 @@
     c.input.value = "";
 
     const body = { message: text, session_id: getSessionId() || undefined };
-    if (state.pos) Object.assign(body, state.pos);
+    if (needsLocation && state.pos) Object.assign(body, state.pos);
 
     setBusy(true);
     const steps = makeSteps(box);

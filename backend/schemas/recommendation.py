@@ -34,8 +34,8 @@ class ChatRecommendationResponse(BaseModel):
         description="Danh sách các địa điểm phù hợp trong cơ sở dữ liệu Đà Nẵng"
     )
     source: str = Field(
-        default="gemini_agent",
-        description="Nguồn xử lý: 'gemini_agent' (AI ReAct Agent) hoặc 'smart_recommendation_engine' (Engine thông minh dự phòng)"
+        default="ollama_agent",
+        description="Nguồn xử lý: 'ollama_agent' (AI ReAct Agent) hoặc 'smart_recommendation_engine' (Engine thông minh dự phòng)"
     )
 
 
